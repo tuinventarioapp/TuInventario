@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.idea/
+.vscode/
+.env
+.env.*
+!.env.example
+apps/web/node_modules/
+apps/web/dist/
+apps/api/target/
+infra/postgres-data/
