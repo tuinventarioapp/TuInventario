@@ -5,14 +5,19 @@ import com.tuinventario.api.domain.entity.CategoryEntity;
 import com.tuinventario.api.domain.entity.ItemEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.UnitEntity;
+import com.tuinventario.api.domain.enums.ItemStatus;
 import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.repository.BorrowerRepository;
 import com.tuinventario.api.domain.repository.CategoryRepository;
 import com.tuinventario.api.domain.repository.ItemRepository;
+import com.tuinventario.api.domain.repository.LoanRepository;
+import com.tuinventario.api.domain.repository.LoanRequestRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.UnitRepository;
+import com.tuinventario.api.shared.exception.ApiException;
 import com.tuinventario.api.shared.service.CurrentContextService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +35,8 @@ public class CatalogService {
     private final LocationRepository locationRepository;
     private final BorrowerRepository borrowerRepository;
     private final ItemRepository itemRepository;
+    private final LoanRepository loanRepository;
+    private final LoanRequestRepository loanRequestRepository;
 
     @Transactional(readOnly = true)
     public List<CatalogDtos.CatalogOptionResponse> listCategories() {
@@ -100,10 +107,11 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public List<CatalogDtos.CatalogOptionResponse> listPublicLoanableItems(UUID organizationId) {
-        return itemRepository.search(organizationId, null, org.springframework.data.domain.PageRequest.of(0, 100))
+        return itemRepository.search(organizationId, "", org.springframework.data.domain.PageRequest.of(0, 100))
                 .stream()
                 .filter(ItemEntity::isLendable)
                 .filter(item -> item.getAvailableStock().compareTo(BigDecimal.ZERO) > 0)
+                .filter(item -> item.getStatus() != ItemStatus.ARCHIVED && item.getStatus() != ItemStatus.LOST && item.getStatus() != ItemStatus.MAINTENANCE)
                 .map(item -> new CatalogDtos.CatalogOptionResponse(
                         item.getId().toString(),
                         item.getName(),
@@ -117,12 +125,49 @@ public class CatalogService {
         currentContextService.requireManagerOrAdmin();
         BorrowerEntity entity = new BorrowerEntity();
         entity.setOrganization(currentContextService.currentOrganizationEntity());
-        entity.setName(request.name());
-        entity.setEmail(request.email());
-        entity.setPhone(request.phone());
-        entity.setNotes(request.notes());
+        entity.setName(request.name().trim());
+        entity.setEmail(normalizeOptional(request.email()));
+        entity.setPhone(normalizeOptional(request.phone()));
+        entity.setNotes(normalizeOptional(request.notes()));
         borrowerRepository.save(entity);
         return mapBorrower(entity);
+    }
+
+    @Transactional
+    public CatalogDtos.BorrowerResponse updateBorrower(UUID borrowerId, CatalogDtos.UpdateBorrowerRequest request) {
+        currentContextService.requireManagerOrAdmin();
+        BorrowerEntity entity = findBorrower(borrowerId);
+        entity.setName(request.name().trim());
+        entity.setEmail(normalizeOptional(request.email()));
+        entity.setPhone(normalizeOptional(request.phone()));
+        entity.setNotes(normalizeOptional(request.notes()));
+        borrowerRepository.save(entity);
+        return mapBorrower(entity);
+    }
+
+    @Transactional
+    public void deleteBorrower(UUID borrowerId) {
+        currentContextService.requireManagerOrAdmin();
+        BorrowerEntity entity = findBorrower(borrowerId);
+        UUID organizationId = currentContextService.currentUser().organizationId();
+        boolean hasHistory = loanRepository.existsByBorrowerIdAndOrganizationId(borrowerId, organizationId)
+                || loanRequestRepository.existsByBorrowerIdAndOrganizationId(borrowerId, organizationId);
+        if (hasHistory) {
+            throw new ApiException(HttpStatus.CONFLICT, "BORROWER_HAS_HISTORY", "No puedes eliminar un prestatario con prestamos o solicitudes registradas.");
+        }
+        borrowerRepository.delete(entity);
+    }
+
+    private BorrowerEntity findBorrower(UUID borrowerId) {
+        return borrowerRepository.findByIdAndOrganizationId(borrowerId, currentContextService.currentUser().organizationId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "BORROWER_NOT_FOUND", "Prestatario no encontrado."));
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private CatalogDtos.BorrowerResponse mapBorrower(BorrowerEntity entity) {

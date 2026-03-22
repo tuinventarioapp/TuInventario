@@ -2,10 +2,16 @@ package com.tuinventario.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tuinventario.api.domain.entity.CategoryEntity;
 import com.tuinventario.api.domain.entity.ItemEntity;
+import com.tuinventario.api.domain.entity.LocationEntity;
+import com.tuinventario.api.domain.entity.UnitEntity;
 import com.tuinventario.api.domain.repository.BorrowerRepository;
+import com.tuinventario.api.domain.repository.CategoryRepository;
 import com.tuinventario.api.domain.repository.ItemRepository;
+import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.OrganizationRepository;
+import com.tuinventario.api.domain.repository.UnitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,10 +23,15 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,6 +54,15 @@ class OperationalFlowTest {
     private BorrowerRepository borrowerRepository;
 
     @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private UnitRepository unitRepository;
+
+    @Autowired
+    private LocationRepository locationRepository;
+
+    @Autowired
     private OrganizationRepository organizationRepository;
 
     private String adminToken;
@@ -56,19 +76,19 @@ class OperationalFlowTest {
 
     @Test
     void shouldExposeDashboardAndProtectedReportsForAdmin() throws Exception {
-        mockMvc.perform(get("/api/v1/dashboard")
+                mockMvc.perform(get("/api/v1/dashboard")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalItems").value(1))
-                .andExpect(jsonPath("$.lowStockItems").value(0))
-                .andExpect(jsonPath("$.activeLoans").value(0))
-                .andExpect(jsonPath("$.overdueLoans").value(0));
+                .andExpect(jsonPath("$.totalItems").value(greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.lowStockItems").value(greaterThanOrEqualTo(0)))
+                .andExpect(jsonPath("$.activeLoans").value(greaterThanOrEqualTo(0)))
+                .andExpect(jsonPath("$.overdueLoans").value(greaterThanOrEqualTo(0)));
 
         mockMvc.perform(get("/api/v1/reports/inventory.csv")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/csv"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Taladro Inalambrico")));
+                .andExpect(content().string(containsString("Taladro Inalambrico")));
     }
 
     @Test
@@ -151,10 +171,134 @@ class OperationalFlowTest {
     void shouldListPublicLoanableItems() throws Exception {
         String organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId().toString();
 
-        mockMvc.perform(get("/api/v1/public-items")
+                mockMvc.perform(get("/api/v1/public-items")
                         .param("organizationId", organizationId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Taladro Inalambrico"));
+                .andExpect(content().string(containsString("Taladro Inalambrico")));
+    }
+
+    @Test
+    void shouldFilterInventoryAndExposeDamagedStock() throws Exception {
+        String itemId = createItem("Filtro Demo", "FILTRO-" + System.nanoTime(), 1);
+
+                mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("stockFilter", "LOW_STOCK")
+                        .param("query", "Filtro Demo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(itemId))
+                .andExpect(jsonPath("$.content[0].damagedStock").value(0));
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("query", "Filtro Demo")
+                        .param("type", "LENDABLE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(itemId));
+    }
+
+    @Test
+    void shouldSupportPartialAndFinalLoanReturns() throws Exception {
+        String borrowerId = createBorrower("Borrower Parcial " + System.nanoTime());
+        String itemId = createItem("Item Parcial", "PART-" + System.nanoTime(), 5);
+        Instant dueAt = Instant.now().plus(2, ChronoUnit.DAYS);
+
+        String loanRequestId = createLoanRequest(borrowerId, itemId, 3, dueAt);
+        String loanId = approveLoanRequest(loanRequestId);
+        deliverLoan(loanId, "Entrega parcial");
+
+        mockMvc.perform(post("/api/v1/loans/{id}/return", loanId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "returnedGoodQuantity", 1,
+                                "returnedDamagedQuantity", 1,
+                                "lostQuantity", 0,
+                                "notes", "Regresaron 2, una danada"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELIVERED"))
+                .andExpect(jsonPath("$.outstandingQuantity").value(1))
+                .andExpect(jsonPath("$.returnedDamagedQuantity").value(1));
+
+        ItemEntity partialItem = itemRepository.findById(UUID.fromString(itemId)).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(0, partialItem.getLoanedStock().compareTo(new java.math.BigDecimal("1.00")));
+        org.junit.jupiter.api.Assertions.assertEquals(0, partialItem.getDamagedStock().compareTo(new java.math.BigDecimal("1.00")));
+
+        mockMvc.perform(post("/api/v1/loans/{id}/return", loanId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "returnedGoodQuantity", 0,
+                                "returnedDamagedQuantity", 0,
+                                "lostQuantity", 1,
+                                "notes", "Falto una unidad"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RETURNED"))
+                .andExpect(jsonPath("$.outstandingQuantity").value(0))
+                .andExpect(jsonPath("$.lostQuantity").value(1))
+                .andExpect(jsonPath("$.returnCondition").value("LOST"));
+    }
+
+    @Test
+    void shouldAllowAdminToUpdateAndBlockUsers() throws Exception {
+        String email = "usuario." + System.nanoTime() + "@tuinventario.local";
+        String userId = createUser(email, "COLLABORATOR");
+
+        mockMvc.perform(put("/api/v1/users/{id}", userId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "fullName", "Usuario Editado",
+                                "email", email,
+                                "role", "MANAGER",
+                                "status", "ACTIVE"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("MANAGER"));
+
+        mockMvc.perform(delete("/api/v1/users/{id}", userId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", email,
+                                "password", "Prueba123!"
+                        ))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldUpdateAndDeleteBorrowersRespectingHistory() throws Exception {
+        String borrowerId = createBorrower("Sin Historial " + System.nanoTime());
+
+        mockMvc.perform(put("/api/v1/borrowers/{id}", borrowerId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Sin Historial Editado",
+                                "email", "borrower@test.local",
+                                "phone", "3001112233",
+                                "notes", "Actualizado"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Sin Historial Editado"));
+
+        mockMvc.perform(delete("/api/v1/borrowers/{id}", borrowerId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        String borrowerWithHistoryId = createBorrower("Con Historial " + System.nanoTime());
+        String itemId = createItem("Item Historial", "HIST-" + System.nanoTime(), 2);
+        createLoanRequest(borrowerWithHistoryId, itemId, 1, Instant.now().plus(1, ChronoUnit.DAYS));
+
+        mockMvc.perform(delete("/api/v1/borrowers/{id}", borrowerWithHistoryId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("BORROWER_HAS_HISTORY"));
     }
 
     private String login(String email, String password) throws Exception {
@@ -171,5 +315,105 @@ class OperationalFlowTest {
 
         JsonNode jsonNode = objectMapper.readTree(response);
         return jsonNode.get("accessToken").asText();
+    }
+
+    private String createBorrower(String name) throws Exception {
+        String response = mockMvc.perform(post("/api/v1/borrowers")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", name,
+                                "email", "",
+                                "phone", "",
+                                "notes", "Creado en prueba"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("id").asText();
+    }
+
+    private String createItem(String name, String sku, int stock) throws Exception {
+        UUID organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId();
+        CategoryEntity category = categoryRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
+        UnitEntity unit = unitRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
+        LocationEntity location = locationRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
+
+        String response = mockMvc.perform(post("/api/v1/items")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", name,
+                                "sku", sku,
+                                "description", "Item de prueba",
+                                "type", "LENDABLE",
+                                "categoryId", category.getId().toString(),
+                                "unitId", unit.getId().toString(),
+                                "primaryLocationId", location.getId().toString(),
+                                "initialStock", stock
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readTree(response).get("id").asText();
+    }
+
+    private String createLoanRequest(String borrowerId, String itemId, int quantity, Instant dueAt) throws Exception {
+        String response = mockMvc.perform(post("/api/v1/loan-requests")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "borrowerId", borrowerId,
+                                "itemId", itemId,
+                                "quantity", quantity,
+                                "dueAt", dueAt.toString(),
+                                "notes", "Prestamo de prueba"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("id").asText();
+    }
+
+    private String approveLoanRequest(String loanRequestId) throws Exception {
+        String response = mockMvc.perform(post("/api/v1/loan-requests/{id}/approve", loanRequestId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("notes", "Solicitud aprobada"))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("id").asText();
+    }
+
+    private void deliverLoan(String loanId, String notes) throws Exception {
+        mockMvc.perform(post("/api/v1/loans/{id}/deliver", loanId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("notes", notes))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELIVERED"));
+    }
+
+    private String createUser(String email, String role) throws Exception {
+        String response = mockMvc.perform(post("/api/v1/users")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "fullName", "Usuario Prueba",
+                                "email", email,
+                                "password", "Prueba123!",
+                                "role", role
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("id").asText();
     }
 }

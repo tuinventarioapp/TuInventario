@@ -1,5 +1,7 @@
 package com.tuinventario.api.inventory;
 
+import com.tuinventario.api.domain.enums.ItemStatus;
+import com.tuinventario.api.domain.enums.ItemType;
 import com.tuinventario.api.shared.model.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +26,17 @@ public class ItemController {
     @GetMapping
     public PageResponse<ItemDtos.ItemResponse> listItems(
             @RequestParam(required = false) String query,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) ItemStatus status,
+            @RequestParam(required = false) ItemType type,
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) String stockFilter,
+            @RequestParam(required = false) java.math.BigDecimal minAvailableStock,
+            @RequestParam(required = false) java.math.BigDecimal maxAvailableStock,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return itemService.listItems(query, page, size);
+        return itemService.listItems(query, categoryId, status, type, locationId, stockFilter, minAvailableStock, maxAvailableStock, page, size);
     }
 
     @GetMapping("/{id}")

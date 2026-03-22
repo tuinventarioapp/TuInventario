@@ -29,5 +29,5 @@ export function canSeeReports(role?: string | null) {
 }
 
 export function canManageBorrowers(role?: string | null) {
-  return role === 'ADMIN' || role === 'MANAGER' || role === 'COLLABORATOR'
+  return role === 'ADMIN' || role === 'MANAGER'
 }

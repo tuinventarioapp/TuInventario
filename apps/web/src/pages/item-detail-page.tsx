@@ -7,12 +7,15 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { useI18n } from '../i18n/use-i18n'
+import { canManageInventory } from '../lib/access'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
+import { useAuthStore } from '../store/auth-store'
 
 export function ItemDetailPage() {
   const { t, enumLabel } = useI18n()
   const { itemId } = useParams()
+  const user = useAuthStore((state) => state.user)
   const itemQuery = useQuery({
     queryKey: ['item', itemId],
     queryFn: () => api.item(itemId!),
@@ -29,7 +32,7 @@ export function ItemDetailPage() {
       <PageHeader
         title={item.name}
         description={`SKU ${item.sku} - ${item.category}`}
-        action={<Link to={`/app/items/${item.id}/edit`}><Button>{t('common.edit')}</Button></Link>}
+        action={canManageInventory(user?.role) ? <Link to={`/app/items/${item.id}/edit`}><Button>{t('common.edit')}</Button></Link> : undefined}
       />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -45,6 +48,7 @@ export function ItemDetailPage() {
             <p>{t('items.available')}: <strong>{item.availableStock}</strong></p>
             <p>{t('items.reserved')}: <strong>{item.reservedStock}</strong></p>
             <p>{t('items.loaned')}: <strong>{item.loanedStock}</strong></p>
+            <p>{t('items.damaged')}: <strong>{item.damagedStock}</strong></p>
             <p>{t('items.detail.total')}: <strong>{item.totalStock}</strong></p>
           </div>
         </Card>

@@ -51,6 +51,8 @@ Piensalo asi:
 
 - Si una accion no avanza, mira el mensaje rojo: ahora la app muestra el motivo del fallo.
 - Si un reporte no baja, revisa que tu sesion siga abierta.
-- Si no ves articulos en el panel, crea el primero en `Inventario`.
+- Si no ves articulos en el panel, crea el primero en `Inventario` o revisa los filtros aplicados.
 - Si no puedes pedir un prestamo, primero crea un prestatario y asegurate de tener stock disponible.
+- Si una devolucion no es completa, registra por separado lo que regreso bien, lo que regreso danado y lo que se perdio.
+- Si una empresa tiene muchos articulos, usa los filtros de categoria, estado, tipo, ubicacion y stock para encontrar lo necesario rapido.
 - Si vas a compartir una solicitud publica, usa la URL publica con `organizationId`.

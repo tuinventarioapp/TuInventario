@@ -44,8 +44,33 @@ public class ItemService {
     private final RealtimePublisher realtimePublisher;
 
     @Transactional(readOnly = true)
-    public PageResponse<ItemDtos.ItemResponse> listItems(String query, int page, int size) {
-        var result = itemRepository.search(currentContextService.currentUser().organizationId(), query, PageRequest.of(page, size))
+    public PageResponse<ItemDtos.ItemResponse> listItems(
+            String query,
+            UUID categoryId,
+            ItemStatus status,
+            ItemType type,
+            UUID locationId,
+            String stockFilter,
+            BigDecimal minAvailableStock,
+            BigDecimal maxAvailableStock,
+            int page,
+            int size
+    ) {
+        String safeQuery = query == null ? "" : query.trim();
+        String safeStockFilter = stockFilter == null || stockFilter.isBlank() ? null : stockFilter.trim().toUpperCase();
+        var result = itemRepository.search(
+                        currentContextService.currentUser().organizationId(),
+                        safeQuery,
+                        categoryId,
+                        status,
+                        type,
+                        locationId,
+                        safeStockFilter,
+                        minAvailableStock,
+                        maxAvailableStock,
+                        BigDecimal.ONE,
+                        PageRequest.of(page, size)
+                )
                 .map(this::mapItem);
         return PageResponse.from(result);
     }
@@ -83,6 +108,7 @@ public class ItemService {
         item.setAvailableStock(BigDecimal.ZERO);
         item.setReservedStock(BigDecimal.ZERO);
         item.setLoanedStock(BigDecimal.ZERO);
+        item.setDamagedStock(BigDecimal.ZERO);
         itemRepository.save(item);
 
         BigDecimal initialStock = request.initialStock() == null ? BigDecimal.ZERO : request.initialStock();
@@ -173,6 +199,7 @@ public class ItemService {
                 item.getAvailableStock(),
                 item.getReservedStock(),
                 item.getLoanedStock(),
+                item.getDamagedStock(),
                 item.getLastMovementAt()
         );
     }

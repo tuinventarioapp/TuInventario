@@ -36,7 +36,12 @@ public final class LoanDtos {
     public record LoanActionPayload(String notes) {
     }
 
-    public record ReturnLoanPayload(@NotNull ReturnCondition returnCondition, String notes) {
+    public record ReturnLoanPayload(
+            @NotNull BigDecimal returnedGoodQuantity,
+            @NotNull BigDecimal returnedDamagedQuantity,
+            @NotNull BigDecimal lostQuantity,
+            String notes
+    ) {
     }
 
     public record LoanRequestResponse(
@@ -56,11 +61,22 @@ public final class LoanDtos {
             String borrowerName,
             String itemName,
             BigDecimal quantity,
+            BigDecimal returnedQuantity,
+            BigDecimal outstandingQuantity,
+            BigDecimal returnedGoodQuantity,
+            BigDecimal returnedDamagedQuantity,
+            BigDecimal lostQuantity,
+            String returnCondition,
             String status,
+            Instant requestedAt,
+            Instant approvedAt,
             Instant dueAt,
             Instant loanedAt,
             Instant returnedAt,
-            String notes
+            String notes,
+            String returnNotes,
+            String approvedBy,
+            String deliveredBy
     ) {
     }
 }

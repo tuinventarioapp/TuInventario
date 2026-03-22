@@ -78,6 +78,9 @@ public class ItemEntity extends BaseEntity {
     @Column(name = "loaned_stock", nullable = false, precision = 19, scale = 2)
     private BigDecimal loanedStock;
 
+    @Column(name = "damaged_stock", nullable = false, precision = 19, scale = 2)
+    private BigDecimal damagedStock;
+
     private Instant lastMovementAt;
 
     @Version

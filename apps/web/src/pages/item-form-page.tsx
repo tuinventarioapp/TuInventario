@@ -12,7 +12,9 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useI18n } from '../i18n/use-i18n'
+import { canManageInventory } from '../lib/access'
 import { api } from '../lib/api'
+import { useAuthStore } from '../store/auth-store'
 
 type CreateValues = {
   name: string
@@ -40,6 +42,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const { t, enumLabel } = useI18n()
   const navigate = useNavigate()
   const { itemId } = useParams()
+  const user = useAuthStore((state) => state.user)
   const createSchema = z.object({
     name: z.string().min(3, t('validation.name')),
     sku: z.string().min(2, t('validation.required')),
@@ -116,6 +119,18 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
     mode === 'create'
       ? createForm.register(name as keyof CreateValues)
       : updateForm.register(name as keyof UpdateValues)
+
+  if (!canManageInventory(user?.role)) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={mode === 'create' ? t('itemForm.createTitle') : t('itemForm.editTitle')}
+          description={t('itemForm.description')}
+        />
+        <Notice variant="warning">{t('catalogs.managerOnly')}</Notice>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

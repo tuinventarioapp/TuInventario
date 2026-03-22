@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 import { useRealtimeSync } from '../../hooks/use-realtime-sync'
 import { useI18n } from '../../i18n/use-i18n'
-import { canManageCatalogs, canManageUsers, canSeeAudit, canSeeReports } from '../../lib/access'
+import { canManageBorrowers, canManageCatalogs, canManageUsers, canSeeAudit, canSeeReports } from '../../lib/access'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth-store'
 import { Button } from '../ui/button'
@@ -21,7 +21,7 @@ export function AppShell() {
     { to: '/app/catalogs', label: t('nav.catalogs'), icon: Layers3, visible: canManageCatalogs(user?.role) },
     { to: '/app/movements', label: t('nav.movements'), icon: ClipboardList, visible: true },
     { to: '/app/loans', label: t('nav.loans'), icon: HandCoins, visible: true },
-    { to: '/app/borrowers', label: t('nav.borrowers'), icon: Users, visible: true },
+    { to: '/app/borrowers', label: t('nav.borrowers'), icon: Users, visible: canManageBorrowers(user?.role) },
     { to: '/app/reports', label: t('nav.reports'), icon: ReceiptText, visible: canSeeReports(user?.role) },
     { to: '/app/users', label: t('nav.users'), icon: ShieldCheck, visible: canManageUsers(user?.role) },
     { to: '/app/audit', label: t('nav.audit'), icon: Bell, visible: canSeeAudit(user?.role) },

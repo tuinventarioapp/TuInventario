@@ -5,10 +5,11 @@
 Puede:
 
 - ver todo;
-- crear usuarios internos;
+- crear, editar y bloquear usuarios internos;
 - crear y editar articulos;
 - administrar catalogos;
 - registrar movimientos;
+- crear, editar y eliminar prestatarios;
 - aprobar, entregar y cerrar prestamos;
 - descargar reportes;
 - revisar auditoria;
@@ -21,8 +22,8 @@ Puede:
 - crear y editar articulos;
 - administrar catalogos;
 - registrar movimientos;
+- crear, editar y eliminar prestatarios;
 - crear, aprobar, entregar y devolver prestamos;
-- crear prestatarios;
 - descargar reportes;
 - revisar auditoria operativa.
 
@@ -36,13 +37,13 @@ Puede:
 
 - consultar inventario;
 - ver movimientos;
-- crear prestatarios;
 - crear solicitudes de prestamo;
 - revisar reportes si su organizacion lo permite.
 
 No puede:
 
 - crear usuarios internos;
+- crear o editar prestatarios;
 - administrar catalogos;
 - aprobar o cerrar prestamos si el backend no se lo permite.
 

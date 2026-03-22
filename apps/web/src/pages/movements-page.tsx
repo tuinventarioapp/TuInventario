@@ -10,8 +10,10 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useI18n } from '../i18n/use-i18n'
+import { canManageInventory } from '../lib/access'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
+import { useAuthStore } from '../store/auth-store'
 
 type FormValues = {
   movementType: 'ENTRY' | 'EXIT' | 'ADJUSTMENT' | 'TRANSFER'
@@ -25,6 +27,7 @@ type FormValues = {
 
 export function MovementsPage() {
   const { t, enumLabel } = useI18n()
+  const user = useAuthStore((state) => state.user)
   const schema = z.object({
     movementType: z.enum(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER']),
     itemId: z.string().min(1, t('validation.required')),
@@ -40,7 +43,8 @@ export function MovementsPage() {
     defaultValues: { movementType: 'ENTRY' },
   })
 
-  const itemsQuery = useQuery({ queryKey: ['items', 'movement-form'], queryFn: () => api.items('', 0, 50) })
+  const canEditInventory = canManageInventory(user?.role)
+  const itemsQuery = useQuery({ queryKey: ['items', 'movement-form'], queryFn: () => api.items({ query: '', page: 0, size: 50 }), enabled: canEditInventory })
   const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations })
   const movementsQuery = useQuery({ queryKey: ['movements'], queryFn: () => api.movements() })
 
@@ -60,9 +64,10 @@ export function MovementsPage() {
 
       {mutation.isError && <Notice variant="error">{mutation.error.message}</Notice>}
       {mutation.isSuccess && <Notice variant="success">{t('movements.success')}</Notice>}
+      {!canEditInventory && <Notice variant="warning">{t('catalogs.managerOnly')}</Notice>}
 
-      <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-        <Card>
+      <div className={`grid gap-6 ${canEditInventory ? 'xl:grid-cols-[360px_1fr]' : ''}`}>
+        {canEditInventory && <Card>
           <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
             <div className="space-y-2">
               <label className="text-sm font-medium">{t('movements.type')}</label>
@@ -108,7 +113,7 @@ export function MovementsPage() {
             </div>
             <Button className="w-full" type="submit">{t('movements.submit')}</Button>
           </form>
-        </Card>
+        </Card>}
 
         <Card>
           <div className="space-y-4">

@@ -131,6 +131,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         item.setAvailableStock(new BigDecimal("4"));
         item.setReservedStock(BigDecimal.ZERO);
         item.setLoanedStock(BigDecimal.ZERO);
+        item.setDamagedStock(BigDecimal.ZERO);
         itemRepository.save(item);
 
         BorrowerEntity borrower = new BorrowerEntity();

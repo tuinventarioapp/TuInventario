@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface LoanRequestRepository extends JpaRepository<LoanRequestEntity, UUID> {
     List<LoanRequestEntity> findByOrganizationIdOrderByRequestedAtDesc(UUID organizationId);
     Optional<LoanRequestEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    boolean existsByBorrowerIdAndOrganizationId(UUID borrowerId, UUID organizationId);
 }

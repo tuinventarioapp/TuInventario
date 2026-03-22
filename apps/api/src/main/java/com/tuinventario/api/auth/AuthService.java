@@ -28,6 +28,8 @@ import com.tuinventario.api.shared.util.SlugUtils;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -92,7 +94,16 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthDtos.AuthResponse login(AuthDtos.LoginRequest request) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+        } catch (InternalAuthenticationServiceException exception) {
+            if (exception.getCause() instanceof ApiException apiException) {
+                throw apiException;
+            }
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Credenciales invalidas.");
+        } catch (BadCredentialsException exception) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Credenciales invalidas.");
+        }
         UserEntity user = userRepository.findByEmailIgnoreCase(request.email())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Credenciales invalidas."));
         MembershipEntity membership = membershipRepository.findFirstByUserIdOrderByCreatedAtAsc(user.getId())

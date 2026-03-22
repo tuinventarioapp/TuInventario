@@ -33,12 +33,12 @@ public class DashboardController {
         long activeLoans = loanRepository.findByOrganizationIdOrderByCreatedAtDesc(orgId).stream()
                 .filter(loan -> loan.getStatus() == LoanStatus.DELIVERED || loan.getStatus() == LoanStatus.APPROVED)
                 .count();
-        long lowStockItems = itemRepository.search(orgId, null, org.springframework.data.domain.PageRequest.of(0, 1000)).stream()
+        long lowStockItems = itemRepository.search(orgId, "", org.springframework.data.domain.PageRequest.of(0, 1000)).stream()
                 .filter(item -> item.getAvailableStock().compareTo(java.math.BigDecimal.ONE) <= 0)
                 .count();
 
         return Map.of(
-                "totalItems", itemRepository.search(orgId, null, org.springframework.data.domain.PageRequest.of(0, 1000)).getTotalElements(),
+                "totalItems", itemRepository.search(orgId, "", org.springframework.data.domain.PageRequest.of(0, 1000)).getTotalElements(),
                 "lowStockItems", lowStockItems,
                 "activeLoans", activeLoans,
                 "overdueLoans", overdueLoans,

@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -10,7 +11,10 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useI18n } from '../i18n/use-i18n'
+import { canManageBorrowers } from '../lib/access'
 import { api } from '../lib/api'
+import type { Borrower } from '../types/api'
+import { useAuthStore } from '../store/auth-store'
 
 type FormValues = {
   name: string
@@ -21,6 +25,8 @@ type FormValues = {
 
 export function BorrowersPage() {
   const { t } = useI18n()
+  const user = useAuthStore((state) => state.user)
+  const [editingBorrower, setEditingBorrower] = useState<Borrower | null>(null)
   const schema = z.object({
     name: z.string().min(3, t('validation.name')),
     email: z.union([z.string().email(t('validation.email')), z.literal('')]),
@@ -28,49 +34,116 @@ export function BorrowersPage() {
     notes: z.string(),
   })
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', email: '', phone: '', notes: '' },
   })
 
-  const borrowersQuery = useQuery({ queryKey: ['borrowers'], queryFn: api.borrowers })
-  const mutation = useMutation({
+  useEffect(() => {
+    if (!editingBorrower) {
+      form.reset({ name: '', email: '', phone: '', notes: '' })
+      return
+    }
+    form.reset({
+      name: editingBorrower.name,
+      email: editingBorrower.email ?? '',
+      phone: editingBorrower.phone ?? '',
+      notes: editingBorrower.notes ?? '',
+    })
+  }, [editingBorrower, form])
+
+  const borrowersQuery = useQuery({ queryKey: ['borrowers'], queryFn: api.borrowers, enabled: canManageBorrowers(user?.role) })
+  const createMutation = useMutation({
     mutationFn: api.createBorrower,
     onSuccess: async () => {
-      reset({ name: '', email: '', phone: '', notes: '' })
+      form.reset({ name: '', email: '', phone: '', notes: '' })
+      await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: (values: FormValues) => api.updateBorrower(editingBorrower!.id, values),
+    onSuccess: async () => {
+      setEditingBorrower(null)
+      await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: api.deleteBorrower,
+    onSuccess: async () => {
+      setEditingBorrower(null)
       await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
     },
   })
 
+  if (!canManageBorrowers(user?.role)) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title={t('borrowers.title')} description={t('borrowers.description')} />
+        <Notice variant="warning">{t('borrowers.managerOnly')}</Notice>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title={t('borrowers.title')} description={t('borrowers.description')} />
+
+      {(createMutation.isError || updateMutation.isError || deleteMutation.isError) && (
+        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message ?? deleteMutation.error?.message}</Notice>
+      )}
+      {createMutation.isSuccess && <Notice variant="success">{t('borrowers.success')}</Notice>}
+      {updateMutation.isSuccess && <Notice variant="success">{t('borrowers.updated')}</Notice>}
+      {deleteMutation.isSuccess && <Notice variant="success">{t('borrowers.updated')}</Notice>}
+
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
-          <form className="space-y-3" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
-            <Input placeholder={t('common.name')} {...register('name')} />
-            {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
+          <form
+            className="space-y-3"
+            onSubmit={form.handleSubmit((values) => {
+              if (editingBorrower) updateMutation.mutate(values)
+              else createMutation.mutate(values)
+            })}
+          >
+            <Input placeholder={t('common.name')} {...form.register('name')} />
+            <Input placeholder={t('common.email')} {...form.register('email')} />
+            <Input placeholder={t('common.phone')} {...form.register('phone')} />
+            <Input placeholder={t('common.notes')} {...form.register('notes')} />
 
-            <Input placeholder={t('common.email')} {...register('email')} />
-            {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
-
-            <Input placeholder={t('common.phone')} {...register('phone')} />
-            <Input placeholder={t('common.notes')} {...register('notes')} />
-
-            {mutation.isError && <Notice variant="error">{mutation.error.message}</Notice>}
-            {mutation.isSuccess && <Notice variant="success">{t('borrowers.success')}</Notice>}
-
-            <Button className="w-full" disabled={mutation.isPending} type="submit">
-              {t('borrowers.submit')}
-            </Button>
+            <div className="flex gap-2">
+              <Button className="flex-1" disabled={createMutation.isPending || updateMutation.isPending} type="submit">
+                {editingBorrower ? t('borrowers.update') : t('borrowers.submit')}
+              </Button>
+              {editingBorrower && (
+                <Button className="flex-1 bg-secondary text-secondary-foreground" type="button" onClick={() => setEditingBorrower(null)}>
+                  {t('common.cancel')}
+                </Button>
+              )}
+            </div>
           </form>
         </Card>
         <Card>
           <div className="space-y-3">
             {borrowersQuery.data?.length ? borrowersQuery.data.map((borrower) => (
               <div key={borrower.id} className="rounded-2xl border border-border p-4">
-                <p className="font-medium">{borrower.name}</p>
-                <p className="text-sm text-slate-500">{borrower.email ?? t('common.notAvailable')} - {borrower.phone ?? t('common.notAvailable')}</p>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="font-medium">{borrower.name}</p>
+                    <p className="text-sm text-slate-500">{borrower.email ?? t('common.notAvailable')} - {borrower.phone ?? t('common.notAvailable')}</p>
+                    {borrower.notes && <p className="mt-2 text-sm text-slate-600">{borrower.notes}</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button className="bg-secondary text-secondary-foreground" onClick={() => setEditingBorrower(borrower)}>{t('common.edit')}</Button>
+                    <Button
+                      onClick={() => {
+                        if (window.confirm(t('borrowers.deleteConfirm'))) {
+                          deleteMutation.mutate(borrower.id)
+                        }
+                      }}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )) : <Notice>{t('borrowers.empty')}</Notice>}
           </div>

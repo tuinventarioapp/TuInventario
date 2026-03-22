@@ -55,6 +55,7 @@ public final class ItemDtos {
             BigDecimal availableStock,
             BigDecimal reservedStock,
             BigDecimal loanedStock,
+            BigDecimal damagedStock,
             Instant lastMovementAt
     ) {
     }

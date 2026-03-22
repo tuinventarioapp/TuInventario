@@ -25,4 +25,12 @@ public final class UserDtos {
             @NotBlank String role
     ) {
     }
+
+    public record UpdateUserRequest(
+            @NotBlank String fullName,
+            @Email @NotBlank String email,
+            @NotBlank String role,
+            @NotBlank String status
+    ) {
+    }
 }

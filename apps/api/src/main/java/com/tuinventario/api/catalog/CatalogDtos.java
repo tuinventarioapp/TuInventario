@@ -23,6 +23,9 @@ public final class CatalogDtos {
     public record BorrowerRequest(@NotBlank String name, String email, String phone, String notes) {
     }
 
+    public record UpdateBorrowerRequest(@NotBlank String name, String email, String phone, String notes) {
+    }
+
     public record BorrowerResponse(String id, String name, String email, String phone, String notes) {
     }
 }

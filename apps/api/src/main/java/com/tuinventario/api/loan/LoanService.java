@@ -66,6 +66,7 @@ public class LoanService {
         BorrowerEntity borrower = borrowerRepository.findByIdAndOrganizationId(UUID.fromString(request.borrowerId()), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "BORROWER_NOT_FOUND", "Prestatario no encontrado."));
         ItemEntity item = findLendableItem(request.itemId());
+        ensureRequestable(item, request.quantity());
 
         LoanRequestEntity entity = new LoanRequestEntity();
         entity.setOrganization(currentContextService.currentOrganizationEntity());
@@ -92,6 +93,10 @@ public class LoanService {
         if (!item.isLendable()) {
             throw new ApiException(HttpStatus.CONFLICT, "ITEM_NOT_LENDABLE", "El item no admite prestamos.");
         }
+        if (item.getStatus() == ItemStatus.ARCHIVED || item.getStatus() == ItemStatus.LOST || item.getStatus() == ItemStatus.MAINTENANCE) {
+            throw new ApiException(HttpStatus.CONFLICT, "ITEM_UNAVAILABLE_FOR_LOAN", "El item no se encuentra disponible para prestamos.");
+        }
+        ensureRequestable(item, request.quantity());
 
         BorrowerEntity borrower = borrowerRepository.findByOrganizationIdOrderByNameAsc(item.getOrganization().getId()).stream()
                 .filter(existing -> existing.getName().equalsIgnoreCase(request.borrowerName()))
@@ -132,6 +137,8 @@ public class LoanService {
         item.setAvailableStock(item.getAvailableStock().subtract(loanRequest.getQuantity()));
         item.setReservedStock(item.getReservedStock().add(loanRequest.getQuantity()));
         item.setStatus(ItemStatus.RESERVED);
+        item.setLastMovementAt(Instant.now());
+        ensureStockIntegrity(item);
         itemRepository.save(item);
 
         loanRequest.setStatus(LoanRequestStatus.APPROVED);
@@ -153,6 +160,9 @@ public class LoanService {
         loanItem.setItem(item);
         loanItem.setQuantity(loanRequest.getQuantity());
         loanItem.setReturnedQuantity(BigDecimal.ZERO);
+        loanItem.setReturnedGoodQuantity(BigDecimal.ZERO);
+        loanItem.setReturnedDamagedQuantity(BigDecimal.ZERO);
+        loanItem.setLostQuantity(BigDecimal.ZERO);
         loanItemRepository.save(loanItem);
 
         auditService.log(currentContextService.currentOrganizationEntity(), currentContextService.currentActorEntity(), "LOAN", loan.getId(), "LOAN_APPROVED", Map.of("loanRequestId", loanRequestId));
@@ -174,14 +184,14 @@ public class LoanService {
         item.setReservedStock(item.getReservedStock().subtract(loanItem.getQuantity()));
         item.setLoanedStock(item.getLoanedStock().add(loanItem.getQuantity()));
         item.setStatus(ItemStatus.ON_LOAN);
+        item.setLastMovementAt(Instant.now());
+        ensureStockIntegrity(item);
         itemRepository.save(item);
 
         loan.setStatus(LoanStatus.DELIVERED);
         loan.setDeliveredBy(currentContextService.currentActorEntity());
         loan.setLoanedAt(Instant.now());
-        if (request.notes() != null && !request.notes().isBlank()) {
-            loan.setNotes(request.notes());
-        }
+        loan.setNotes(mergeNotes(loan.getNotes(), request.notes()));
         loanRepository.save(loan);
 
         auditService.log(currentContextService.currentOrganizationEntity(), currentContextService.currentActorEntity(), "LOAN", loan.getId(), "LOAN_DELIVERED", Map.of("itemId", item.getId()));
@@ -201,31 +211,63 @@ public class LoanService {
                 .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "LOAN_ITEM_MISSING", "El prestamo no tiene items."));
         ItemEntity item = loanItem.getItem();
 
-        item.setLoanedStock(item.getLoanedStock().subtract(loanItem.getQuantity()));
-        if (request.returnCondition() == ReturnCondition.GOOD) {
-            item.setAvailableStock(item.getAvailableStock().add(loanItem.getQuantity()));
-            item.setStatus(ItemStatus.AVAILABLE);
-        } else if (request.returnCondition() == ReturnCondition.DAMAGED) {
-            item.setStatus(ItemStatus.DAMAGED);
-        } else {
-            item.setTotalStock(item.getTotalStock().subtract(loanItem.getQuantity()));
-            item.setStatus(ItemStatus.LOST);
+        BigDecimal returnedGoodQuantity = requireNonNegative(request.returnedGoodQuantity(), "RETURN_GOOD_INVALID", "La cantidad devuelta en buen estado no puede ser negativa.");
+        BigDecimal returnedDamagedQuantity = requireNonNegative(request.returnedDamagedQuantity(), "RETURN_DAMAGED_INVALID", "La cantidad devuelta danada no puede ser negativa.");
+        BigDecimal lostQuantity = requireNonNegative(request.lostQuantity(), "RETURN_LOST_INVALID", "La cantidad perdida no puede ser negativa.");
+        BigDecimal processedQuantity = returnedGoodQuantity.add(returnedDamagedQuantity).add(lostQuantity);
+        if (processedQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "RETURN_EMPTY", "Debes registrar al menos una cantidad devuelta, danada o perdida.");
         }
+
+        BigDecimal outstandingQuantity = loanItem.getQuantity().subtract(loanItem.getReturnedQuantity());
+        if (processedQuantity.compareTo(outstandingQuantity) > 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "RETURN_EXCEEDS_PENDING", "La devolucion supera la cantidad pendiente del prestamo.");
+        }
+
+        item.setLoanedStock(item.getLoanedStock().subtract(processedQuantity));
+        item.setAvailableStock(item.getAvailableStock().add(returnedGoodQuantity));
+        item.setDamagedStock(item.getDamagedStock().add(returnedDamagedQuantity));
+        item.setTotalStock(item.getTotalStock().subtract(lostQuantity));
+        item.setLastMovementAt(Instant.now());
+        syncItemStatus(item);
+        ensureStockIntegrity(item);
         itemRepository.save(item);
 
-        loanItem.setReturnedQuantity(loanItem.getQuantity());
-        loanItem.setReturnCondition(request.returnCondition());
+        loanItem.setReturnedQuantity(loanItem.getReturnedQuantity().add(processedQuantity));
+        loanItem.setReturnedGoodQuantity(loanItem.getReturnedGoodQuantity().add(returnedGoodQuantity));
+        loanItem.setReturnedDamagedQuantity(loanItem.getReturnedDamagedQuantity().add(returnedDamagedQuantity));
+        loanItem.setLostQuantity(loanItem.getLostQuantity().add(lostQuantity));
+        loanItem.setReturnCondition(resolveReturnCondition(loanItem));
+        loanItem.setReturnNotes(mergeNotes(loanItem.getReturnNotes(), request.notes()));
         loanItemRepository.save(loanItem);
 
-        loan.setStatus(LoanStatus.RETURNED);
-        loan.setReturnedAt(Instant.now());
-        if (request.notes() != null && !request.notes().isBlank()) {
-            loan.setNotes(request.notes());
+        BigDecimal remainingQuantity = loanItem.getQuantity().subtract(loanItem.getReturnedQuantity());
+        if (remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
+            loan.setStatus(LoanStatus.RETURNED);
+            loan.setReturnedAt(Instant.now());
+        } else if (loan.getDueAt().isBefore(Instant.now()) || loan.getStatus() == LoanStatus.OVERDUE) {
+            loan.setStatus(LoanStatus.OVERDUE);
+        } else {
+            loan.setStatus(LoanStatus.DELIVERED);
         }
+        loan.setNotes(mergeNotes(loan.getNotes(), request.notes()));
         loanRepository.save(loan);
 
-        auditService.log(currentContextService.currentOrganizationEntity(), currentContextService.currentActorEntity(), "LOAN", loan.getId(), "LOAN_RETURNED", Map.of("condition", request.returnCondition().name()));
-        realtimePublisher.publish(currentContextService.currentUser().organizationId(), "loan.returned", Map.of("loanId", loan.getId().toString()));
+        String action = remainingQuantity.compareTo(BigDecimal.ZERO) == 0 ? "LOAN_RETURNED" : "LOAN_PARTIAL_RETURN";
+        auditService.log(
+                currentContextService.currentOrganizationEntity(),
+                currentContextService.currentActorEntity(),
+                "LOAN",
+                loan.getId(),
+                action,
+                Map.of(
+                        "returnedGoodQuantity", returnedGoodQuantity,
+                        "returnedDamagedQuantity", returnedDamagedQuantity,
+                        "lostQuantity", lostQuantity,
+                        "remainingQuantity", remainingQuantity
+                )
+        );
+        realtimePublisher.publish(currentContextService.currentUser().organizationId(), "loan.returned", Map.of("loanId", loan.getId().toString(), "completed", remainingQuantity.compareTo(BigDecimal.ZERO) == 0));
         return mapLoan(loan);
     }
 
@@ -257,12 +299,21 @@ public class LoanService {
         if (!item.isLendable()) {
             throw new ApiException(HttpStatus.CONFLICT, "ITEM_NOT_LENDABLE", "El item no admite prestamos.");
         }
+        if (item.getStatus() == ItemStatus.ARCHIVED || item.getStatus() == ItemStatus.LOST || item.getStatus() == ItemStatus.MAINTENANCE) {
+            throw new ApiException(HttpStatus.CONFLICT, "ITEM_UNAVAILABLE_FOR_LOAN", "El item no se encuentra disponible para prestamos.");
+        }
         return item;
     }
 
     private void ensureAvailable(ItemEntity item, BigDecimal quantity) {
         if (item.getAvailableStock().compareTo(quantity) < 0) {
             throw new ApiException(HttpStatus.CONFLICT, "STOCK_INSUFFICIENT", "No hay stock suficiente para aprobar el prestamo.");
+        }
+    }
+
+    private void ensureRequestable(ItemEntity item, BigDecimal quantity) {
+        if (item.getAvailableStock().compareTo(quantity) < 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "STOCK_INSUFFICIENT", "La solicitud supera el stock disponible del articulo.");
         }
     }
 
@@ -287,11 +338,90 @@ public class LoanService {
                 entity.getBorrower().getName(),
                 loanItem.getItem().getName(),
                 loanItem.getQuantity(),
+                loanItem.getReturnedQuantity(),
+                loanItem.getQuantity().subtract(loanItem.getReturnedQuantity()),
+                loanItem.getReturnedGoodQuantity(),
+                loanItem.getReturnedDamagedQuantity(),
+                loanItem.getLostQuantity(),
+                loanItem.getReturnCondition() == null ? null : loanItem.getReturnCondition().name(),
                 entity.getStatus().name(),
+                entity.getLoanRequest() == null ? null : entity.getLoanRequest().getRequestedAt(),
+                entity.getCreatedAt(),
                 entity.getDueAt(),
                 entity.getLoanedAt(),
                 entity.getReturnedAt(),
-                entity.getNotes()
+                entity.getNotes(),
+                loanItem.getReturnNotes(),
+                entity.getApprovedBy() == null ? null : entity.getApprovedBy().getFullName(),
+                entity.getDeliveredBy() == null ? null : entity.getDeliveredBy().getFullName()
         );
+    }
+
+    private BigDecimal requireNonNegative(BigDecimal value, String code, String message) {
+        if (value == null || value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, code, message);
+        }
+        return value;
+    }
+
+    private void syncItemStatus(ItemEntity item) {
+        if (item.getLoanedStock().compareTo(BigDecimal.ZERO) > 0) {
+            item.setStatus(ItemStatus.ON_LOAN);
+            return;
+        }
+        if (item.getReservedStock().compareTo(BigDecimal.ZERO) > 0) {
+            item.setStatus(ItemStatus.RESERVED);
+            return;
+        }
+        if (item.getAvailableStock().compareTo(BigDecimal.ZERO) > 0) {
+            item.setStatus(ItemStatus.AVAILABLE);
+            return;
+        }
+        if (item.getDamagedStock().compareTo(BigDecimal.ZERO) > 0) {
+            item.setStatus(ItemStatus.DAMAGED);
+            return;
+        }
+        if (item.getTotalStock().compareTo(BigDecimal.ZERO) <= 0) {
+            item.setStatus(ItemStatus.LOST);
+            return;
+        }
+        item.setStatus(ItemStatus.AVAILABLE);
+    }
+
+    private void ensureStockIntegrity(ItemEntity item) {
+        if (item.getTotalStock().compareTo(BigDecimal.ZERO) < 0
+                || item.getAvailableStock().compareTo(BigDecimal.ZERO) < 0
+                || item.getReservedStock().compareTo(BigDecimal.ZERO) < 0
+                || item.getLoanedStock().compareTo(BigDecimal.ZERO) < 0
+                || item.getDamagedStock().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "STOCK_NEGATIVE", "La operacion deja el inventario en un estado invalido.");
+        }
+    }
+
+    private ReturnCondition resolveReturnCondition(LoanItemEntity loanItem) {
+        if (loanItem.getLostQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            return ReturnCondition.LOST;
+        }
+        if (loanItem.getReturnedDamagedQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            return ReturnCondition.DAMAGED;
+        }
+        if (loanItem.getReturnedGoodQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            return ReturnCondition.GOOD;
+        }
+        return null;
+    }
+
+    private String mergeNotes(String currentValue, String newValue) {
+        if (newValue == null || newValue.isBlank()) {
+            return currentValue;
+        }
+        if (currentValue == null || currentValue.isBlank()) {
+            return trimTo255(newValue.trim());
+        }
+        return trimTo255(currentValue + " | " + newValue.trim());
+    }
+
+    private String trimTo255(String value) {
+        return value.length() <= 255 ? value : value.substring(0, 255);
     }
 }

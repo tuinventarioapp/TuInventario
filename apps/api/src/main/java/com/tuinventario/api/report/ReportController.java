@@ -32,13 +32,14 @@ public class ReportController {
     @GetMapping(value = "/inventory.csv", produces = "text/csv")
     @Transactional(readOnly = true)
     public String inventoryCsv() {
-        StringBuilder builder = new StringBuilder("name,sku,availableStock,reservedStock,loanedStock,status\n");
-        itemRepository.search(currentContextService.currentUser().organizationId(), null, org.springframework.data.domain.PageRequest.of(0, 1000))
+        StringBuilder builder = new StringBuilder("name,sku,availableStock,reservedStock,loanedStock,damagedStock,status\n");
+        itemRepository.search(currentContextService.currentUser().organizationId(), "", org.springframework.data.domain.PageRequest.of(0, 1000))
                 .forEach(item -> builder.append(item.getName()).append(',')
                         .append(item.getSku()).append(',')
                         .append(item.getAvailableStock()).append(',')
                         .append(item.getReservedStock()).append(',')
                         .append(item.getLoanedStock()).append(',')
+                        .append(item.getDamagedStock()).append(',')
                         .append(item.getStatus()).append('\n'));
         return builder.toString();
     }
@@ -65,10 +66,10 @@ public class ReportController {
             document.open();
             document.add(new Paragraph("Reporte de inventario - TuInventario"));
             document.add(new Paragraph(" "));
-            itemRepository.search(currentContextService.currentUser().organizationId(), null, org.springframework.data.domain.PageRequest.of(0, 1000))
+            itemRepository.search(currentContextService.currentUser().organizationId(), "", org.springframework.data.domain.PageRequest.of(0, 1000))
                     .forEach(item -> {
                         try {
-                            document.add(new Paragraph(item.getName() + " | SKU: " + item.getSku() + " | Disponible: " + item.getAvailableStock()));
+                            document.add(new Paragraph(item.getName() + " | SKU: " + item.getSku() + " | Disponible: " + item.getAvailableStock() + " | Danado: " + item.getDamagedStock()));
                         } catch (DocumentException e) {
                             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "PDF_GENERATION_ERROR", "No fue posible generar el PDF.");
                         }

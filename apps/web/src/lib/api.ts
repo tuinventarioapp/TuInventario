@@ -96,6 +96,29 @@ async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
   return response.blob()
 }
 
+type ItemFilters = {
+  query?: string
+  categoryId?: string
+  status?: string
+  type?: string
+  locationId?: string
+  stockFilter?: string
+  minAvailableStock?: number | string
+  maxAvailableStock?: number | string
+  page?: number
+  size?: number
+}
+
+function buildQuery(params: Record<string, string | number | undefined | null>) {
+  const searchParams = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    searchParams.set(key, String(value))
+  })
+  const query = searchParams.toString()
+  return query ? `?${query}` : ''
+}
+
 export const api = {
   login: (payload: { email: string; password: string }) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
@@ -103,8 +126,19 @@ export const api = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
   me: () => request('/auth/me'),
   dashboard: () => request<DashboardSummary>('/dashboard'),
-  items: (query = '', page = 0, size = 10) =>
-    request<PageResponse<Item>>(`/items?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
+  items: (filters: ItemFilters = {}) =>
+    request<PageResponse<Item>>(`/items${buildQuery({
+      query: filters.query ?? '',
+      categoryId: filters.categoryId,
+      status: filters.status,
+      type: filters.type,
+      locationId: filters.locationId,
+      stockFilter: filters.stockFilter,
+      minAvailableStock: filters.minAvailableStock,
+      maxAvailableStock: filters.maxAvailableStock,
+      page: filters.page ?? 0,
+      size: filters.size ?? 10,
+    })}`),
   item: (id: string) => request<Item>(`/items/${id}`),
   createItem: (payload: unknown) => request<Item>('/items', { method: 'POST', body: JSON.stringify(payload) }),
   updateItem: (id: string, payload: unknown) => request<Item>(`/items/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
@@ -117,6 +151,8 @@ export const api = {
   publicItems: (organizationId: string) => request<OptionItem[]>(`/public-items?organizationId=${encodeURIComponent(organizationId)}`),
   borrowers: () => request<Borrower[]>('/borrowers'),
   createBorrower: (payload: unknown) => request<Borrower>('/borrowers', { method: 'POST', body: JSON.stringify(payload) }),
+  updateBorrower: (id: string, payload: unknown) => request<Borrower>(`/borrowers/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteBorrower: (id: string) => request<void>(`/borrowers/${id}`, { method: 'DELETE' }),
   createMovement: (payload: unknown) => request<Movement>('/movements', { method: 'POST', body: JSON.stringify(payload) }),
   movements: (page = 0, size = 10) => request<PageResponse<Movement>>(`/movements?page=${page}&size=${size}`),
   loanRequests: () => request<LoanRequestItem[]>('/loan-requests'),
@@ -124,10 +160,12 @@ export const api = {
   publicLoanRequest: (payload: unknown) => request<LoanRequestItem>('/public-loan-requests', { method: 'POST', body: JSON.stringify(payload) }),
   approveLoanRequest: (id: string) => request<Loan>(`/loan-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({}) }),
   loans: () => request<Loan[]>('/loans'),
-  deliverLoan: (id: string) => request<Loan>(`/loans/${id}/deliver`, { method: 'POST', body: JSON.stringify({}) }),
+  deliverLoan: (id: string, payload: unknown = {}) => request<Loan>(`/loans/${id}/deliver`, { method: 'POST', body: JSON.stringify(payload) }),
   returnLoan: (id: string, payload: unknown) => request<Loan>(`/loans/${id}/return`, { method: 'POST', body: JSON.stringify(payload) }),
   users: () => request<UserSummary[]>('/users'),
   createUser: (payload: unknown) => request<UserSummary>('/users', { method: 'POST', body: JSON.stringify(payload) }),
+  updateUser: (id: string, payload: unknown) => request<UserSummary>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
   settings: () => request<SettingsPayload>('/settings'),
   audit: (page = 0, size = 10) => request<PageResponse<AuditEntry>>(`/audit-log?page=${page}&size=${size}`),
   inventoryCsv: () => requestBlob('/reports/inventory.csv'),

@@ -1,0 +1,6 @@
+ALTER TABLE items ADD COLUMN damaged_stock NUMERIC(19,2) NOT NULL DEFAULT 0;
+
+ALTER TABLE loan_items ADD COLUMN returned_good_quantity NUMERIC(19,2) NOT NULL DEFAULT 0;
+ALTER TABLE loan_items ADD COLUMN returned_damaged_quantity NUMERIC(19,2) NOT NULL DEFAULT 0;
+ALTER TABLE loan_items ADD COLUMN lost_quantity NUMERIC(19,2) NOT NULL DEFAULT 0;
+ALTER TABLE loan_items ADD COLUMN return_notes VARCHAR(255);
