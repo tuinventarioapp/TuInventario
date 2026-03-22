@@ -1,6 +1,7 @@
 package com.tuinventario.api.auth;
 
 import com.tuinventario.api.domain.entity.CategoryEntity;
+import com.tuinventario.api.domain.entity.LocationCategoryEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.MembershipEntity;
 import com.tuinventario.api.domain.entity.OrganizationEntity;
@@ -12,6 +13,7 @@ import com.tuinventario.api.domain.enums.EntityStatus;
 import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.enums.MembershipStatus;
 import com.tuinventario.api.domain.repository.CategoryRepository;
+import com.tuinventario.api.domain.repository.LocationCategoryRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.MembershipRepository;
 import com.tuinventario.api.domain.repository.OrganizationRepository;
@@ -50,6 +52,7 @@ public class AuthService {
     private final MembershipRepository membershipRepository;
     private final CategoryRepository categoryRepository;
     private final UnitRepository unitRepository;
+    private final LocationCategoryRepository locationCategoryRepository;
     private final LocationRepository locationRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -182,6 +185,12 @@ public class AuthService {
     }
 
     private void createDefaultsForOrganization(OrganizationEntity organization) {
+        LocationCategoryEntity warehouseCategory = createLocationCategory(organization, "Bodega", "Ubicacion de almacenamiento");
+        createLocationCategory(organization, "Oficina", "Puesto o area administrativa");
+        createLocationCategory(organization, "Vehiculo", "Unidad movil o camion");
+        createLocationCategory(organization, "Sitio del cliente", "Ubicacion externa del cliente");
+        createLocationCategory(organization, "Otra", "Otra categoria de ubicacion");
+
         CategoryEntity category = new CategoryEntity();
         category.setOrganization(organization);
         category.setName("General");
@@ -199,8 +208,17 @@ public class AuthService {
         location.setOrganization(organization);
         location.setName("Principal");
         location.setType(LocationType.WAREHOUSE);
+        location.setLocationCategory(warehouseCategory);
         location.setDescription("Ubicacion inicial");
         locationRepository.save(location);
+    }
+
+    private LocationCategoryEntity createLocationCategory(OrganizationEntity organization, String name, String description) {
+        LocationCategoryEntity category = new LocationCategoryEntity();
+        category.setOrganization(organization);
+        category.setName(name);
+        category.setDescription(description);
+        return locationCategoryRepository.save(category);
     }
 
     private String uniqueSlug(String organizationName) {

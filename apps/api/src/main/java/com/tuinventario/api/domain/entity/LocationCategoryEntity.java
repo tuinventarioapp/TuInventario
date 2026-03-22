@@ -1,11 +1,8 @@
 package com.tuinventario.api.domain.entity;
 
-import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.shared.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -18,8 +15,8 @@ import java.time.Instant;
 @Getter
 @Setter
 @Entity
-@Table(name = "locations")
-public class LocationEntity extends BaseEntity {
+@Table(name = "location_categories")
+public class LocationCategoryEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id")
@@ -27,14 +24,6 @@ public class LocationEntity extends BaseEntity {
 
     @Column(nullable = false, length = 120)
     private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
-    private LocationType type;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "location_category_id")
-    private LocationCategoryEntity locationCategory;
 
     @Column(length = 255)
     private String description;

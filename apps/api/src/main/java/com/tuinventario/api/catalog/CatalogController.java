@@ -67,6 +67,26 @@ public class CatalogController {
         return catalogService.listLocations();
     }
 
+    @GetMapping("/location-categories")
+    public List<CatalogDtos.CatalogOptionResponse> locationCategories() {
+        return catalogService.listLocationCategories();
+    }
+
+    @PostMapping("/location-categories")
+    public CatalogDtos.CatalogOptionResponse createLocationCategory(@Valid @RequestBody CatalogDtos.CreateLocationCategoryRequest request) {
+        return catalogService.createLocationCategory(request);
+    }
+
+    @PutMapping("/location-categories/{id}")
+    public CatalogDtos.CatalogOptionResponse updateLocationCategory(@PathVariable UUID id, @Valid @RequestBody CatalogDtos.UpdateLocationCategoryRequest request) {
+        return catalogService.updateLocationCategory(id, request);
+    }
+
+    @DeleteMapping("/location-categories/{id}")
+    public void deleteLocationCategory(@PathVariable UUID id) {
+        catalogService.deleteLocationCategory(id);
+    }
+
     @PostMapping("/locations")
     public CatalogDtos.CatalogOptionResponse createLocation(@Valid @RequestBody CatalogDtos.CreateLocationRequest request) {
         return catalogService.createLocation(request);

@@ -11,4 +11,5 @@ public interface LocationRepository extends JpaRepository<LocationEntity, UUID> 
     List<LocationEntity> findByOrganizationIdOrderByNameAsc(UUID organizationId);
     Optional<LocationEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
     boolean existsByOrganizationIdAndNameIgnoreCase(UUID organizationId, String name);
+    boolean existsByOrganizationIdAndLocationCategoryId(UUID organizationId, UUID locationCategoryId);
 }

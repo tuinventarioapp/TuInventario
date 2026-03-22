@@ -109,6 +109,22 @@ type ItemFilters = {
   size?: number
 }
 
+type AuditFilters = {
+  entityType?: string
+  action?: string
+  actor?: string
+  fromDate?: string
+  toDate?: string
+  page?: number
+  size?: number
+}
+
+type ReportFilters = {
+  locationId?: string
+  fromDate?: string
+  toDate?: string
+}
+
 function buildQuery(params: Record<string, string | number | undefined | null>) {
   const searchParams = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
@@ -150,6 +166,10 @@ export const api = {
   createUnit: (payload: unknown) => request<OptionItem>('/units', { method: 'POST', body: JSON.stringify(payload) }),
   updateUnit: (id: string, payload: unknown) => request<OptionItem>(`/units/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteUnit: (id: string) => request<void>(`/units/${id}`, { method: 'DELETE' }),
+  locationCategories: () => request<OptionItem[]>('/location-categories'),
+  createLocationCategory: (payload: unknown) => request<OptionItem>('/location-categories', { method: 'POST', body: JSON.stringify(payload) }),
+  updateLocationCategory: (id: string, payload: unknown) => request<OptionItem>(`/location-categories/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteLocationCategory: (id: string) => request<void>(`/location-categories/${id}`, { method: 'DELETE' }),
   locations: () => request<OptionItem[]>('/locations'),
   createLocation: (payload: unknown) => request<OptionItem>('/locations', { method: 'POST', body: JSON.stringify(payload) }),
   updateLocation: (id: string, payload: unknown) => request<OptionItem>(`/locations/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
@@ -174,10 +194,18 @@ export const api = {
   resetUserPassword: (id: string, payload: unknown) => request<void>(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify(payload) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
   settings: () => request<SettingsPayload>('/settings'),
-  audit: (page = 0, size = 10) => request<PageResponse<AuditEntry>>(`/audit-log?page=${page}&size=${size}`),
-  inventoryCsv: (locationId?: string) => requestBlob(`/reports/inventory.csv${buildQuery({ locationId })}`),
-  inventoryAdminCsv: (locationId?: string) => requestBlob(`/reports/inventory-admin.csv${buildQuery({ locationId })}`),
-  loansCsv: (locationId?: string) => requestBlob(`/reports/loans.csv${buildQuery({ locationId })}`),
-  inventoryPdf: (locationId?: string) => requestBlob(`/reports/inventory.pdf${buildQuery({ locationId })}`),
-  inventoryAdminPdf: (locationId?: string) => requestBlob(`/reports/inventory-admin.pdf${buildQuery({ locationId })}`),
+  audit: (filters: AuditFilters = {}) => request<PageResponse<AuditEntry>>(`/audit-log${buildQuery({
+    entityType: filters.entityType,
+    action: filters.action,
+    actor: filters.actor,
+    fromDate: filters.fromDate,
+    toDate: filters.toDate,
+    page: filters.page ?? 0,
+    size: filters.size ?? 10,
+  })}`),
+  inventoryCsv: (filters: ReportFilters = {}) => requestBlob(`/reports/inventory.csv${buildQuery(filters)}`),
+  inventoryAdminCsv: (filters: ReportFilters = {}) => requestBlob(`/reports/inventory-admin.csv${buildQuery(filters)}`),
+  loansCsv: (filters: ReportFilters = {}) => requestBlob(`/reports/loans.csv${buildQuery(filters)}`),
+  inventoryPdf: (filters: ReportFilters = {}) => requestBlob(`/reports/inventory.pdf${buildQuery(filters)}`),
+  inventoryAdminPdf: (filters: ReportFilters = {}) => requestBlob(`/reports/inventory-admin.pdf${buildQuery(filters)}`),
 }

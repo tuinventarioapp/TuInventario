@@ -1,5 +1,5 @@
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 
 import { queryClient } from '../app/query-client'
 import { Notice } from '../components/shared/notice'
@@ -15,25 +15,36 @@ import type { OptionItem } from '../types/api'
 
 type CategoryForm = { name: string; description: string }
 type UnitForm = { name: string; symbol: string; allowsDecimal: boolean }
-type LocationForm = { name: string; type: string; description: string }
+type LocationCategoryForm = { name: string; description: string }
+type LocationForm = { name: string; locationCategoryId: string; description: string }
 
 export function CatalogsPage() {
-  const { t, enumLabel } = useI18n()
+  const { t } = useI18n()
   const user = useAuthStore((state) => state.user)
   const [categoryForm, setCategoryForm] = useState<CategoryForm>({ name: '', description: '' })
   const [unitForm, setUnitForm] = useState<UnitForm>({ name: '', symbol: '', allowsDecimal: false })
-  const [locationForm, setLocationForm] = useState<LocationForm>({ name: '', type: 'WAREHOUSE', description: '' })
+  const [locationCategoryForm, setLocationCategoryForm] = useState<LocationCategoryForm>({ name: '', description: '' })
+  const [locationForm, setLocationForm] = useState<LocationForm>({ name: '', locationCategoryId: '', description: '' })
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null)
+  const [editingLocationCategoryId, setEditingLocationCategoryId] = useState<string | null>(null)
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null)
 
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: api.categories })
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: api.units })
+  const locationCategoriesQuery = useQuery({ queryKey: ['location-categories'], queryFn: api.locationCategories })
   const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations })
+
+  useEffect(() => {
+    if (!editingLocationId && !locationForm.locationCategoryId && locationCategoriesQuery.data?.[0]?.id) {
+      setLocationForm((current) => ({ ...current, locationCategoryId: locationCategoriesQuery.data?.[0]?.id ?? '' }))
+    }
+  }, [editingLocationId, locationCategoriesQuery.data, locationForm.locationCategoryId])
 
   const invalidateCatalogs = async () => {
     await queryClient.invalidateQueries({ queryKey: ['categories'] })
     await queryClient.invalidateQueries({ queryKey: ['units'] })
+    await queryClient.invalidateQueries({ queryKey: ['location-categories'] })
     await queryClient.invalidateQueries({ queryKey: ['locations'] })
   }
 
@@ -45,10 +56,7 @@ export function CatalogsPage() {
       await invalidateCatalogs()
     },
   })
-  const deleteCategoryMutation = useMutation({
-    mutationFn: api.deleteCategory,
-    onSuccess: invalidateCatalogs,
-  })
+  const deleteCategoryMutation = useMutation({ mutationFn: api.deleteCategory, onSuccess: invalidateCatalogs })
 
   const unitMutation = useMutation({
     mutationFn: () => editingUnitId ? api.updateUnit(editingUnitId, unitForm) : api.createUnit(unitForm),
@@ -58,23 +66,29 @@ export function CatalogsPage() {
       await invalidateCatalogs()
     },
   })
-  const deleteUnitMutation = useMutation({
-    mutationFn: api.deleteUnit,
-    onSuccess: invalidateCatalogs,
+  const deleteUnitMutation = useMutation({ mutationFn: api.deleteUnit, onSuccess: invalidateCatalogs })
+
+  const locationCategoryMutation = useMutation({
+    mutationFn: () => editingLocationCategoryId
+      ? api.updateLocationCategory(editingLocationCategoryId, locationCategoryForm)
+      : api.createLocationCategory(locationCategoryForm),
+    onSuccess: async () => {
+      setLocationCategoryForm({ name: '', description: '' })
+      setEditingLocationCategoryId(null)
+      await invalidateCatalogs()
+    },
   })
+  const deleteLocationCategoryMutation = useMutation({ mutationFn: api.deleteLocationCategory, onSuccess: invalidateCatalogs })
 
   const locationMutation = useMutation({
     mutationFn: () => editingLocationId ? api.updateLocation(editingLocationId, locationForm) : api.createLocation(locationForm),
     onSuccess: async () => {
-      setLocationForm({ name: '', type: 'WAREHOUSE', description: '' })
+      setLocationForm({ name: '', locationCategoryId: locationCategoriesQuery.data?.[0]?.id ?? '', description: '' })
       setEditingLocationId(null)
       await invalidateCatalogs()
     },
   })
-  const deleteLocationMutation = useMutation({
-    mutationFn: api.deleteLocation,
-    onSuccess: invalidateCatalogs,
-  })
+  const deleteLocationMutation = useMutation({ mutationFn: api.deleteLocation, onSuccess: invalidateCatalogs })
 
   if (!canManageCatalogs(user?.role)) {
     return (
@@ -89,6 +103,8 @@ export function CatalogsPage() {
     ?? deleteCategoryMutation.error?.message
     ?? unitMutation.error?.message
     ?? deleteUnitMutation.error?.message
+    ?? locationCategoryMutation.error?.message
+    ?? deleteLocationCategoryMutation.error?.message
     ?? locationMutation.error?.message
     ?? deleteLocationMutation.error?.message
 
@@ -98,12 +114,9 @@ export function CatalogsPage() {
       <Notice>{t('catalogs.scopeHelp')}</Notice>
       {mutationError && <Notice variant="error">{mutationError}</Notice>}
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card className="space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{t('catalogs.categories')}</h2>
-            <p className="text-sm text-slate-500">{editingCategoryId ? t('catalogs.editCategory') : t('catalogs.createCategory')}</p>
-          </div>
+          <SectionHeader title={t('catalogs.categories')} subtitle={editingCategoryId ? t('catalogs.editCategory') : t('catalogs.createCategory')} />
           <Input
             placeholder={t('common.name')}
             value={categoryForm.name}
@@ -114,26 +127,18 @@ export function CatalogsPage() {
             value={categoryForm.description}
             onChange={(event) => setCategoryForm((current) => ({ ...current, description: event.target.value }))}
           />
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              disabled={categoryMutation.isPending || categoryForm.name.trim().length < 3}
-              onClick={() => categoryMutation.mutate()}
-            >
-              {editingCategoryId ? t('common.save') : t('catalogs.createCategory')}
-            </Button>
-            {editingCategoryId && (
-              <Button
-                className="bg-secondary text-secondary-foreground"
-                onClick={() => {
-                  setEditingCategoryId(null)
-                  setCategoryForm({ name: '', description: '' })
-                }}
-              >
-                {t('common.cancel')}
-              </Button>
-            )}
-          </div>
+          <EditorActions
+            editing={Boolean(editingCategoryId)}
+            disabled={categoryMutation.isPending || categoryForm.name.trim().length < 3}
+            onSave={() => categoryMutation.mutate()}
+            onCancel={() => {
+              setEditingCategoryId(null)
+              setCategoryForm({ name: '', description: '' })
+            }}
+            cancelLabel={t('common.cancel')}
+          >
+            {editingCategoryId ? t('common.save') : t('catalogs.createCategory')}
+          </EditorActions>
           <CatalogList
             items={categoriesQuery.data}
             emptyLabel={t('catalogs.empty')}
@@ -152,10 +157,7 @@ export function CatalogsPage() {
         </Card>
 
         <Card className="space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{t('catalogs.units')}</h2>
-            <p className="text-sm text-slate-500">{editingUnitId ? t('catalogs.editUnit') : t('catalogs.createUnit')}</p>
-          </div>
+          <SectionHeader title={t('catalogs.units')} subtitle={editingUnitId ? t('catalogs.editUnit') : t('catalogs.createUnit')} />
           <Input
             placeholder={t('common.name')}
             value={unitForm.name}
@@ -174,26 +176,18 @@ export function CatalogsPage() {
             />
             {t('catalogs.unitDecimals')}
           </label>
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              disabled={unitMutation.isPending || unitForm.name.trim().length < 2 || unitForm.symbol.trim().length < 1}
-              onClick={() => unitMutation.mutate()}
-            >
-              {editingUnitId ? t('common.save') : t('catalogs.createUnit')}
-            </Button>
-            {editingUnitId && (
-              <Button
-                className="bg-secondary text-secondary-foreground"
-                onClick={() => {
-                  setEditingUnitId(null)
-                  setUnitForm({ name: '', symbol: '', allowsDecimal: false })
-                }}
-              >
-                {t('common.cancel')}
-              </Button>
-            )}
-          </div>
+          <EditorActions
+            editing={Boolean(editingUnitId)}
+            disabled={unitMutation.isPending || unitForm.name.trim().length < 2 || unitForm.symbol.trim().length < 1}
+            onSave={() => unitMutation.mutate()}
+            onCancel={() => {
+              setEditingUnitId(null)
+              setUnitForm({ name: '', symbol: '', allowsDecimal: false })
+            }}
+            cancelLabel={t('common.cancel')}
+          >
+            {editingUnitId ? t('common.save') : t('catalogs.createUnit')}
+          </EditorActions>
           <CatalogList
             items={unitsQuery.data}
             emptyLabel={t('catalogs.empty')}
@@ -212,10 +206,51 @@ export function CatalogsPage() {
         </Card>
 
         <Card className="space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{t('catalogs.locations')}</h2>
-            <p className="text-sm text-slate-500">{editingLocationId ? t('catalogs.editLocation') : t('catalogs.createLocation')}</p>
-          </div>
+          <SectionHeader
+            title={t('catalogs.locationCategories')}
+            subtitle={editingLocationCategoryId ? t('catalogs.editLocationCategory') : t('catalogs.createLocationCategory')}
+          />
+          <Input
+            placeholder={t('common.name')}
+            value={locationCategoryForm.name}
+            onChange={(event) => setLocationCategoryForm((current) => ({ ...current, name: event.target.value }))}
+          />
+          <Input
+            placeholder={t('catalogs.categoryDescription')}
+            value={locationCategoryForm.description}
+            onChange={(event) => setLocationCategoryForm((current) => ({ ...current, description: event.target.value }))}
+          />
+          <EditorActions
+            editing={Boolean(editingLocationCategoryId)}
+            disabled={locationCategoryMutation.isPending || locationCategoryForm.name.trim().length < 3}
+            onSave={() => locationCategoryMutation.mutate()}
+            onCancel={() => {
+              setEditingLocationCategoryId(null)
+              setLocationCategoryForm({ name: '', description: '' })
+            }}
+            cancelLabel={t('common.cancel')}
+          >
+            {editingLocationCategoryId ? t('common.save') : t('catalogs.createLocationCategory')}
+          </EditorActions>
+          <CatalogList
+            items={locationCategoriesQuery.data}
+            emptyLabel={t('catalogs.empty')}
+            editLabel={t('common.edit')}
+            deleteLabel={t('common.delete')}
+            onEdit={(option) => {
+              setEditingLocationCategoryId(option.id)
+              setLocationCategoryForm({ name: option.name, description: option.extra ?? '' })
+            }}
+            onDelete={(id) => {
+              if (window.confirm(t('catalogs.deleteConfirm'))) {
+                deleteLocationCategoryMutation.mutate(id)
+              }
+            }}
+          />
+        </Card>
+
+        <Card className="space-y-4">
+          <SectionHeader title={t('catalogs.locations')} subtitle={editingLocationId ? t('catalogs.editLocation') : t('catalogs.createLocation')} />
           <Input
             placeholder={t('common.name')}
             value={locationForm.name}
@@ -223,11 +258,12 @@ export function CatalogsPage() {
           />
           <select
             className="h-11 w-full rounded-xl border border-border bg-white px-3"
-            value={locationForm.type}
-            onChange={(event) => setLocationForm((current) => ({ ...current, type: event.target.value }))}
+            value={locationForm.locationCategoryId}
+            onChange={(event) => setLocationForm((current) => ({ ...current, locationCategoryId: event.target.value }))}
           >
-            {['WAREHOUSE', 'OFFICE', 'VEHICLE', 'CLIENT_SITE', 'OTHER'].map((value) => (
-              <option key={value} value={value}>{enumLabel('locationType', value)}</option>
+            <option value="">{t('catalogs.selectLocationCategory')}</option>
+            {locationCategoriesQuery.data?.map((option) => (
+              <option key={option.id} value={option.id}>{option.name}</option>
             ))}
           </select>
           <Input
@@ -235,35 +271,31 @@ export function CatalogsPage() {
             value={locationForm.description}
             onChange={(event) => setLocationForm((current) => ({ ...current, description: event.target.value }))}
           />
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              disabled={locationMutation.isPending || locationForm.name.trim().length < 3}
-              onClick={() => locationMutation.mutate()}
-            >
-              {editingLocationId ? t('common.save') : t('catalogs.createLocation')}
-            </Button>
-            {editingLocationId && (
-              <Button
-                className="bg-secondary text-secondary-foreground"
-                onClick={() => {
-                  setEditingLocationId(null)
-                  setLocationForm({ name: '', type: 'WAREHOUSE', description: '' })
-                }}
-              >
-                {t('common.cancel')}
-              </Button>
-            )}
-          </div>
+          {!locationCategoriesQuery.data?.length && <Notice variant="warning">{t('catalogs.locationCategoryRequired')}</Notice>}
+          <EditorActions
+            editing={Boolean(editingLocationId)}
+            disabled={locationMutation.isPending || locationForm.name.trim().length < 3 || !locationForm.locationCategoryId}
+            onSave={() => locationMutation.mutate()}
+            onCancel={() => {
+              setEditingLocationId(null)
+              setLocationForm({ name: '', locationCategoryId: locationCategoriesQuery.data?.[0]?.id ?? '', description: '' })
+            }}
+            cancelLabel={t('common.cancel')}
+          >
+            {editingLocationId ? t('common.save') : t('catalogs.createLocation')}
+          </EditorActions>
           <CatalogList
-            items={locationsQuery.data?.map((option) => ({ ...option, extra: enumLabel('locationType', option.extra) }))}
+            items={locationsQuery.data}
             emptyLabel={t('catalogs.empty')}
             editLabel={t('common.edit')}
             deleteLabel={t('common.delete')}
             onEdit={(option) => {
-              const original = locationsQuery.data?.find((entry) => entry.id === option.id)
               setEditingLocationId(option.id)
-              setLocationForm({ name: option.name, type: original?.extra ?? 'WAREHOUSE', description: original?.details ?? '' })
+              setLocationForm({
+                name: option.name,
+                locationCategoryId: option.referenceId ?? '',
+                description: option.details ?? '',
+              })
             }}
             onDelete={(id) => {
               if (window.confirm(t('catalogs.deleteConfirm'))) {
@@ -273,6 +305,44 @@ export function CatalogsPage() {
           />
         </Card>
       </div>
+    </div>
+  )
+}
+
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="space-y-1">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <p className="text-sm text-slate-500">{subtitle}</p>
+    </div>
+  )
+}
+
+function EditorActions({
+  children,
+  editing,
+  disabled,
+  onSave,
+  onCancel,
+  cancelLabel,
+}: {
+  children: string
+  editing: boolean
+  disabled: boolean
+  onSave: () => void
+  onCancel: () => void
+  cancelLabel: string
+}) {
+  return (
+    <div className="flex gap-2">
+      <Button className="flex-1" disabled={disabled} onClick={onSave}>
+        {children}
+      </Button>
+      {editing && (
+        <Button className="bg-secondary text-secondary-foreground" onClick={onCancel}>
+          {cancelLabel}
+        </Button>
+      )}
     </div>
   )
 }
@@ -302,6 +372,9 @@ function CatalogList({
         <div key={option.id} className="rounded-2xl border border-border p-3">
           <p className="font-medium">{option.name}</p>
           <p className="text-sm text-slate-500">{option.extra || '-'}</p>
+          {option.details && option.details !== 'true' && option.details !== 'false' && (
+            <p className="mt-1 text-xs text-slate-500">{option.details}</p>
+          )}
           <div className="mt-3 flex gap-2">
             <Button className="bg-secondary text-secondary-foreground" onClick={() => onEdit(option)}>
               {editLabel}

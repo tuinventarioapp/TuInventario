@@ -28,6 +28,7 @@ export interface OptionItem {
   name: string
   extra: string
   details?: string | null
+  referenceId?: string | null
 }
 
 export interface Borrower {

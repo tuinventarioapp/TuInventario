@@ -31,7 +31,7 @@ Si una persona trabaja en `Exito Laureles`, vera y operara solo lo de `Exito Lau
 
 - `Panel`: resumen del estado operativo.
 - `Inventario`: lista de articulos, stock y filtros.
-- `Catalogos`: categorias, unidades y ubicaciones de toda la empresa.
+- `Catalogos`: categorias, unidades, categorias de ubicacion y ubicaciones de toda la empresa.
 - `Movimientos`: entradas, salidas, ajustes y traslados.
 - `Prestamos`: solicitudes, aprobaciones, entregas y devoluciones.
 - `Prestatarios`: personas o clientes que reciben articulos.
@@ -67,7 +67,7 @@ Eso significa:
 ## Orden facil para empezar a usar la app
 
 1. Entrar a `Configuracion` y revisar rol, empresa y sede.
-2. Si eres administrador, entrar a `Catalogos` y crear categorias, unidades y ubicaciones.
+2. Si eres administrador, entrar a `Catalogos` y crear categorias, unidades, categorias de ubicacion y ubicaciones.
 3. Si eres administrador, entrar a `Usuarios` y asignar cada usuario a su sede.
 4. Entrar a `Inventario` y crear articulos.
 5. Entrar a `Prestatarios` y crear personas o clientes.
@@ -83,6 +83,9 @@ Eso significa:
 - Si no ves registros, revisa filtros o revisa si tu rol esta limitado a una sede.
 - Si un prestamo no se puede crear, revisa que el articulo tenga stock y sea prestable.
 - Si una devolucion es parcial, registra separado lo que volvio bien, lo danado y lo perdido.
+- Cuando crees un articulo, el campo `Cantidad` depende de la `Unidad`. Ejemplo: `5` con `Unidad` o `5` con `Kilogramo`.
+- Las categorias de ubicacion son personalizables. Cada empresa decide si usa `Bodega`, `Showroom`, `Camion`, `Punto de venta` u otras.
 - Si una empresa tiene muchos articulos, usa filtros por categoria, estado, tipo, sede y cantidades.
-- Si quieres reportes de toda la empresa, entra como administrador y deja la sede en `Todos`.
+- Si quieres reportes de toda la empresa, entra como administrador, deja la sede en `Todos` y usa rango de fechas si solo quieres un periodo.
+- En `Auditoria`, usa filtros por tipo de entidad, accion, actor y fechas para encontrar mas rapido lo que necesitas.
 - Si un usuario olvida su clave, el administrador puede entrar a `Usuarios` y restablecer una nueva contrasena temporal.

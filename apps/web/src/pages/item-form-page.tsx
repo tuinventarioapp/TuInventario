@@ -84,6 +84,10 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
     resolver: zodResolver(updateSchema),
   })
 
+  const selectedUnitId = mode === 'create' ? createForm.watch('unitId') : updateForm.watch('unitId')
+  const selectedUnit = unitsQuery.data?.find((option) => option.id === selectedUnitId)
+  const quantityStep = selectedUnit?.details === 'true' ? '0.01' : '1'
+
   useEffect(() => {
     if (itemQuery.data && mode === 'edit') {
       updateForm.reset({
@@ -180,8 +184,13 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('dashboard.totalItems')}</label>
-                <Input type="number" step="1" {...createForm.register('initialStock')} />
+                <label className="text-sm font-medium">{t('common.quantity')}</label>
+                <Input type="number" min="0" step={quantityStep} {...createForm.register('initialStock')} />
+                <p className="text-xs text-slate-500">
+                  {selectedUnit
+                    ? t('itemForm.quantityHelpWithUnit', { unit: selectedUnit.name, symbol: selectedUnit.extra })
+                    : t('itemForm.quantityHelp')}
+                </p>
               </div>
             </>
           )}

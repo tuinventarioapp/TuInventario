@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tuinventario.api.domain.entity.CategoryEntity;
 import com.tuinventario.api.domain.entity.ItemEntity;
+import com.tuinventario.api.domain.entity.LocationCategoryEntity;
 import com.tuinventario.api.domain.entity.UnitEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.OrganizationEntity;
 import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.repository.CategoryRepository;
 import com.tuinventario.api.domain.repository.ItemRepository;
+import com.tuinventario.api.domain.repository.LocationCategoryRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.OrganizationRepository;
 import com.tuinventario.api.domain.repository.UnitRepository;
@@ -23,6 +25,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.Map;
@@ -59,6 +62,9 @@ class OperationalFlowTest {
 
     @Autowired
     private LocationRepository locationRepository;
+
+    @Autowired
+    private LocationCategoryRepository locationCategoryRepository;
 
     @Autowired
     private OrganizationRepository organizationRepository;
@@ -101,6 +107,48 @@ class OperationalFlowTest {
         mockMvc.perform(get("/api/v1/reports/inventory-admin.csv")
                         .header("Authorization", "Bearer " + collaboratorToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldFilterReportsAndAuditLog() throws Exception {
+        String borrowerId = createBorrower("Borrower Reporte " + System.nanoTime());
+        String itemName = "Item Reporte " + System.nanoTime();
+        String itemId = createItem(itemName, "REP-" + System.nanoTime(), 2);
+        String loanRequestId = createLoanRequest(borrowerId, itemId, 1, Instant.now().plus(1, ChronoUnit.DAYS));
+        approveLoanRequest(loanRequestId);
+        LocalDate today = LocalDate.now();
+        LocalDate tomorrow = today.plusDays(1);
+
+        mockMvc.perform(get("/api/v1/reports/inventory.csv")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("fromDate", today.toString())
+                        .param("toDate", today.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(itemName)));
+
+        mockMvc.perform(get("/api/v1/reports/inventory.csv")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("fromDate", tomorrow.toString())
+                        .param("toDate", tomorrow.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString(itemName))));
+
+        mockMvc.perform(get("/api/v1/reports/loans.csv")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("fromDate", today.toString())
+                        .param("toDate", today.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Borrower Reporte")));
+
+        mockMvc.perform(get("/api/v1/audit")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("entityType", "ITEM")
+                        .param("action", "ITEM_CREATED")
+                        .param("actor", "Admin")
+                        .param("fromDate", today.toString())
+                        .param("toDate", today.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(1)));
     }
 
     @Test
@@ -399,6 +447,54 @@ class OperationalFlowTest {
         mockMvc.perform(delete("/api/v1/categories/{id}", savedCategoryId)
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
+
+        String locationCategoryResponse = mockMvc.perform(post("/api/v1/location-categories")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Sucursal " + System.nanoTime(),
+                                "description", "Categoria de prueba"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String locationCategoryId = objectMapper.readTree(locationCategoryResponse).get("id").asText();
+
+        mockMvc.perform(put("/api/v1/location-categories/{id}", locationCategoryId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Sucursal Editada",
+                                "description", "Actualizada"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Sucursal Editada"));
+
+        String locationResponse = mockMvc.perform(post("/api/v1/locations")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Ubicacion Flexible " + System.nanoTime(),
+                                "locationCategoryId", locationCategoryId,
+                                "description", "Ubicacion de prueba"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.extra").value("Sucursal Editada"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String locationId = objectMapper.readTree(locationResponse).get("id").asText();
+
+        mockMvc.perform(delete("/api/v1/locations/{id}", locationId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/v1/location-categories/{id}", locationCategoryId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
     }
 
     private String login(String email, String password) throws Exception {
@@ -534,6 +630,8 @@ class OperationalFlowTest {
         location.setOrganization(organizationRepository.findById(organizationId).orElseThrow());
         location.setName(name);
         location.setType(LocationType.OTHER);
+        LocationCategoryEntity locationCategory = locationCategoryRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
+        location.setLocationCategory(locationCategory);
         location.setDescription("Creada en prueba");
         locationRepository.save(location);
         return location.getId().toString();

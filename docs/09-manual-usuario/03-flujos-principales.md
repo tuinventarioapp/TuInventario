@@ -6,8 +6,9 @@
 2. Entra a `Catalogos`.
 3. Crea categorias.
 4. Crea unidades.
-5. Crea ubicaciones o sedes.
-6. Si hace falta, edita o elimina catalogos que no tengan uso.
+5. Crea categorias de ubicacion personalizadas.
+6. Crea ubicaciones o sedes y asignales una categoria de ubicacion.
+7. Si hace falta, edita o elimina catalogos que no tengan uso.
 
 Resultado esperado:
 
@@ -39,7 +40,13 @@ Nota:
 - si eres `Administrador`, puedes elegir cualquier sede;
 - si eres `Gestor`, la sede queda bloqueada en la tuya.
 
-5. Si tienes existencia inicial, agrega stock inicial.
+5. Si tienes existencia inicial, agrega la `Cantidad` inicial.
+
+Ejemplos:
+
+- `Cantidad 5` + `Unidad` para 5 pesas.
+- `Cantidad 5` + `Kilogramo` para 5 kg de tomate.
+
 6. Guarda.
 
 Resultado esperado:
@@ -182,8 +189,9 @@ Importante:
 2. Si eres `Administrador`, decide si quieres toda la empresa o una sede.
 3. Si eres administrador, usa el reporte `Inventario administrativo` para control gerencial.
 4. Si eres gestor o colaborador, usa el reporte `Inventario operativo`.
-5. Elige CSV o PDF.
-6. Pulsa `Descargar`.
+5. Si lo necesitas, define una fecha inicial y una fecha final.
+6. Elige CSV o PDF.
+7. Pulsa `Descargar`.
 
 Resultado esperado:
 
@@ -205,7 +213,11 @@ Resultado esperado:
 ## Flujo 14: revisar auditoria
 
 1. Entra a `Auditoria`.
-2. Revisa accion, actor, fecha y payload.
+2. Si hace falta, filtra por tipo de entidad.
+3. Filtra por accion.
+4. Filtra por actor.
+5. Filtra por rango de fechas.
+6. Revisa accion, actor, fecha y payload.
 
 Resultado esperado:
 

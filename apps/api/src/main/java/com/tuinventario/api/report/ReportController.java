@@ -11,6 +11,9 @@ import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import com.tuinventario.api.domain.entity.ItemEntity;
 import com.tuinventario.api.domain.entity.LoanEntity;
+import com.tuinventario.api.domain.entity.LocationEntity;
+import com.tuinventario.api.domain.repository.ItemRepository;
+import com.tuinventario.api.domain.repository.LoanRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.shared.exception.ApiException;
 import com.tuinventario.api.shared.service.CurrentContextService;
@@ -27,8 +30,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -45,34 +50,43 @@ public class ReportController {
     private static final MediaType CSV_UTF8 = new MediaType("text", "csv", StandardCharsets.UTF_8);
 
     private final CurrentContextService currentContextService;
-    private final com.tuinventario.api.domain.repository.ItemRepository itemRepository;
-    private final com.tuinventario.api.domain.repository.LoanRepository loanRepository;
+    private final ItemRepository itemRepository;
+    private final LoanRepository loanRepository;
     private final LocationRepository locationRepository;
 
     @GetMapping(value = "/inventory.csv", produces = "text/csv")
     @Transactional(readOnly = true)
-    public ResponseEntity<String> inventoryCsv(@RequestParam(required = false) UUID locationId) {
-        return csvResponse(
-                "inventario-operativo.csv",
-                buildInventoryCsv(locationId, false)
-        );
+    public ResponseEntity<String> inventoryCsv(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate
+    ) {
+        ReportRange range = resolveRange(fromDate, toDate);
+        return csvResponse("inventario-operativo.csv", buildInventoryCsv(locationId, false, range));
     }
 
     @GetMapping(value = "/inventory-admin.csv", produces = "text/csv")
     @Transactional(readOnly = true)
-    public ResponseEntity<String> inventoryAdminCsv(@RequestParam(required = false) UUID locationId) {
+    public ResponseEntity<String> inventoryAdminCsv(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate
+    ) {
         currentContextService.requireAdmin();
-        return csvResponse(
-                "inventario-administrativo.csv",
-                buildInventoryCsv(locationId, true)
-        );
+        ReportRange range = resolveRange(fromDate, toDate);
+        return csvResponse("inventario-administrativo.csv", buildInventoryCsv(locationId, true, range));
     }
 
     @GetMapping(value = "/loans.csv", produces = "text/csv")
     @Transactional(readOnly = true)
-    public ResponseEntity<String> loansCsv(@RequestParam(required = false) UUID locationId) {
+    public ResponseEntity<String> loansCsv(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate
+    ) {
+        ReportRange range = resolveRange(fromDate, toDate);
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
-        List<LoanEntity> loans = scopedLoans(effectiveLocationId);
+        List<LoanEntity> loans = scopedLoans(effectiveLocationId, range);
 
         List<List<String>> rows = new ArrayList<>();
         for (LoanEntity loan : loans) {
@@ -92,6 +106,7 @@ public class ReportController {
         String content = buildCsvDocument(
                 "Prestamos",
                 effectiveLocationId == null ? "Toda la empresa" : resolveLocationName(effectiveLocationId),
+                range.label(),
                 List.of("Prestatario", "Articulo", "Sede", "Estado", "Fecha de vencimiento", "Fecha de entrega", "Fecha de cierre", "Notas"),
                 rows
         );
@@ -100,15 +115,23 @@ public class ReportController {
 
     @GetMapping(value = "/inventory.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @Transactional(readOnly = true)
-    public ResponseEntity<byte[]> inventoryPdf(@RequestParam(required = false) UUID locationId) {
-        return buildInventoryPdf(locationId, false);
+    public ResponseEntity<byte[]> inventoryPdf(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate
+    ) {
+        return buildInventoryPdf(locationId, false, resolveRange(fromDate, toDate));
     }
 
     @GetMapping(value = "/inventory-admin.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @Transactional(readOnly = true)
-    public ResponseEntity<byte[]> inventoryAdminPdf(@RequestParam(required = false) UUID locationId) {
+    public ResponseEntity<byte[]> inventoryAdminPdf(
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate
+    ) {
         currentContextService.requireAdmin();
-        return buildInventoryPdf(locationId, true);
+        return buildInventoryPdf(locationId, true, resolveRange(fromDate, toDate));
     }
 
     private ResponseEntity<String> csvResponse(String fileName, String content) {
@@ -118,9 +141,9 @@ public class ReportController {
                 .body(content);
     }
 
-    private String buildInventoryCsv(UUID locationId, boolean adminView) {
+    private String buildInventoryCsv(UUID locationId, boolean adminView, ReportRange range) {
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
-        List<ItemEntity> items = scopedItems(effectiveLocationId);
+        List<ItemEntity> items = scopedItems(effectiveLocationId, range);
         List<List<String>> rows = new ArrayList<>();
 
         for (ItemEntity item : items) {
@@ -162,14 +185,15 @@ public class ReportController {
         return buildCsvDocument(
                 title,
                 effectiveLocationId == null ? "Toda la empresa" : resolveLocationName(effectiveLocationId),
+                range.label(),
                 headers,
                 rows
         );
     }
 
-    private ResponseEntity<byte[]> buildInventoryPdf(UUID locationId, boolean adminView) {
+    private ResponseEntity<byte[]> buildInventoryPdf(UUID locationId, boolean adminView, ReportRange range) {
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
-        List<ItemEntity> items = scopedItems(effectiveLocationId);
+        List<ItemEntity> items = scopedItems(effectiveLocationId, range);
 
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 24, 24, 24, 24);
@@ -183,6 +207,7 @@ public class ReportController {
 
             document.add(new Paragraph(adminView ? "Inventario administrativo" : "Inventario operativo", titleFont));
             document.add(new Paragraph("Alcance: " + (effectiveLocationId == null ? "Toda la empresa" : resolveLocationName(effectiveLocationId)), subtitleFont));
+            document.add(new Paragraph("Periodo: " + range.label(), subtitleFont));
             document.add(new Paragraph("Generado por: " + currentContextService.currentActorEntity().getFullName(), subtitleFont));
             document.add(new Paragraph("Fecha: " + formatInstant(Instant.now()), subtitleFont));
             document.add(new Paragraph(" "));
@@ -234,22 +259,24 @@ public class ReportController {
         }
     }
 
-    private List<ItemEntity> scopedItems(UUID effectiveLocationId) {
+    private List<ItemEntity> scopedItems(UUID effectiveLocationId, ReportRange range) {
         return itemRepository.search(currentContextService.currentUser().organizationId(), "", org.springframework.data.domain.PageRequest.of(0, 1000))
                 .stream()
                 .filter(item -> effectiveLocationId == null || item.getPrimaryLocation().getId().equals(effectiveLocationId))
+                .filter(item -> matchesRange(resolveItemActivityAt(item), range))
                 .sorted(Comparator.comparing((ItemEntity item) -> item.getPrimaryLocation().getName())
                         .thenComparing(ItemEntity::getName))
                 .toList();
     }
 
-    private List<LoanEntity> scopedLoans(UUID effectiveLocationId) {
+    private List<LoanEntity> scopedLoans(UUID effectiveLocationId, ReportRange range) {
         return loanRepository.findByOrganizationIdOrderByCreatedAtDesc(currentContextService.currentUser().organizationId())
                 .stream()
                 .filter(loan -> {
                     ItemEntity item = loan.getLoanRequest() == null ? null : loan.getLoanRequest().getItem();
                     return effectiveLocationId == null || item != null && item.getPrimaryLocation().getId().equals(effectiveLocationId);
                 })
+                .filter(loan -> loanMatchesRange(loan, range))
                 .sorted(Comparator.comparing((LoanEntity loan) -> {
                     ItemEntity item = loan.getLoanRequest() == null ? null : loan.getLoanRequest().getItem();
                     return item == null ? "" : item.getPrimaryLocation().getName();
@@ -257,7 +284,31 @@ public class ReportController {
                 .toList();
     }
 
-    private String buildCsvDocument(String title, String scopeLabel, List<String> headers, List<List<String>> rows) {
+    private boolean loanMatchesRange(LoanEntity loan, ReportRange range) {
+        if (!range.hasBounds()) {
+            return true;
+        }
+        Instant start = loan.getCreatedAt();
+        Instant end = loan.getReturnedAt();
+        boolean afterStart = range.fromInclusive() == null || end == null || !end.isBefore(range.fromInclusive());
+        boolean beforeEnd = range.toExclusive() == null || start.isBefore(range.toExclusive());
+        return afterStart && beforeEnd;
+    }
+
+    private Instant resolveItemActivityAt(ItemEntity item) {
+        return item.getLastMovementAt() == null ? item.getCreatedAt() : item.getLastMovementAt();
+    }
+
+    private boolean matchesRange(Instant instant, ReportRange range) {
+        if (!range.hasBounds() || instant == null) {
+            return range.hasBounds() ? instant != null : true;
+        }
+        boolean afterStart = range.fromInclusive() == null || !instant.isBefore(range.fromInclusive());
+        boolean beforeEnd = range.toExclusive() == null || instant.isBefore(range.toExclusive());
+        return afterStart && beforeEnd;
+    }
+
+    private String buildCsvDocument(String title, String scopeLabel, String rangeLabel, List<String> headers, List<List<String>> rows) {
         StringBuilder builder = new StringBuilder();
         builder.append('\uFEFF');
         builder.append("sep=;\n");
@@ -265,6 +316,7 @@ public class ReportController {
         builder.append(csvRow(List.of("Generado por", currentContextService.currentActorEntity().getFullName())));
         builder.append(csvRow(List.of("Fecha", formatInstant(Instant.now()))));
         builder.append(csvRow(List.of("Alcance", scopeLabel)));
+        builder.append(csvRow(List.of("Periodo", rangeLabel)));
         builder.append('\n');
         builder.append(csvRow(headers));
         for (List<String> row : rows) {
@@ -296,12 +348,32 @@ public class ReportController {
 
     private String resolveLocationName(UUID locationId) {
         return locationRepository.findByIdAndOrganizationId(locationId, currentContextService.currentUser().organizationId())
-                .map(com.tuinventario.api.domain.entity.LocationEntity::getName)
+                .map(LocationEntity::getName)
                 .orElse("Ubicacion");
     }
 
+    private ReportRange resolveRange(LocalDate fromDate, LocalDate toDate) {
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REPORT_RANGE", "La fecha inicial no puede ser mayor que la fecha final.");
+        }
+        ZoneId zoneId = ZoneId.of(currentContextService.currentOrganizationEntity().getTimezone());
+        Instant fromInclusive = fromDate == null ? null : fromDate.atStartOfDay(zoneId).toInstant();
+        Instant toExclusive = toDate == null ? null : toDate.plusDays(1).atStartOfDay(zoneId).toInstant();
+        String label;
+        if (fromDate == null && toDate == null) {
+            label = "Todo el historial";
+        } else if (fromDate != null && toDate != null) {
+            label = fromDate.format(DateTimeFormatter.ISO_LOCAL_DATE) + " a " + toDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
+        } else if (fromDate != null) {
+            label = "Desde " + fromDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
+        } else {
+            label = "Hasta " + toDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
+        }
+        return new ReportRange(fromInclusive, toExclusive, label);
+    }
+
     private String formatDecimal(BigDecimal value) {
-        return value == null ? "" : value.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
+        return value == null ? "" : value.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
     private String formatInstant(Instant instant) {
@@ -312,5 +384,11 @@ public class ReportController {
         return DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
                 .withZone(ZoneId.of(timezone))
                 .format(instant);
+    }
+
+    private record ReportRange(Instant fromInclusive, Instant toExclusive, String label) {
+        private boolean hasBounds() {
+            return fromInclusive != null || toExclusive != null;
+        }
     }
 }

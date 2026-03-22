@@ -1,6 +1,7 @@
 package com.tuinventario.api.bootstrap;
 
 import com.tuinventario.api.domain.entity.LocationEntity;
+import com.tuinventario.api.domain.entity.LocationCategoryEntity;
 import com.tuinventario.api.domain.entity.MembershipEntity;
 import com.tuinventario.api.domain.entity.OrganizationEntity;
 import com.tuinventario.api.domain.entity.RoleEntity;
@@ -9,6 +10,7 @@ import com.tuinventario.api.domain.enums.EntityStatus;
 import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.enums.MembershipStatus;
 import com.tuinventario.api.domain.repository.LocationRepository;
+import com.tuinventario.api.domain.repository.LocationCategoryRepository;
 import com.tuinventario.api.domain.repository.MembershipRepository;
 import com.tuinventario.api.domain.repository.OrganizationRepository;
 import com.tuinventario.api.domain.repository.RoleRepository;
@@ -29,6 +31,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final MembershipRepository membershipRepository;
+    private final LocationCategoryRepository locationCategoryRepository;
     private final LocationRepository locationRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -50,10 +53,17 @@ public class DemoDataSeeder implements ApplicationRunner {
         RoleEntity managerRole = roleRepository.findByName("MANAGER").orElseThrow();
         RoleEntity collaboratorRole = roleRepository.findByName("COLLABORATOR").orElseThrow();
 
+        LocationCategoryEntity warehouseCategory = createLocationCategory(organization, "Bodega", "Ubicacion de almacenamiento");
+        createLocationCategory(organization, "Oficina", "Puesto o area administrativa");
+        createLocationCategory(organization, "Vehiculo", "Unidad movil o camion");
+        createLocationCategory(organization, "Sitio del cliente", "Ubicacion externa del cliente");
+        createLocationCategory(organization, "Otra", "Otra categoria de ubicacion");
+
         LocationEntity location = new LocationEntity();
         location.setOrganization(organization);
         location.setName("Sede Principal");
         location.setType(LocationType.WAREHOUSE);
+        location.setLocationCategory(warehouseCategory);
         location.setDescription("Sede base de la operacion");
         locationRepository.save(location);
 
@@ -104,5 +114,13 @@ public class DemoDataSeeder implements ApplicationRunner {
         workerMembership.setAssignedLocation(location);
         workerMembership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(workerMembership);
+    }
+
+    private LocationCategoryEntity createLocationCategory(OrganizationEntity organization, String name, String description) {
+        LocationCategoryEntity category = new LocationCategoryEntity();
+        category.setOrganization(organization);
+        category.setName(name);
+        category.setDescription(description);
+        return locationCategoryRepository.save(category);
     }
 }
