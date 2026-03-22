@@ -58,13 +58,14 @@ public class ItemService {
     ) {
         String safeQuery = query == null ? "" : query.trim();
         String safeStockFilter = stockFilter == null || stockFilter.isBlank() ? null : stockFilter.trim().toUpperCase();
+        UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         var result = itemRepository.search(
                         currentContextService.currentUser().organizationId(),
                         safeQuery,
                         categoryId,
                         status,
                         type,
-                        locationId,
+                        effectiveLocationId,
                         safeStockFilter,
                         minAvailableStock,
                         maxAvailableStock,
@@ -88,18 +89,21 @@ public class ItemService {
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "CATEGORY_NOT_FOUND", "Categoria no encontrada."));
         UnitEntity unit = unitRepository.findByIdAndOrganizationId(UUID.fromString(request.unitId()), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "UNIT_NOT_FOUND", "Unidad no encontrada."));
-        LocationEntity location = locationRepository.findByIdAndOrganizationId(UUID.fromString(request.primaryLocationId()), currentContextService.currentUser().organizationId())
-                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "LOCATION_NOT_FOUND", "Ubicacion no encontrada."));
+        LocationEntity location = currentContextService.resolveEffectiveLocationEntity(request.primaryLocationId());
+        if (location == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "LOCATION_REQUIRED", "Debes seleccionar una ubicacion.");
+        }
+        validateUniqueSku(request.sku(), location.getId(), null);
 
         ItemEntity item = new ItemEntity();
         item.setOrganization(currentContextService.currentOrganizationEntity());
         item.setCategory(category);
         item.setUnit(unit);
         item.setPrimaryLocation(location);
-        item.setName(request.name());
-        item.setSku(request.sku());
-        item.setDescription(request.description());
-        item.setImageUrl(request.imageUrl());
+        item.setName(request.name().trim());
+        item.setSku(request.sku().trim().toUpperCase());
+        item.setDescription(normalizeOptional(request.description()));
+        item.setImageUrl(normalizeOptional(request.imageUrl()));
         item.setType(request.type());
         item.setStatus(ItemStatus.AVAILABLE);
         item.setConsumable(request.type() == ItemType.CONSUMABLE || request.type() == ItemType.HYBRID);
@@ -137,16 +141,20 @@ public class ItemService {
     public ItemDtos.ItemResponse updateItem(UUID id, ItemDtos.UpdateItemRequest request) {
         currentContextService.requireManagerOrAdmin();
         ItemEntity item = findItem(id);
-        item.setName(request.name());
-        item.setDescription(request.description());
-        item.setImageUrl(request.imageUrl());
+        LocationEntity location = currentContextService.resolveEffectiveLocationEntity(request.primaryLocationId());
+        if (location == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "LOCATION_REQUIRED", "Debes seleccionar una ubicacion.");
+        }
+        validateUniqueSku(item.getSku(), location.getId(), item.getId());
+        item.setName(request.name().trim());
+        item.setDescription(normalizeOptional(request.description()));
+        item.setImageUrl(normalizeOptional(request.imageUrl()));
         item.setStatus(request.status());
         item.setCategory(categoryRepository.findByIdAndOrganizationId(UUID.fromString(request.categoryId()), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "CATEGORY_NOT_FOUND", "Categoria no encontrada.")));
         item.setUnit(unitRepository.findByIdAndOrganizationId(UUID.fromString(request.unitId()), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "UNIT_NOT_FOUND", "Unidad no encontrada.")));
-        item.setPrimaryLocation(locationRepository.findByIdAndOrganizationId(UUID.fromString(request.primaryLocationId()), currentContextService.currentUser().organizationId())
-                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "LOCATION_NOT_FOUND", "Ubicacion no encontrada.")));
+        item.setPrimaryLocation(location);
         itemRepository.save(item);
 
         auditService.log(
@@ -162,8 +170,10 @@ public class ItemService {
     }
 
     private ItemEntity findItem(UUID id) {
-        return itemRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
+        ItemEntity item = itemRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ITEM_NOT_FOUND", "Item no encontrado."));
+        currentContextService.ensureAccessibleLocation(item.getPrimaryLocation().getId());
+        return item;
     }
 
     private StockMovementEntity buildInitialMovement(ItemEntity item, BigDecimal quantity, LocationEntity location) {
@@ -178,6 +188,26 @@ public class ItemService {
         movement.setPerformedBy(currentContextService.currentActorEntity());
         movement.setOccurredAt(Instant.now());
         return movement;
+    }
+
+    private void validateUniqueSku(String sku, UUID locationId, UUID currentItemId) {
+        String normalizedSku = sku.trim().toUpperCase();
+        itemRepository.findByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCase(
+                        currentContextService.currentUser().organizationId(),
+                        locationId,
+                        normalizedSku
+                )
+                .filter(existing -> currentItemId == null || !existing.getId().equals(currentItemId))
+                .ifPresent(existing -> {
+                    throw new ApiException(HttpStatus.CONFLICT, "SKU_ALREADY_EXISTS", "Ya existe un articulo con ese SKU en la ubicacion seleccionada.");
+                });
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private ItemDtos.ItemResponse mapItem(ItemEntity item) {

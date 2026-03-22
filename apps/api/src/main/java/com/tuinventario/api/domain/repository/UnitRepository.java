@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface UnitRepository extends JpaRepository<UnitEntity, UUID> {
     List<UnitEntity> findByOrganizationIdOrderByNameAsc(UUID organizationId);
     Optional<UnitEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    boolean existsByOrganizationIdAndNameIgnoreCase(UUID organizationId, String name);
 }

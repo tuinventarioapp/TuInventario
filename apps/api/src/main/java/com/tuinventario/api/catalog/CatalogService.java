@@ -13,7 +13,9 @@ import com.tuinventario.api.domain.repository.ItemRepository;
 import com.tuinventario.api.domain.repository.LoanRepository;
 import com.tuinventario.api.domain.repository.LoanRequestRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
+import com.tuinventario.api.domain.repository.MembershipRepository;
 import com.tuinventario.api.domain.repository.UnitRepository;
+import com.tuinventario.api.domain.repository.StockMovementRepository;
 import com.tuinventario.api.shared.exception.ApiException;
 import com.tuinventario.api.shared.service.CurrentContextService;
 import lombok.RequiredArgsConstructor;
@@ -37,64 +39,145 @@ public class CatalogService {
     private final ItemRepository itemRepository;
     private final LoanRepository loanRepository;
     private final LoanRequestRepository loanRequestRepository;
+    private final MembershipRepository membershipRepository;
+    private final StockMovementRepository stockMovementRepository;
 
     @Transactional(readOnly = true)
     public List<CatalogDtos.CatalogOptionResponse> listCategories() {
         return categoryRepository.findByOrganizationIdOrderByNameAsc(currentContextService.currentUser().organizationId())
                 .stream()
-                .map(category -> new CatalogDtos.CatalogOptionResponse(category.getId().toString(), category.getName(), category.getDescription()))
+                .map(category -> new CatalogDtos.CatalogOptionResponse(category.getId().toString(), category.getName(), category.getDescription(), null))
                 .toList();
     }
 
     @Transactional
     public CatalogDtos.CatalogOptionResponse createCategory(CatalogDtos.CreateCategoryRequest request) {
-        currentContextService.requireManagerOrAdmin();
+        currentContextService.requireAdmin();
+        validateCategoryName(request.name(), null);
         CategoryEntity entity = new CategoryEntity();
         entity.setOrganization(currentContextService.currentOrganizationEntity());
-        entity.setName(request.name());
-        entity.setDescription(request.description());
+        entity.setName(request.name().trim());
+        entity.setDescription(normalizeOptional(request.description()));
         categoryRepository.save(entity);
-        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getDescription());
+        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getDescription(), null);
+    }
+
+    @Transactional
+    public CatalogDtos.CatalogOptionResponse updateCategory(UUID categoryId, CatalogDtos.UpdateCategoryRequest request) {
+        currentContextService.requireAdmin();
+        CategoryEntity entity = categoryRepository.findByIdAndOrganizationId(categoryId, currentContextService.currentUser().organizationId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "CATEGORY_NOT_FOUND", "Categoria no encontrada."));
+        validateCategoryName(request.name(), categoryId);
+        entity.setName(request.name().trim());
+        entity.setDescription(normalizeOptional(request.description()));
+        categoryRepository.save(entity);
+        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getDescription(), null);
+    }
+
+    @Transactional
+    public void deleteCategory(UUID categoryId) {
+        currentContextService.requireAdmin();
+        if (itemRepository.existsByOrganizationIdAndCategoryId(currentContextService.currentUser().organizationId(), categoryId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "CATEGORY_IN_USE", "No puedes eliminar una categoria que ya esta en uso.");
+        }
+        CategoryEntity entity = categoryRepository.findByIdAndOrganizationId(categoryId, currentContextService.currentUser().organizationId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "CATEGORY_NOT_FOUND", "Categoria no encontrada."));
+        categoryRepository.delete(entity);
     }
 
     @Transactional(readOnly = true)
     public List<CatalogDtos.CatalogOptionResponse> listUnits() {
         return unitRepository.findByOrganizationIdOrderByNameAsc(currentContextService.currentUser().organizationId())
                 .stream()
-                .map(unit -> new CatalogDtos.CatalogOptionResponse(unit.getId().toString(), unit.getName(), unit.getSymbol()))
+                .map(unit -> new CatalogDtos.CatalogOptionResponse(unit.getId().toString(), unit.getName(), unit.getSymbol(), Boolean.toString(unit.isAllowsDecimal())))
                 .toList();
     }
 
     @Transactional
     public CatalogDtos.CatalogOptionResponse createUnit(CatalogDtos.CreateUnitRequest request) {
-        currentContextService.requireManagerOrAdmin();
+        currentContextService.requireAdmin();
+        validateUnitName(request.name(), null);
         UnitEntity entity = new UnitEntity();
         entity.setOrganization(currentContextService.currentOrganizationEntity());
-        entity.setName(request.name());
-        entity.setSymbol(request.symbol());
+        entity.setName(request.name().trim());
+        entity.setSymbol(request.symbol().trim());
         entity.setAllowsDecimal(request.allowsDecimal());
         unitRepository.save(entity);
-        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getSymbol());
+        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getSymbol(), Boolean.toString(entity.isAllowsDecimal()));
+    }
+
+    @Transactional
+    public CatalogDtos.CatalogOptionResponse updateUnit(UUID unitId, CatalogDtos.UpdateUnitRequest request) {
+        currentContextService.requireAdmin();
+        UnitEntity entity = unitRepository.findByIdAndOrganizationId(unitId, currentContextService.currentUser().organizationId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "UNIT_NOT_FOUND", "Unidad no encontrada."));
+        validateUnitName(request.name(), unitId);
+        entity.setName(request.name().trim());
+        entity.setSymbol(request.symbol().trim());
+        entity.setAllowsDecimal(request.allowsDecimal());
+        unitRepository.save(entity);
+        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getSymbol(), Boolean.toString(entity.isAllowsDecimal()));
+    }
+
+    @Transactional
+    public void deleteUnit(UUID unitId) {
+        currentContextService.requireAdmin();
+        if (itemRepository.existsByOrganizationIdAndUnitId(currentContextService.currentUser().organizationId(), unitId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "UNIT_IN_USE", "No puedes eliminar una unidad que ya esta en uso.");
+        }
+        UnitEntity entity = unitRepository.findByIdAndOrganizationId(unitId, currentContextService.currentUser().organizationId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "UNIT_NOT_FOUND", "Unidad no encontrada."));
+        unitRepository.delete(entity);
     }
 
     @Transactional(readOnly = true)
     public List<CatalogDtos.CatalogOptionResponse> listLocations() {
         return locationRepository.findByOrganizationIdOrderByNameAsc(currentContextService.currentUser().organizationId())
                 .stream()
-                .map(location -> new CatalogDtos.CatalogOptionResponse(location.getId().toString(), location.getName(), location.getType().name()))
+                .map(location -> new CatalogDtos.CatalogOptionResponse(location.getId().toString(), location.getName(), location.getType().name(), location.getDescription()))
                 .toList();
     }
 
     @Transactional
     public CatalogDtos.CatalogOptionResponse createLocation(CatalogDtos.CreateLocationRequest request) {
-        currentContextService.requireManagerOrAdmin();
+        currentContextService.requireAdmin();
+        validateLocationName(request.name(), null);
         LocationEntity entity = new LocationEntity();
         entity.setOrganization(currentContextService.currentOrganizationEntity());
-        entity.setName(request.name());
+        entity.setName(request.name().trim());
         entity.setType(request.type() == null ? LocationType.OTHER : request.type());
-        entity.setDescription(request.description());
+        entity.setDescription(normalizeOptional(request.description()));
         locationRepository.save(entity);
-        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getType().name());
+        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getType().name(), entity.getDescription());
+    }
+
+    @Transactional
+    public CatalogDtos.CatalogOptionResponse updateLocation(UUID locationId, CatalogDtos.UpdateLocationRequest request) {
+        currentContextService.requireAdmin();
+        LocationEntity entity = locationRepository.findByIdAndOrganizationId(locationId, currentContextService.currentUser().organizationId())
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "LOCATION_NOT_FOUND", "Ubicacion no encontrada."));
+        validateLocationName(request.name(), locationId);
+        entity.setName(request.name().trim());
+        entity.setType(request.type() == null ? LocationType.OTHER : request.type());
+        entity.setDescription(normalizeOptional(request.description()));
+        locationRepository.save(entity);
+        return new CatalogDtos.CatalogOptionResponse(entity.getId().toString(), entity.getName(), entity.getType().name(), entity.getDescription());
+    }
+
+    @Transactional
+    public void deleteLocation(UUID locationId) {
+        currentContextService.requireAdmin();
+        UUID organizationId = currentContextService.currentUser().organizationId();
+        boolean locationInUse = itemRepository.existsByOrganizationIdAndPrimaryLocationId(organizationId, locationId)
+                || membershipRepository.existsByOrganizationIdAndAssignedLocationId(organizationId, locationId)
+                || stockMovementRepository.existsByOrganizationIdAndSourceLocationId(organizationId, locationId)
+                || stockMovementRepository.existsByOrganizationIdAndTargetLocationId(organizationId, locationId);
+        if (locationInUse) {
+            throw new ApiException(HttpStatus.CONFLICT, "LOCATION_IN_USE", "No puedes eliminar una ubicacion que ya tiene inventario, usuarios o movimientos asociados.");
+        }
+        LocationEntity entity = locationRepository.findByIdAndOrganizationId(locationId, organizationId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "LOCATION_NOT_FOUND", "Ubicacion no encontrada."));
+        locationRepository.delete(entity);
     }
 
     @Transactional(readOnly = true)
@@ -115,7 +198,8 @@ public class CatalogService {
                 .map(item -> new CatalogDtos.CatalogOptionResponse(
                         item.getId().toString(),
                         item.getName(),
-                        item.getAvailableStock().toPlainString()
+                        item.getAvailableStock().toPlainString(),
+                        item.getPrimaryLocation().getName()
                 ))
                 .toList();
     }
@@ -168,6 +252,39 @@ public class CatalogService {
             return null;
         }
         return value.trim();
+    }
+
+    private void validateCategoryName(String name, UUID currentCategoryId) {
+        String normalized = name.trim();
+        if (categoryRepository.existsByOrganizationIdAndNameIgnoreCase(currentContextService.currentUser().organizationId(), normalized)) {
+            if (currentCategoryId == null || categoryRepository.findByIdAndOrganizationId(currentCategoryId, currentContextService.currentUser().organizationId())
+                    .filter(existing -> !existing.getName().equalsIgnoreCase(normalized))
+                    .isPresent()) {
+                throw new ApiException(HttpStatus.CONFLICT, "CATEGORY_ALREADY_EXISTS", "Ya existe una categoria con ese nombre.");
+            }
+        }
+    }
+
+    private void validateUnitName(String name, UUID currentUnitId) {
+        String normalized = name.trim();
+        if (unitRepository.existsByOrganizationIdAndNameIgnoreCase(currentContextService.currentUser().organizationId(), normalized)) {
+            if (currentUnitId == null || unitRepository.findByIdAndOrganizationId(currentUnitId, currentContextService.currentUser().organizationId())
+                    .filter(existing -> !existing.getName().equalsIgnoreCase(normalized))
+                    .isPresent()) {
+                throw new ApiException(HttpStatus.CONFLICT, "UNIT_ALREADY_EXISTS", "Ya existe una unidad con ese nombre.");
+            }
+        }
+    }
+
+    private void validateLocationName(String name, UUID currentLocationId) {
+        String normalized = name.trim();
+        if (locationRepository.existsByOrganizationIdAndNameIgnoreCase(currentContextService.currentUser().organizationId(), normalized)) {
+            if (currentLocationId == null || locationRepository.findByIdAndOrganizationId(currentLocationId, currentContextService.currentUser().organizationId())
+                    .filter(existing -> !existing.getName().equalsIgnoreCase(normalized))
+                    .isPresent()) {
+                throw new ApiException(HttpStatus.CONFLICT, "LOCATION_ALREADY_EXISTS", "Ya existe una ubicacion con ese nombre.");
+            }
+        }
     }
 
     private CatalogDtos.BorrowerResponse mapBorrower(BorrowerEntity entity) {

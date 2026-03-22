@@ -16,9 +16,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.ByteArrayOutputStream;
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/reports")
@@ -31,9 +34,12 @@ public class ReportController {
 
     @GetMapping(value = "/inventory.csv", produces = "text/csv")
     @Transactional(readOnly = true)
-    public String inventoryCsv() {
+    public String inventoryCsv(@RequestParam(required = false) UUID locationId) {
+        UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         StringBuilder builder = new StringBuilder("name,sku,availableStock,reservedStock,loanedStock,damagedStock,status\n");
         itemRepository.search(currentContextService.currentUser().organizationId(), "", org.springframework.data.domain.PageRequest.of(0, 1000))
+                .stream()
+                .filter(item -> effectiveLocationId == null || item.getPrimaryLocation().getId().equals(effectiveLocationId))
                 .forEach(item -> builder.append(item.getName()).append(',')
                         .append(item.getSku()).append(',')
                         .append(item.getAvailableStock()).append(',')
@@ -46,9 +52,12 @@ public class ReportController {
 
     @GetMapping(value = "/loans.csv", produces = "text/csv")
     @Transactional(readOnly = true)
-    public String loansCsv() {
+    public String loansCsv(@RequestParam(required = false) UUID locationId) {
+        UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         StringBuilder builder = new StringBuilder("borrower,status,dueAt,loanedAt,returnedAt\n");
         loanRepository.findByOrganizationIdOrderByCreatedAtDesc(currentContextService.currentUser().organizationId())
+                .stream()
+                .filter(loan -> effectiveLocationId == null || loan.getLoanRequest() != null && loan.getLoanRequest().getItem().getPrimaryLocation().getId().equals(effectiveLocationId))
                 .forEach(loan -> builder.append(loan.getBorrower().getName()).append(',')
                         .append(loan.getStatus()).append(',')
                         .append(loan.getDueAt()).append(',')
@@ -59,7 +68,8 @@ public class ReportController {
 
     @GetMapping(value = "/inventory.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @Transactional(readOnly = true)
-    public ResponseEntity<byte[]> inventoryPdf() {
+    public ResponseEntity<byte[]> inventoryPdf(@RequestParam(required = false) UUID locationId) {
+        UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Document document = new Document();
             PdfWriter.getInstance(document, outputStream);
@@ -67,6 +77,8 @@ public class ReportController {
             document.add(new Paragraph("Reporte de inventario - TuInventario"));
             document.add(new Paragraph(" "));
             itemRepository.search(currentContextService.currentUser().organizationId(), "", org.springframework.data.domain.PageRequest.of(0, 1000))
+                    .stream()
+                    .filter(item -> effectiveLocationId == null || item.getPrimaryLocation().getId().equals(effectiveLocationId))
                     .forEach(item -> {
                         try {
                             document.add(new Paragraph(item.getName() + " | SKU: " + item.getSku() + " | Disponible: " + item.getAvailableStock() + " | Danado: " + item.getDamagedStock()));

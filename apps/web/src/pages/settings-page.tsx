@@ -30,6 +30,10 @@ export function SettingsPage() {
             <dd>{settingsQuery.data?.timezone}</dd>
           </div>
           <div>
+            <dt className="font-medium text-slate-900">{t('items.location')}</dt>
+            <dd>{settingsQuery.data?.assignedLocationName || t('users.globalScope')}</dd>
+          </div>
+          <div>
             <dt className="font-medium text-slate-900">ID</dt>
             <dd className="break-all">{settingsQuery.data?.organizationId}</dd>
           </div>

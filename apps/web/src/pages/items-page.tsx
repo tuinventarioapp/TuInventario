@@ -9,7 +9,7 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useI18n } from '../i18n/use-i18n'
-import { canManageInventory } from '../lib/access'
+import { canManageInventory, isAdmin } from '../lib/access'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
@@ -71,6 +71,7 @@ export function ItemsPage() {
   }
 
   const canEditInventory = canManageInventory(user?.role)
+  const isGlobalAdmin = isAdmin(user?.role)
   const currentPage = itemsQuery.data?.page ?? filters.page
   const totalPages = itemsQuery.data?.totalPages ?? 0
 
@@ -81,6 +82,10 @@ export function ItemsPage() {
         description={t('items.description')}
         action={canEditInventory ? <Link to="/app/items/new"><Button>{t('items.new')}</Button></Link> : undefined}
       />
+
+      {!isGlobalAdmin && user?.assignedLocationName && (
+        <Notice>{t('items.scopeNotice', { location: user.assignedLocationName })}</Notice>
+      )}
 
       <Card className="space-y-4">
         <div className="flex items-center justify-between gap-4">
@@ -119,13 +124,20 @@ export function ItemsPage() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{t('items.location')}</label>
-            <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={filters.locationId} onChange={(event) => updateFilters({ locationId: event.target.value })}>
-              <option value="">{t('common.all')}</option>
-              {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-            </select>
-          </div>
+          {isGlobalAdmin ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('items.location')}</label>
+              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={filters.locationId} onChange={(event) => updateFilters({ locationId: event.target.value })}>
+                <option value="">{t('common.all')}</option>
+                {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('items.location')}</label>
+              <Input disabled value={user?.assignedLocationName ?? t('common.notAvailable')} />
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">{t('common.status')}</label>

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -11,11 +11,11 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useI18n } from '../i18n/use-i18n'
-import { isManagerOrAdmin } from '../lib/access'
+import { isAdmin, isManagerOrAdmin } from '../lib/access'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
-import type { Loan } from '../types/api'
 import { useAuthStore } from '../store/auth-store'
+import type { Loan } from '../types/api'
 
 type FormValues = {
   borrowerId: string
@@ -45,26 +45,32 @@ export function LoansPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
   const canManageLoanLifecycle = isManagerOrAdmin(user?.role)
+  const isGlobalAdmin = isAdmin(user?.role)
+  const [locationFilterId, setLocationFilterId] = useState('')
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
   const [returnDrafts, setReturnDrafts] = useState<Record<string, ReturnDraft>>({})
-
-  const schema = z.object({
+  const schema = useMemo(() => z.object({
     borrowerId: z.string().min(1, t('validation.required')),
     itemId: z.string().min(1, t('validation.required')),
     quantity: z.coerce.number().positive(t('validation.quantity')),
     dueAt: z.string().min(1, t('validation.date')),
     notes: z.string().optional(),
-  })
+  }), [t])
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { quantity: 1 },
   })
 
+  const effectiveLocationFilter = isGlobalAdmin ? locationFilterId || undefined : user?.assignedLocationId ?? undefined
   const borrowersQuery = useQuery({ queryKey: ['borrowers'], queryFn: api.borrowers })
-  const itemsQuery = useQuery({ queryKey: ['items', 'loan-form'], queryFn: () => api.items({ query: '', page: 0, size: 100, stockFilter: 'IN_STOCK' }) })
-  const loanRequestsQuery = useQuery({ queryKey: ['loan-requests'], queryFn: api.loanRequests })
-  const loansQuery = useQuery({ queryKey: ['loans'], queryFn: api.loans })
+  const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations })
+  const itemsQuery = useQuery({
+    queryKey: ['items', 'loan-form', effectiveLocationFilter],
+    queryFn: () => api.items({ query: '', page: 0, size: 100, stockFilter: 'IN_STOCK', locationId: effectiveLocationFilter }),
+  })
+  const loanRequestsQuery = useQuery({ queryKey: ['loan-requests', effectiveLocationFilter], queryFn: () => api.loanRequests(effectiveLocationFilter) })
+  const loansQuery = useQuery({ queryKey: ['loans', effectiveLocationFilter], queryFn: () => api.loans(effectiveLocationFilter) })
 
   const availableItems = itemsQuery.data?.content.filter((item) => ['LENDABLE', 'HYBRID'].includes(item.type) && item.availableStock > 0) ?? []
 
@@ -149,6 +155,18 @@ export function LoansPage() {
       {returnMutation.isError && <Notice variant="error">{returnMutation.error.message}</Notice>}
       {returnMutation.isSuccess && <Notice variant="success">{t('loans.successReturn')}</Notice>}
 
+      {!isGlobalAdmin && user?.assignedLocationName && <Notice>{t('loans.scopeNotice', { location: user.assignedLocationName })}</Notice>}
+
+      {isGlobalAdmin && (
+        <Card className="space-y-3">
+          <label className="text-sm font-medium">{t('items.location')}</label>
+          <select className="h-11 w-full rounded-xl border border-border bg-white px-3 md:max-w-sm" value={locationFilterId} onChange={(event) => setLocationFilterId(event.target.value)}>
+            <option value="">{t('common.all')}</option>
+            {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+          </select>
+        </Card>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
           <form className="space-y-4" onSubmit={handleSubmit((values) => createMutation.mutate(values))}>
@@ -165,7 +183,7 @@ export function LoansPage() {
 
             <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('itemId')}>
               <option value="">{t('loans.selectItem')}</option>
-              {availableItems.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {availableItems.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.primaryLocation}</option>)}
             </select>
             {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
 
@@ -192,6 +210,7 @@ export function LoansPage() {
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="font-medium">{request.borrowerName} - {request.itemName}</p>
+                      <p className="text-sm text-slate-500">{request.locationName}</p>
                       <p className="text-sm text-slate-500">{t('common.quantity')} {request.quantity} - {t('loans.dueLabel')} {formatDate(request.dueAt)}</p>
                       {request.notes && <p className="mt-2 text-sm text-slate-600">{request.notes}</p>}
                     </div>
@@ -220,6 +239,7 @@ export function LoansPage() {
                           <p className="font-medium">{loan.borrowerName} - {loan.itemName}</p>
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">{enumLabel('loanStatus', loan.status)}</span>
                         </div>
+                        <p className="text-sm text-slate-500">{loan.locationName}</p>
                         <p className="text-sm text-slate-600">{workflowMessage(loan)}</p>
                         <p className="text-sm text-slate-500">{t('loans.dueLabel')} {formatDate(loan.dueAt)}</p>
                         {loan.notes && <p className="text-sm text-slate-600">{loan.notes}</p>}

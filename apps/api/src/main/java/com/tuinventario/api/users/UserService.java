@@ -1,10 +1,12 @@
 package com.tuinventario.api.users;
 
 import com.tuinventario.api.domain.entity.MembershipEntity;
+import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.RoleEntity;
 import com.tuinventario.api.domain.entity.UserEntity;
 import com.tuinventario.api.domain.enums.EntityStatus;
 import com.tuinventario.api.domain.enums.MembershipStatus;
+import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.MembershipRepository;
 import com.tuinventario.api.domain.repository.RoleRepository;
 import com.tuinventario.api.domain.repository.UserRepository;
@@ -27,6 +29,7 @@ public class UserService {
     private final CurrentContextService currentContextService;
     private final MembershipRepository membershipRepository;
     private final RoleRepository roleRepository;
+    private final LocationRepository locationRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -61,6 +64,7 @@ public class UserService {
         membership.setOrganization(currentContextService.currentOrganizationEntity());
         membership.setUser(user);
         membership.setRole(role);
+        membership.setAssignedLocation(resolveAssignedLocation(request.assignedLocationId(), role.getName()));
         membership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(membership);
 
@@ -99,7 +103,9 @@ public class UserService {
         }
         userRepository.save(user);
 
-        membership.setRole(resolveRole(request.role()));
+        RoleEntity role = resolveRole(request.role());
+        membership.setRole(role);
+        membership.setAssignedLocation(resolveAssignedLocation(request.assignedLocationId(), role.getName()));
         membership.setStatus(user.getStatus() == EntityStatus.ACTIVE ? MembershipStatus.ACTIVE : MembershipStatus.BLOCKED);
         membershipRepository.save(membership);
         return mapSummary(membership);
@@ -169,7 +175,20 @@ public class UserService {
                 membership.getUser().getFullName(),
                 membership.getUser().getEmail(),
                 membership.getRole().getName(),
-                membership.getUser().getStatus().name()
+                membership.getUser().getStatus().name(),
+                membership.getAssignedLocation() == null ? null : membership.getAssignedLocation().getId().toString(),
+                membership.getAssignedLocation() == null ? null : membership.getAssignedLocation().getName()
         );
+    }
+
+    private LocationEntity resolveAssignedLocation(String assignedLocationId, String roleName) {
+        if ("ADMIN".equalsIgnoreCase(roleName)) {
+            return null;
+        }
+        if (assignedLocationId == null || assignedLocationId.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "ASSIGNED_LOCATION_REQUIRED", "Los usuarios operativos deben estar asociados a una ubicacion.");
+        }
+        return locationRepository.findByIdAndOrganizationId(UUID.fromString(assignedLocationId), currentContextService.currentUser().organizationId())
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "LOCATION_NOT_FOUND", "Ubicacion no encontrada."));
     }
 }

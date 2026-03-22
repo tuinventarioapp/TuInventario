@@ -12,7 +12,7 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useI18n } from '../i18n/use-i18n'
-import { canManageInventory } from '../lib/access'
+import { canManageInventory, isAdmin } from '../lib/access'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
 
@@ -43,6 +43,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const navigate = useNavigate()
   const { itemId } = useParams()
   const user = useAuthStore((state) => state.user)
+  const isGlobalAdmin = isAdmin(user?.role)
   const createSchema = z.object({
     name: z.string().min(3, t('validation.name')),
     sku: z.string().min(2, t('validation.required')),
@@ -96,6 +97,11 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
       })
     }
   }, [itemQuery.data, mode, updateForm])
+
+  useEffect(() => {
+    if (mode !== 'create' || isGlobalAdmin || !user?.assignedLocationId) return
+    createForm.setValue('primaryLocationId', user.assignedLocationId)
+  }, [createForm, isGlobalAdmin, mode, user?.assignedLocationId])
 
   const createMutation = useMutation({
     mutationFn: api.createItem,
@@ -205,8 +211,12 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">{t('catalogs.locations')}</label>
-            <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...registerField('primaryLocationId')}>
-              <option value="">{t('validation.required')}</option>
+            <select
+              className="h-11 w-full rounded-xl border border-border bg-white px-3"
+              disabled={!isGlobalAdmin}
+              {...registerField('primaryLocationId')}
+            >
+              {isGlobalAdmin && <option value="">{t('validation.required')}</option>}
               {locationsQuery.data?.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
           </div>

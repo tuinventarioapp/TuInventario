@@ -1,58 +1,87 @@
 # Manual de uso de TuInventario
 
-## Que es TuInventario
+## Que hace la aplicacion
 
-TuInventario sirve para controlar articulos, stock, movimientos, prestamos, prestatarios, reportes y auditoria desde una sola aplicacion.
+TuInventario ayuda a una empresa con varias sedes a controlar:
 
-Piensalo asi:
+- articulos e inventario;
+- movimientos de stock;
+- prestamos y devoluciones;
+- prestatarios;
+- usuarios internos;
+- reportes y auditoria.
 
-- un articulo es algo que tienes;
-- un movimiento cambia su stock;
-- un prestatario es la persona o empresa que recibe algo;
-- un prestamo presta un articulo por un tiempo;
-- la auditoria deja huella de lo importante.
+La idea mas importante es esta:
+
+- el `Administrador` puede ver toda la empresa;
+- el `Gestor` y el `Colaborador` trabajan solo en su sede asignada.
+
+Si una persona trabaja en `Exito Laureles`, vera y operara solo lo de `Exito Laureles`.
 
 ## Antes de empezar
 
-1. Inicia sesion con tu usuario.
-2. Revisa en que organizacion estas trabajando.
-3. Si la empresa es nueva, primero crea catalogos.
-4. Luego crea articulos.
-5. Despues crea prestatarios.
-6. Por ultimo registra prestamos y reportes.
+1. Inicia sesion.
+2. Revisa tu rol.
+3. Revisa tu sede.
+4. Si eres administrador, crea primero catalogos globales.
+5. Luego crea o revisa usuarios y sedes.
+6. Despues crea articulos y empieza a operar.
 
-## Menu principal
+## Que significa cada menu
 
-- `Panel`: muestra el estado general del sistema.
-- `Inventario`: lista y detalle de articulos.
-- `Catalogos`: categorias, unidades y ubicaciones.
+- `Panel`: resumen del estado operativo.
+- `Inventario`: lista de articulos, stock y filtros.
+- `Catalogos`: categorias, unidades y ubicaciones de toda la empresa.
 - `Movimientos`: entradas, salidas, ajustes y traslados.
 - `Prestamos`: solicitudes, aprobaciones, entregas y devoluciones.
 - `Prestatarios`: personas o clientes que reciben articulos.
-- `Reportes`: exportaciones CSV y PDF.
-- `Usuarios`: cuentas internas y roles.
-- `Auditoria`: historial de acciones criticas.
-- `Configuracion`: datos de la organizacion e idioma.
+- `Reportes`: archivos CSV y PDF.
+- `Usuarios`: cuentas internas y sedes asignadas.
+- `Auditoria`: historial de acciones importantes.
+- `Configuracion`: datos del espacio de trabajo y del idioma.
 
-## Orden recomendado para usar la app
+## Como funciona la logica por sedes
 
-1. Configura idioma si hace falta.
-2. Crea categorias, unidades y ubicaciones.
-3. Crea un articulo.
-4. Registra uno o varios prestatarios.
-5. Crea una solicitud de prestamo.
-6. Apruebala.
-7. Entrega el articulo.
-8. Registra la devolucion.
-9. Descarga reportes.
-10. Revisa auditoria si necesitas trazabilidad.
+### Si eres administrador
+
+Puedes:
+
+- ver toda la empresa;
+- filtrar por sede o ver todo junto;
+- crear y mover usuarios entre sedes;
+- ver reportes globales o por sede;
+- ver inventario, movimientos y prestamos de cualquier sede.
+
+### Si eres gestor o colaborador
+
+Tu cuenta queda amarrada a una sola sede.
+
+Eso significa:
+
+- los articulos que creas quedan en tu sede;
+- el inventario que ves es el de tu sede;
+- los prestamos que ves son los de tu sede;
+- los movimientos que ves son los de tu sede;
+- los reportes que descargas salen con datos de tu sede.
+
+## Orden facil para empezar a usar la app
+
+1. Entrar a `Configuracion` y revisar rol, empresa y sede.
+2. Si eres administrador, entrar a `Catalogos` y crear categorias, unidades y ubicaciones.
+3. Si eres administrador, entrar a `Usuarios` y asignar cada usuario a su sede.
+4. Entrar a `Inventario` y crear articulos.
+5. Entrar a `Prestatarios` y crear personas o clientes.
+6. Entrar a `Prestamos` y crear una solicitud.
+7. Aprobar la solicitud.
+8. Entregar el articulo.
+9. Registrar la devolucion total o parcial.
+10. Descargar reportes.
 
 ## Consejos simples
 
-- Si una accion no avanza, mira el mensaje rojo: ahora la app muestra el motivo del fallo.
-- Si un reporte no baja, revisa que tu sesion siga abierta.
-- Si no ves articulos en el panel, crea el primero en `Inventario` o revisa los filtros aplicados.
-- Si no puedes pedir un prestamo, primero crea un prestatario y asegurate de tener stock disponible.
-- Si una devolucion no es completa, registra por separado lo que regreso bien, lo que regreso danado y lo que se perdio.
-- Si una empresa tiene muchos articulos, usa los filtros de categoria, estado, tipo, ubicacion y stock para encontrar lo necesario rapido.
-- Si vas a compartir una solicitud publica, usa la URL publica con `organizationId`.
+- Si algo no se guarda, mira el mensaje rojo.
+- Si no ves registros, revisa filtros o revisa si tu rol esta limitado a una sede.
+- Si un prestamo no se puede crear, revisa que el articulo tenga stock y sea prestable.
+- Si una devolucion es parcial, registra separado lo que volvio bien, lo danado y lo perdido.
+- Si una empresa tiene muchos articulos, usa filtros por categoria, estado, tipo, sede y cantidades.
+- Si quieres reportes de toda la empresa, entra como administrador y deja la sede en `Todos`.

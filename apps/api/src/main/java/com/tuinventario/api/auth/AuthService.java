@@ -84,6 +84,7 @@ public class AuthService {
         membership.setOrganization(organization);
         membership.setUser(user);
         membership.setRole(adminRole);
+        membership.setAssignedLocation(null);
         membership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(membership);
 
@@ -146,6 +147,8 @@ public class AuthService {
                 user.getFullName(),
                 user.getEmail(),
                 currentUser.role(),
+                currentUser.assignedLocationId() == null ? null : currentUser.assignedLocationId().toString(),
+                currentUser.assignedLocationName(),
                 organization.getId().toString(),
                 organization.getName()
         );
@@ -170,6 +173,8 @@ public class AuthService {
                         user.getFullName(),
                         user.getEmail(),
                         membership.getRole().getName(),
+                        membership.getAssignedLocation() == null ? null : membership.getAssignedLocation().getId().toString(),
+                        membership.getAssignedLocation() == null ? null : membership.getAssignedLocation().getName(),
                         membership.getOrganization().getId().toString(),
                         membership.getOrganization().getName()
                 )

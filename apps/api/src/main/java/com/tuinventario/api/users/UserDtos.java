@@ -14,7 +14,9 @@ public final class UserDtos {
             String fullName,
             String email,
             String role,
-            String status
+            String status,
+            String assignedLocationId,
+            String assignedLocationName
     ) {
     }
 
@@ -22,7 +24,8 @@ public final class UserDtos {
             @NotBlank String fullName,
             @Email @NotBlank String email,
             @Size(min = 8) String password,
-            @NotBlank String role
+            @NotBlank String role,
+            String assignedLocationId
     ) {
     }
 
@@ -30,7 +33,8 @@ public final class UserDtos {
             @NotBlank String fullName,
             @Email @NotBlank String email,
             @NotBlank String role,
-            @NotBlank String status
+            @NotBlank String status,
+            String assignedLocationId
     ) {
     }
 }

@@ -64,6 +64,7 @@ public class DemoDataSeeder implements ApplicationRunner {
 
         RoleEntity adminRole = roleRepository.findByName("ADMIN").orElseThrow();
         RoleEntity managerRole = roleRepository.findByName("MANAGER").orElseThrow();
+        RoleEntity collaboratorRole = roleRepository.findByName("COLLABORATOR").orElseThrow();
 
         UserEntity admin = new UserEntity();
         admin.setEmail("demo@tuinventario.local");
@@ -81,19 +82,21 @@ public class DemoDataSeeder implements ApplicationRunner {
         manager.setEmailVerified(true);
         userRepository.save(manager);
 
+        UserEntity collaborator = new UserEntity();
+        collaborator.setEmail("colaborador@tuinventario.local");
+        collaborator.setFullName("Colaborador Demo");
+        collaborator.setPasswordHash(passwordEncoder.encode("Colaborador123!"));
+        collaborator.setStatus(EntityStatus.ACTIVE);
+        collaborator.setEmailVerified(true);
+        userRepository.save(collaborator);
+
         MembershipEntity adminMembership = new MembershipEntity();
         adminMembership.setOrganization(organization);
         adminMembership.setUser(admin);
         adminMembership.setRole(adminRole);
+        adminMembership.setAssignedLocation(null);
         adminMembership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(adminMembership);
-
-        MembershipEntity managerMembership = new MembershipEntity();
-        managerMembership.setOrganization(organization);
-        managerMembership.setUser(manager);
-        managerMembership.setRole(managerRole);
-        managerMembership.setStatus(MembershipStatus.ACTIVE);
-        membershipRepository.save(managerMembership);
 
         CategoryEntity category = new CategoryEntity();
         category.setOrganization(organization);
@@ -114,6 +117,22 @@ public class DemoDataSeeder implements ApplicationRunner {
         location.setType(LocationType.WAREHOUSE);
         location.setDescription("Ubicacion principal demo");
         locationRepository.save(location);
+
+        MembershipEntity managerMembership = new MembershipEntity();
+        managerMembership.setOrganization(organization);
+        managerMembership.setUser(manager);
+        managerMembership.setRole(managerRole);
+        managerMembership.setAssignedLocation(location);
+        managerMembership.setStatus(MembershipStatus.ACTIVE);
+        membershipRepository.save(managerMembership);
+
+        MembershipEntity collaboratorMembership = new MembershipEntity();
+        collaboratorMembership.setOrganization(organization);
+        collaboratorMembership.setUser(collaborator);
+        collaboratorMembership.setRole(collaboratorRole);
+        collaboratorMembership.setAssignedLocation(location);
+        collaboratorMembership.setStatus(MembershipStatus.ACTIVE);
+        membershipRepository.save(collaboratorMembership);
 
         ItemEntity item = new ItemEntity();
         item.setOrganization(organization);

@@ -31,6 +31,10 @@ public class MembershipEntity extends BaseEntity {
     @JoinColumn(name = "role_id")
     private RoleEntity role;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_location_id")
+    private LocationEntity assignedLocation;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private MembershipStatus status;

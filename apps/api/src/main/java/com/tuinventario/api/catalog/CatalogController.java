@@ -32,6 +32,16 @@ public class CatalogController {
         return catalogService.createCategory(request);
     }
 
+    @PutMapping("/categories/{id}")
+    public CatalogDtos.CatalogOptionResponse updateCategory(@PathVariable UUID id, @Valid @RequestBody CatalogDtos.UpdateCategoryRequest request) {
+        return catalogService.updateCategory(id, request);
+    }
+
+    @DeleteMapping("/categories/{id}")
+    public void deleteCategory(@PathVariable UUID id) {
+        catalogService.deleteCategory(id);
+    }
+
     @GetMapping("/units")
     public List<CatalogDtos.CatalogOptionResponse> units() {
         return catalogService.listUnits();
@@ -42,6 +52,16 @@ public class CatalogController {
         return catalogService.createUnit(request);
     }
 
+    @PutMapping("/units/{id}")
+    public CatalogDtos.CatalogOptionResponse updateUnit(@PathVariable UUID id, @Valid @RequestBody CatalogDtos.UpdateUnitRequest request) {
+        return catalogService.updateUnit(id, request);
+    }
+
+    @DeleteMapping("/units/{id}")
+    public void deleteUnit(@PathVariable UUID id) {
+        catalogService.deleteUnit(id);
+    }
+
     @GetMapping("/locations")
     public List<CatalogDtos.CatalogOptionResponse> locations() {
         return catalogService.listLocations();
@@ -50,6 +70,16 @@ public class CatalogController {
     @PostMapping("/locations")
     public CatalogDtos.CatalogOptionResponse createLocation(@Valid @RequestBody CatalogDtos.CreateLocationRequest request) {
         return catalogService.createLocation(request);
+    }
+
+    @PutMapping("/locations/{id}")
+    public CatalogDtos.CatalogOptionResponse updateLocation(@PathVariable UUID id, @Valid @RequestBody CatalogDtos.UpdateLocationRequest request) {
+        return catalogService.updateLocation(id, request);
+    }
+
+    @DeleteMapping("/locations/{id}")
+    public void deleteLocation(@PathVariable UUID id) {
+        catalogService.deleteLocation(id);
     }
 
     @GetMapping("/borrowers")

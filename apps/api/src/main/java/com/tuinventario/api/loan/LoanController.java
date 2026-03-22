@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -20,8 +21,8 @@ public class LoanController {
     private final LoanService loanService;
 
     @GetMapping("/loan-requests")
-    public List<LoanDtos.LoanRequestResponse> listLoanRequests() {
-        return loanService.listLoanRequests();
+    public List<LoanDtos.LoanRequestResponse> listLoanRequests(@RequestParam(required = false) UUID locationId) {
+        return loanService.listLoanRequests(locationId);
     }
 
     @PostMapping("/loan-requests")
@@ -40,8 +41,8 @@ public class LoanController {
     }
 
     @GetMapping("/loans")
-    public List<LoanDtos.LoanResponse> listLoans() {
-        return loanService.listLoans();
+    public List<LoanDtos.LoanResponse> listLoans(@RequestParam(required = false) UUID locationId) {
+        return loanService.listLoans(locationId);
     }
 
     @PostMapping("/loans/{id}/deliver")

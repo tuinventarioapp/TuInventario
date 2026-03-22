@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/movements")
 @RequiredArgsConstructor
@@ -19,10 +21,11 @@ public class MovementController {
 
     @GetMapping
     public PageResponse<MovementDtos.MovementResponse> listMovements(
+            @RequestParam(required = false) UUID locationId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return movementService.listMovements(page, size);
+        return movementService.listMovements(locationId, page, size);
     }
 
     @PostMapping

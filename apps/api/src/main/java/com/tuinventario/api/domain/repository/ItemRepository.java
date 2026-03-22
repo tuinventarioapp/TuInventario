@@ -15,6 +15,11 @@ import java.util.UUID;
 
 public interface ItemRepository extends JpaRepository<ItemEntity, UUID> {
     Optional<ItemEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    boolean existsByOrganizationIdAndCategoryId(UUID organizationId, UUID categoryId);
+    boolean existsByOrganizationIdAndUnitId(UUID organizationId, UUID unitId);
+    boolean existsByOrganizationIdAndPrimaryLocationId(UUID organizationId, UUID primaryLocationId);
+    boolean existsByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCase(UUID organizationId, UUID primaryLocationId, String sku);
+    Optional<ItemEntity> findByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCase(UUID organizationId, UUID primaryLocationId, String sku);
 
     default Page<ItemEntity> search(UUID organizationId, String query, Pageable pageable) {
         return search(organizationId, query, null, null, null, null, null, null, null, BigDecimal.ONE, pageable);

@@ -58,6 +58,9 @@ export function AppShell() {
         <div className="mt-8 rounded-3xl bg-white/10 p-4 text-sm text-slate-200">
           <p className="font-medium">{user?.fullName}</p>
           <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-300">{enumLabel('role', user?.role)}</p>
+          {user?.assignedLocationName && (
+            <p className="mt-2 text-xs text-sky-100">{user.assignedLocationName}</p>
+          )}
           <Button
             className="mt-4 w-full bg-white text-slate-950 hover:bg-slate-100"
             onClick={() => {

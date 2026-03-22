@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tuinventario.api.domain.entity.CategoryEntity;
 import com.tuinventario.api.domain.entity.ItemEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
+import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.entity.UnitEntity;
 import com.tuinventario.api.domain.repository.BorrowerRepository;
 import com.tuinventario.api.domain.repository.CategoryRepository;
@@ -142,6 +143,7 @@ class OperationalFlowTest {
 
     @Test
     void shouldCreateUsersOnlyForAdmins() throws Exception {
+        String assignedLocationId = firstLocationId();
         mockMvc.perform(post("/api/v1/users")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -149,7 +151,8 @@ class OperationalFlowTest {
                                 "fullName", "Colaborador Prueba",
                                 "email", "colaborador.prueba@tuinventario.local",
                                 "password", "Prueba123!",
-                                "role", "COLLABORATOR"
+                                "role", "COLLABORATOR",
+                                "assignedLocationId", assignedLocationId
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("COLLABORATOR"));
@@ -161,7 +164,8 @@ class OperationalFlowTest {
                                 "fullName", "Usuario Bloqueado",
                                 "email", "usuario.bloqueado@tuinventario.local",
                                 "password", "Bloqueado123!",
-                                "role", "MANAGER"
+                                "role", "MANAGER",
+                                "assignedLocationId", assignedLocationId
                         ))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("INSUFFICIENT_PERMISSIONS"));
@@ -245,6 +249,7 @@ class OperationalFlowTest {
     void shouldAllowAdminToUpdateAndBlockUsers() throws Exception {
         String email = "usuario." + System.nanoTime() + "@tuinventario.local";
         String userId = createUser(email, "COLLABORATOR");
+        String assignedLocationId = firstLocationId();
 
         mockMvc.perform(put("/api/v1/users/{id}", userId)
                         .header("Authorization", "Bearer " + adminToken)
@@ -253,7 +258,8 @@ class OperationalFlowTest {
                                 "fullName", "Usuario Editado",
                                 "email", email,
                                 "role", "MANAGER",
-                                "status", "ACTIVE"
+                                "status", "ACTIVE",
+                                "assignedLocationId", assignedLocationId
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("MANAGER"));
@@ -301,6 +307,56 @@ class OperationalFlowTest {
                 .andExpect(jsonPath("$.code").value("BORROWER_HAS_HISTORY"));
     }
 
+    @Test
+    void shouldScopeManagerToAssignedLocationAndAllowAdminLocationFilters() throws Exception {
+        String secondLocationId = createLocation("Sucursal Norte " + System.nanoTime());
+        String remoteItemName = "Item Remoto " + System.nanoTime();
+        createItem(remoteItemName, "REM-" + System.nanoTime(), 3, secondLocationId);
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", "Bearer " + managerToken)
+                        .param("query", remoteItemName))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        mockMvc.perform(get("/api/v1/dashboard")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("locationId", secondLocationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItems").value(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void shouldAllowAdminToCreateEditAndDeleteCatalogs() throws Exception {
+        String categoryId = mockMvc.perform(post("/api/v1/categories")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Categoria " + System.nanoTime(),
+                                "description", "Temporal"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String savedCategoryId = objectMapper.readTree(categoryId).get("id").asText();
+
+        mockMvc.perform(put("/api/v1/categories/{id}", savedCategoryId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Categoria Editada",
+                                "description", "Actualizada"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Categoria Editada"));
+
+        mockMvc.perform(delete("/api/v1/categories/{id}", savedCategoryId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+    }
+
     private String login(String email, String password) throws Exception {
         String response = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -335,10 +391,13 @@ class OperationalFlowTest {
     }
 
     private String createItem(String name, String sku, int stock) throws Exception {
+        return createItem(name, sku, stock, firstLocationId());
+    }
+
+    private String createItem(String name, String sku, int stock, String locationId) throws Exception {
         UUID organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId();
         CategoryEntity category = categoryRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
         UnitEntity unit = unitRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
-        LocationEntity location = locationRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
 
         String response = mockMvc.perform(post("/api/v1/items")
                         .header("Authorization", "Bearer " + adminToken)
@@ -350,7 +409,7 @@ class OperationalFlowTest {
                                 "type", "LENDABLE",
                                 "categoryId", category.getId().toString(),
                                 "unitId", unit.getId().toString(),
-                                "primaryLocationId", location.getId().toString(),
+                                "primaryLocationId", locationId,
                                 "initialStock", stock
                         ))))
                 .andExpect(status().isOk())
@@ -401,19 +460,39 @@ class OperationalFlowTest {
     }
 
     private String createUser(String email, String role) throws Exception {
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("fullName", "Usuario Prueba");
+        payload.put("email", email);
+        payload.put("password", "Prueba123!");
+        payload.put("role", role);
+        if (!"ADMIN".equals(role)) {
+            payload.put("assignedLocationId", firstLocationId());
+        }
+
         String response = mockMvc.perform(post("/api/v1/users")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "fullName", "Usuario Prueba",
-                                "email", email,
-                                "password", "Prueba123!",
-                                "role", role
-                        ))))
+                        .content(objectMapper.writeValueAsString(payload)))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(response).get("id").asText();
+    }
+
+    private String firstLocationId() {
+        UUID organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId();
+        return locationRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst().getId().toString();
+    }
+
+    private String createLocation(String name) {
+        UUID organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId();
+        LocationEntity location = new LocationEntity();
+        location.setOrganization(organizationRepository.findById(organizationId).orElseThrow());
+        location.setName(name);
+        location.setType(LocationType.OTHER);
+        location.setDescription("Creada en prueba");
+        locationRepository.save(location);
+        return location.getId().toString();
     }
 }

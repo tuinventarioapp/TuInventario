@@ -11,6 +11,8 @@ export interface AuthUser {
   fullName: string
   email: string
   role: string
+  assignedLocationId?: string | null
+  assignedLocationName?: string | null
   organizationId: string
   organizationName: string
 }
@@ -25,6 +27,7 @@ export interface OptionItem {
   id: string
   name: string
   extra: string
+  details?: string | null
 }
 
 export interface Borrower {
@@ -75,6 +78,8 @@ export interface LoanRequestItem {
   id: string
   borrowerName: string
   itemName: string
+  locationId: string
+  locationName: string
   quantity: number
   status: string
   requestedAt: string
@@ -86,6 +91,8 @@ export interface Loan {
   id: string
   borrowerName: string
   itemName: string
+  locationId: string
+  locationName: string
   quantity: number
   returnedQuantity: number
   outstandingQuantity: number
@@ -119,6 +126,8 @@ export interface UserSummary {
   email: string
   role: string
   status: string
+  assignedLocationId?: string | null
+  assignedLocationName?: string | null
 }
 
 export interface AuditEntry {
@@ -135,4 +144,6 @@ export interface SettingsPayload {
   organizationName: string
   timezone: string
   role: string
+  assignedLocationId?: string | null
+  assignedLocationName?: string | null
 }

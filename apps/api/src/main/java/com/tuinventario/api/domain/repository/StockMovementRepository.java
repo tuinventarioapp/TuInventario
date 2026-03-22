@@ -4,9 +4,29 @@ import com.tuinventario.api.domain.entity.StockMovementEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.UUID;
 
 public interface StockMovementRepository extends JpaRepository<StockMovementEntity, UUID> {
     Page<StockMovementEntity> findByOrganizationIdOrderByOccurredAtDesc(UUID organizationId, Pageable pageable);
+    @Query("""
+            select m from StockMovementEntity m
+            where m.organization.id = :organizationId
+              and (
+                    :locationId is null
+                    or m.item.primaryLocation.id = :locationId
+                    or m.sourceLocation.id = :locationId
+                    or m.targetLocation.id = :locationId
+                  )
+            order by m.occurredAt desc
+            """)
+    Page<StockMovementEntity> searchByLocation(
+            @Param("organizationId") UUID organizationId,
+            @Param("locationId") UUID locationId,
+            Pageable pageable
+    );
+    boolean existsByOrganizationIdAndSourceLocationId(UUID organizationId, UUID sourceLocationId);
+    boolean existsByOrganizationIdAndTargetLocationId(UUID organizationId, UUID targetLocationId);
 }

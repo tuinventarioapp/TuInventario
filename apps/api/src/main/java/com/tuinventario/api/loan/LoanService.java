@@ -45,17 +45,24 @@ public class LoanService {
     private final RealtimePublisher realtimePublisher;
 
     @Transactional(readOnly = true)
-    public List<LoanDtos.LoanRequestResponse> listLoanRequests() {
+    public List<LoanDtos.LoanRequestResponse> listLoanRequests(UUID locationId) {
+        UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         return loanRequestRepository.findByOrganizationIdOrderByRequestedAtDesc(currentContextService.currentUser().organizationId())
                 .stream()
+                .filter(loanRequest -> effectiveLocationId == null || loanRequest.getItem().getPrimaryLocation().getId().equals(effectiveLocationId))
                 .map(this::mapLoanRequest)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<LoanDtos.LoanResponse> listLoans() {
+    public List<LoanDtos.LoanResponse> listLoans(UUID locationId) {
+        UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         return loanRepository.findByOrganizationIdOrderByCreatedAtDesc(currentContextService.currentUser().organizationId())
                 .stream()
+                .filter(loan -> {
+                    LoanItemEntity loanItem = loanItemRepository.findByLoanId(loan.getId()).stream().findFirst().orElse(null);
+                    return effectiveLocationId == null || loanItem != null && loanItem.getItem().getPrimaryLocation().getId().equals(effectiveLocationId);
+                })
                 .map(this::mapLoan)
                 .toList();
     }
@@ -284,18 +291,25 @@ public class LoanService {
     }
 
     private LoanRequestEntity findLoanRequest(UUID id) {
-        return loanRequestRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
+        LoanRequestEntity loanRequest = loanRequestRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "LOAN_REQUEST_NOT_FOUND", "Solicitud de prestamo no encontrada."));
+        currentContextService.ensureAccessibleLocation(loanRequest.getItem().getPrimaryLocation().getId());
+        return loanRequest;
     }
 
     private LoanEntity findLoan(UUID id) {
-        return loanRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
+        LoanEntity loan = loanRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "LOAN_NOT_FOUND", "Prestamo no encontrado."));
+        LoanItemEntity loanItem = loanItemRepository.findByLoanId(loan.getId()).stream().findFirst()
+                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "LOAN_ITEM_MISSING", "El prestamo no tiene items."));
+        currentContextService.ensureAccessibleLocation(loanItem.getItem().getPrimaryLocation().getId());
+        return loan;
     }
 
     private ItemEntity findLendableItem(String itemId) {
         ItemEntity item = itemRepository.findByIdAndOrganizationId(UUID.fromString(itemId), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ITEM_NOT_FOUND", "Item no encontrado."));
+        currentContextService.ensureAccessibleLocation(item.getPrimaryLocation().getId());
         if (!item.isLendable()) {
             throw new ApiException(HttpStatus.CONFLICT, "ITEM_NOT_LENDABLE", "El item no admite prestamos.");
         }
@@ -322,6 +336,8 @@ public class LoanService {
                 entity.getId().toString(),
                 entity.getBorrower().getName(),
                 entity.getItem().getName(),
+                entity.getItem().getPrimaryLocation().getId().toString(),
+                entity.getItem().getPrimaryLocation().getName(),
                 entity.getQuantity(),
                 entity.getStatus().name(),
                 entity.getRequestedAt(),
@@ -337,6 +353,8 @@ public class LoanService {
                 entity.getId().toString(),
                 entity.getBorrower().getName(),
                 loanItem.getItem().getName(),
+                loanItem.getItem().getPrimaryLocation().getId().toString(),
+                loanItem.getItem().getPrimaryLocation().getName(),
                 loanItem.getQuantity(),
                 loanItem.getReturnedQuantity(),
                 loanItem.getQuantity().subtract(loanItem.getReturnedQuantity()),

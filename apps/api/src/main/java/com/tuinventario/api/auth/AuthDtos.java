@@ -32,6 +32,8 @@ public final class AuthDtos {
             String fullName,
             String email,
             String role,
+            String assignedLocationId,
+            String assignedLocationName,
             String organizationId,
             String organizationName
     ) {

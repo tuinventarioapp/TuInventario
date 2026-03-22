@@ -9,7 +9,7 @@ export function isManagerOrAdmin(role?: string | null): role is AppRole {
 }
 
 export function canManageCatalogs(role?: string | null) {
-  return isManagerOrAdmin(role)
+  return isAdmin(role)
 }
 
 export function canManageInventory(role?: string | null) {

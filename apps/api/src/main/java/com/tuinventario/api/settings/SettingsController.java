@@ -22,7 +22,9 @@ public class SettingsController {
                 "organizationId", organization.getId().toString(),
                 "organizationName", organization.getName(),
                 "timezone", organization.getTimezone(),
-                "role", currentContextService.currentUser().role()
+                "role", currentContextService.currentUser().role(),
+                "assignedLocationId", currentContextService.currentUser().assignedLocationId() == null ? "" : currentContextService.currentUser().assignedLocationId().toString(),
+                "assignedLocationName", currentContextService.currentUser().assignedLocationName() == null ? "" : currentContextService.currentUser().assignedLocationName()
         );
     }
 }
