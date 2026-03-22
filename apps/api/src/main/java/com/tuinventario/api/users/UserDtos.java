@@ -37,4 +37,9 @@ public final class UserDtos {
             String assignedLocationId
     ) {
     }
+
+    public record ResetPasswordRequest(
+            @NotBlank @Size(min = 8) String newPassword
+    ) {
+    }
 }

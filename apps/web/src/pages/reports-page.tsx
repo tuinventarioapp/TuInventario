@@ -52,21 +52,42 @@ export function ReportsPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
+        {isGlobalAdmin && (
+          <>
+            <Card className="space-y-4">
+              <h2 className="text-lg font-semibold">{t('reports.inventoryAdminCsv')}</h2>
+              <p className="text-sm text-slate-500">{t('reports.inventoryAdminHelp')}</p>
+              <Button disabled={loadingKey === 'inventoryAdminCsv'} onClick={() => download('inventoryAdminCsv', 'inventario-administrativo.csv', () => api.inventoryAdminCsv(effectiveLocationId))}>
+                {t('common.download')}
+              </Button>
+            </Card>
+            <Card className="space-y-4">
+              <h2 className="text-lg font-semibold">{t('reports.inventoryAdminPdf')}</h2>
+              <p className="text-sm text-slate-500">{t('reports.inventoryAdminHelp')}</p>
+              <Button disabled={loadingKey === 'inventoryAdminPdf'} onClick={() => download('inventoryAdminPdf', 'inventario-administrativo.pdf', () => api.inventoryAdminPdf(effectiveLocationId))}>
+                {t('common.download')}
+              </Button>
+            </Card>
+          </>
+        )}
         <Card className="space-y-4">
           <h2 className="text-lg font-semibold">{t('reports.inventoryCsv')}</h2>
+          <p className="text-sm text-slate-500">{t('reports.inventoryOperationalHelp')}</p>
           <Button disabled={loadingKey === 'inventoryCsv'} onClick={() => download('inventoryCsv', 'inventario.csv', () => api.inventoryCsv(effectiveLocationId))}>
             {t('common.download')}
           </Button>
         </Card>
         <Card className="space-y-4">
-          <h2 className="text-lg font-semibold">{t('reports.loansCsv')}</h2>
-          <Button disabled={loadingKey === 'loansCsv'} onClick={() => download('loansCsv', 'prestamos.csv', () => api.loansCsv(effectiveLocationId))}>
+          <h2 className="text-lg font-semibold">{t('reports.inventoryPdf')}</h2>
+          <p className="text-sm text-slate-500">{t('reports.inventoryOperationalHelp')}</p>
+          <Button disabled={loadingKey === 'inventoryPdf'} onClick={() => download('inventoryPdf', 'inventario.pdf', () => api.inventoryPdf(effectiveLocationId))}>
             {t('common.download')}
           </Button>
         </Card>
         <Card className="space-y-4">
-          <h2 className="text-lg font-semibold">{t('reports.inventoryPdf')}</h2>
-          <Button disabled={loadingKey === 'inventoryPdf'} onClick={() => download('inventoryPdf', 'inventario.pdf', () => api.inventoryPdf(effectiveLocationId))}>
+          <h2 className="text-lg font-semibold">{t('reports.loansCsv')}</h2>
+          <p className="text-sm text-slate-500">{t('reports.loansHelp')}</p>
+          <Button disabled={loadingKey === 'loansCsv'} onClick={() => download('loansCsv', 'prestamos.csv', () => api.loansCsv(effectiveLocationId))}>
             {t('common.download')}
           </Button>
         </Card>

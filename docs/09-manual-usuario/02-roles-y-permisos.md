@@ -9,6 +9,7 @@ Puede:
 - ver todas las sedes;
 - filtrar por sede o ver el total de la empresa;
 - crear, editar y bloquear usuarios internos;
+- restablecer contrasenas de usuarios internos;
 - asignar o cambiar la sede de gestores y colaboradores;
 - crear, editar y eliminar prestatarios;
 - crear, editar y eliminar catalogos globales;

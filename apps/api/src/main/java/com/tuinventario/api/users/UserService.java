@@ -112,6 +112,14 @@ public class UserService {
     }
 
     @Transactional
+    public void resetPassword(UUID userId, UserDtos.ResetPasswordRequest request) {
+        currentContextService.requireAdmin();
+        MembershipEntity membership = findMembership(userId);
+        membership.getUser().setPasswordHash(passwordEncoder.encode(request.newPassword().trim()));
+        userRepository.save(membership.getUser());
+    }
+
+    @Transactional
     public void deleteUser(UUID userId) {
         currentContextService.requireAdmin();
         if (currentContextService.currentUser().userId().equals(userId)) {

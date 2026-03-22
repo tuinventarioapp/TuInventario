@@ -180,14 +180,29 @@ Importante:
 
 1. Entra a `Reportes`.
 2. Si eres `Administrador`, decide si quieres toda la empresa o una sede.
-3. Elige CSV o PDF.
-4. Pulsa `Descargar`.
+3. Si eres administrador, usa el reporte `Inventario administrativo` para control gerencial.
+4. Si eres gestor o colaborador, usa el reporte `Inventario operativo`.
+5. Elige CSV o PDF.
+6. Pulsa `Descargar`.
 
 Resultado esperado:
 
 - el archivo se descarga con el alcance correcto.
 
-## Flujo 13: revisar auditoria
+## Flujo 13: restablecer contrasena de un usuario
+
+1. Inicia sesion como `Administrador`.
+2. Entra a `Usuarios`.
+3. Pulsa `Editar` sobre el usuario.
+4. En la seccion `Restablecer contrasena`, escribe una nueva clave temporal.
+5. Pulsa `Restablecer contrasena`.
+
+Resultado esperado:
+
+- la clave anterior deja de funcionar;
+- el usuario ya puede entrar con la nueva clave temporal.
+
+## Flujo 14: revisar auditoria
 
 1. Entra a `Auditoria`.
 2. Revisa accion, actor, fecha y payload.

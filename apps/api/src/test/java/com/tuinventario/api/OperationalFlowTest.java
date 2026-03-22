@@ -68,11 +68,13 @@ class OperationalFlowTest {
 
     private String adminToken;
     private String managerToken;
+    private String collaboratorToken;
 
     @BeforeEach
     void authenticate() throws Exception {
         adminToken = login("demo@tuinventario.local", "Demo12345!");
         managerToken = login("gestor@tuinventario.local", "Gestor12345!");
+        collaboratorToken = login("colaborador@tuinventario.local", "Colaborador123!");
     }
 
     @Test
@@ -89,7 +91,20 @@ class OperationalFlowTest {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/csv"))
-                .andExpect(content().string(containsString("Taladro Inalambrico")));
+                .andExpect(content().string(containsString("sep=;")))
+                .andExpect(content().string(containsString("Reporte")))
+                .andExpect(content().string(containsString("Inventario operativo")));
+
+        mockMvc.perform(get("/api/v1/reports/inventory-admin.csv")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/csv"))
+                .andExpect(content().string(containsString("Inventario administrativo")))
+                .andExpect(content().string(containsString("Stock total")));
+
+        mockMvc.perform(get("/api/v1/reports/inventory-admin.csv")
+                        .header("Authorization", "Bearer " + collaboratorToken))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -275,6 +290,36 @@ class OperationalFlowTest {
                                 "password", "Prueba123!"
                         ))))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldAllowAdminToResetUserPasswords() throws Exception {
+        String email = "reset." + System.nanoTime() + "@tuinventario.local";
+        String userId = createUser(email, "COLLABORATOR");
+
+        mockMvc.perform(post("/api/v1/users/{id}/reset-password", userId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "newPassword", "NuevaClave123!"
+                        ))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", email,
+                                "password", "Prueba123!"
+                        ))))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", email,
+                                "password", "NuevaClave123!"
+                        ))))
+                .andExpect(status().isOk());
     }
 
     @Test

@@ -85,3 +85,4 @@ Eso significa:
 - Si una devolucion es parcial, registra separado lo que volvio bien, lo danado y lo perdido.
 - Si una empresa tiene muchos articulos, usa filtros por categoria, estado, tipo, sede y cantidades.
 - Si quieres reportes de toda la empresa, entra como administrador y deja la sede en `Todos`.
+- Si un usuario olvida su clave, el administrador puede entrar a `Usuarios` y restablecer una nueva contrasena temporal.

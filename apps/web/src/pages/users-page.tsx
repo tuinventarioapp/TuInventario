@@ -52,6 +52,7 @@ export function UsersPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
   const [editingUser, setEditingUser] = useState<UserSummary | null>(null)
+  const [passwordDraft, setPasswordDraft] = useState('')
   const createSchema = useMemo(() => z.object({
     fullName: z.string().min(3, t('validation.name')),
     email: z.string().email(t('validation.email')),
@@ -91,6 +92,7 @@ export function UsersPage() {
 
   useEffect(() => {
     if (!editingUser) {
+      setPasswordDraft('')
       editForm.reset({ fullName: '', email: '', role: 'COLLABORATOR', status: 'ACTIVE', assignedLocationId: '' })
       return
     }
@@ -150,6 +152,13 @@ export function UsersPage() {
     },
   })
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, newPassword }: { id: string; newPassword: string }) => api.resetUserPassword(id, { newPassword }),
+    onSuccess: () => {
+      setPasswordDraft('')
+    },
+  })
+
   if (!canManageUsers(user?.role)) {
     return (
       <div className="space-y-6">
@@ -164,12 +173,13 @@ export function UsersPage() {
       <PageHeader title={t('users.title')} description={t('users.description')} />
       <Notice>{t('users.info')}</Notice>
 
-      {(createMutation.isError || updateMutation.isError || deleteMutation.isError) && (
-        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message ?? deleteMutation.error?.message}</Notice>
+      {(createMutation.isError || updateMutation.isError || deleteMutation.isError || resetPasswordMutation.isError) && (
+        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message ?? deleteMutation.error?.message ?? resetPasswordMutation.error?.message}</Notice>
       )}
       {createMutation.isSuccess && <Notice variant="success">{t('users.success')}</Notice>}
       {updateMutation.isSuccess && <Notice variant="success">{t('users.updated')}</Notice>}
       {deleteMutation.isSuccess && <Notice variant="success">{t('users.updated')}</Notice>}
+      {resetPasswordMutation.isSuccess && <Notice variant="success">{t('users.passwordResetSuccess')}</Notice>}
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
@@ -196,6 +206,25 @@ export function UsersPage() {
                 <option value="ACTIVE">{t('users.status.ACTIVE')}</option>
                 <option value="BLOCKED">{t('users.status.BLOCKED')}</option>
               </select>
+              <div className="rounded-2xl border border-border p-3">
+                <p className="text-sm font-medium text-slate-900">{t('users.passwordResetTitle')}</p>
+                <p className="mt-1 text-sm text-slate-500">{t('users.passwordResetHelp')}</p>
+                <div className="mt-3 flex gap-2">
+                  <Input
+                    type="password"
+                    placeholder={t('users.newPassword')}
+                    value={passwordDraft}
+                    onChange={(event) => setPasswordDraft(event.target.value)}
+                  />
+                  <Button
+                    disabled={resetPasswordMutation.isPending || passwordDraft.trim().length < 8}
+                    type="button"
+                    onClick={() => resetPasswordMutation.mutate({ id: editingUser.id, newPassword: passwordDraft })}
+                  >
+                    {t('users.resetPassword')}
+                  </Button>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <Button className="flex-1" disabled={updateMutation.isPending} type="submit">{t('users.update')}</Button>
                 <Button className="flex-1 bg-secondary text-secondary-foreground" type="button" onClick={() => setEditingUser(null)}>{t('common.cancel')}</Button>

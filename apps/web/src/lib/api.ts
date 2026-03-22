@@ -171,10 +171,13 @@ export const api = {
   users: () => request<UserSummary[]>('/users'),
   createUser: (payload: unknown) => request<UserSummary>('/users', { method: 'POST', body: JSON.stringify(payload) }),
   updateUser: (id: string, payload: unknown) => request<UserSummary>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  resetUserPassword: (id: string, payload: unknown) => request<void>(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify(payload) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
   settings: () => request<SettingsPayload>('/settings'),
   audit: (page = 0, size = 10) => request<PageResponse<AuditEntry>>(`/audit-log?page=${page}&size=${size}`),
   inventoryCsv: (locationId?: string) => requestBlob(`/reports/inventory.csv${buildQuery({ locationId })}`),
+  inventoryAdminCsv: (locationId?: string) => requestBlob(`/reports/inventory-admin.csv${buildQuery({ locationId })}`),
   loansCsv: (locationId?: string) => requestBlob(`/reports/loans.csv${buildQuery({ locationId })}`),
   inventoryPdf: (locationId?: string) => requestBlob(`/reports/inventory.pdf${buildQuery({ locationId })}`),
+  inventoryAdminPdf: (locationId?: string) => requestBlob(`/reports/inventory-admin.pdf${buildQuery({ locationId })}`),
 }

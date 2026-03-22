@@ -36,6 +36,11 @@ public class UserController {
         return userService.updateUser(id, request);
     }
 
+    @PostMapping("/{id}/reset-password")
+    public void resetPassword(@PathVariable UUID id, @Valid @RequestBody UserDtos.ResetPasswordRequest request) {
+        userService.resetPassword(id, request);
+    }
+
     @DeleteMapping("/{id}")
     public void deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
