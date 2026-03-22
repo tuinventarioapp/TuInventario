@@ -6,40 +6,62 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { queryClient } from '../app/query-client'
+import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useI18n } from '../i18n/use-i18n'
 import { api } from '../lib/api'
 
-const createSchema = z.object({
-  name: z.string().min(3),
-  sku: z.string().min(2),
-  description: z.string().optional(),
-  imageUrl: z.string().optional(),
-  type: z.enum(['CONSUMABLE', 'LENDABLE', 'HYBRID']),
-  categoryId: z.string().min(1),
-  unitId: z.string().min(1),
-  primaryLocationId: z.string().min(1),
-  initialStock: z.coerce.number().min(0),
-})
+type CreateValues = {
+  name: string
+  sku: string
+  description?: string
+  imageUrl?: string
+  type: 'CONSUMABLE' | 'LENDABLE' | 'HYBRID'
+  categoryId: string
+  unitId: string
+  primaryLocationId: string
+  initialStock: number
+}
 
-const updateSchema = z.object({
-  name: z.string().min(3),
-  description: z.string().optional(),
-  imageUrl: z.string().optional(),
-  status: z.string().min(1),
-  categoryId: z.string().min(1),
-  unitId: z.string().min(1),
-  primaryLocationId: z.string().min(1),
-})
-
-type CreateValues = z.infer<typeof createSchema>
-type UpdateValues = z.infer<typeof updateSchema>
+type UpdateValues = {
+  name: string
+  description?: string
+  imageUrl?: string
+  status: string
+  categoryId: string
+  unitId: string
+  primaryLocationId: string
+}
 
 export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
+  const { t, enumLabel } = useI18n()
   const navigate = useNavigate()
   const { itemId } = useParams()
+  const createSchema = z.object({
+    name: z.string().min(3, t('validation.name')),
+    sku: z.string().min(2, t('validation.required')),
+    description: z.string().optional(),
+    imageUrl: z.string().optional(),
+    type: z.enum(['CONSUMABLE', 'LENDABLE', 'HYBRID']),
+    categoryId: z.string().min(1, t('validation.required')),
+    unitId: z.string().min(1, t('validation.required')),
+    primaryLocationId: z.string().min(1, t('validation.required')),
+    initialStock: z.coerce.number().min(0),
+  })
+
+  const updateSchema = z.object({
+    name: z.string().min(3, t('validation.name')),
+    description: z.string().optional(),
+    imageUrl: z.string().optional(),
+    status: z.string().min(1, t('validation.required')),
+    categoryId: z.string().min(1, t('validation.required')),
+    unitId: z.string().min(1, t('validation.required')),
+    primaryLocationId: z.string().min(1, t('validation.required')),
+  })
+
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: api.categories })
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: api.units })
   const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations })
@@ -63,7 +85,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
       updateForm.reset({
         name: itemQuery.data.name,
         description: itemQuery.data.description ?? '',
-        imageUrl: '',
+        imageUrl: itemQuery.data.imageUrl ?? '',
         status: itemQuery.data.status,
         categoryId: itemQuery.data.categoryId,
         unitId: itemQuery.data.unitId,
@@ -90,12 +112,22 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
   })
 
   const form = mode === 'create' ? createForm : updateForm
-  const registerField = (name: string) =>
-    mode === 'create' ? (createForm.register as (field: string) => Record<string, unknown>)(name) : (updateForm.register as (field: string) => Record<string, unknown>)(name)
+  const registerField = <T extends keyof CreateValues | keyof UpdateValues>(name: T) =>
+    mode === 'create'
+      ? createForm.register(name as keyof CreateValues)
+      : updateForm.register(name as keyof UpdateValues)
 
   return (
     <div className="space-y-6">
-      <PageHeader title={mode === 'create' ? 'Nuevo item' : 'Editar item'} description="Configura los datos base del articulo y su ubicacion principal." />
+      <PageHeader
+        title={mode === 'create' ? t('itemForm.createTitle') : t('itemForm.editTitle')}
+        description={t('itemForm.description')}
+      />
+
+      {(createMutation.isError || updateMutation.isError) && (
+        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message}</Notice>
+      )}
+
       <Card>
         <form
           className="grid gap-4 md:grid-cols-2"
@@ -105,7 +137,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
           })}
         >
           <div className="space-y-2">
-            <label className="text-sm font-medium">Nombre</label>
+            <label className="text-sm font-medium">{t('common.name')}</label>
             <Input {...registerField('name')} />
           </div>
           <div className="space-y-2">
@@ -113,58 +145,60 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
             <Input {...createForm.register('sku')} disabled={mode === 'edit'} />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium">Descripcion</label>
+            <label className="text-sm font-medium">{t('catalogs.categoryDescription')}</label>
             <Input {...registerField('description')} />
           </div>
           {mode === 'create' && (
             <>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Tipo</label>
+                <label className="text-sm font-medium">{t('movements.type')}</label>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('type')}>
-                  <option value="CONSUMABLE">Consumible</option>
-                  <option value="LENDABLE">Prestable</option>
-                  <option value="HYBRID">Hibrido</option>
+                  {(['CONSUMABLE', 'LENDABLE', 'HYBRID'] as const).map((value) => (
+                    <option key={value} value={value}>{enumLabel('itemType', value)}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Stock inicial</label>
-                <Input type="number" step="0.01" {...createForm.register('initialStock')} />
+                <label className="text-sm font-medium">{t('dashboard.totalItems')}</label>
+                <Input type="number" step="1" {...createForm.register('initialStock')} />
               </div>
             </>
           )}
           {mode === 'edit' && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Estado</label>
+              <label className="text-sm font-medium">{t('common.status')}</label>
               <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...updateForm.register('status')}>
-                {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'DAMAGED', 'LOST', 'ARCHIVED'].map((status) => (
-                  <option key={status} value={status}>{status}</option>
+                {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'DAMAGED', 'LOST', 'ARCHIVED'].map((value) => (
+                  <option key={value} value={value}>{enumLabel('itemStatus', value)}</option>
                 ))}
               </select>
             </div>
           )}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Categoria</label>
+            <label className="text-sm font-medium">{t('catalogs.categories')}</label>
             <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...registerField('categoryId')}>
-              <option value="">Selecciona</option>
+              <option value="">{t('validation.required')}</option>
               {categoriesQuery.data?.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Unidad</label>
+            <label className="text-sm font-medium">{t('catalogs.units')}</label>
             <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...registerField('unitId')}>
-              <option value="">Selecciona</option>
+              <option value="">{t('validation.required')}</option>
               {unitsQuery.data?.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Ubicacion principal</label>
+            <label className="text-sm font-medium">{t('catalogs.locations')}</label>
             <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...registerField('primaryLocationId')}>
-              <option value="">Selecciona</option>
+              <option value="">{t('validation.required')}</option>
               {locationsQuery.data?.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
           </div>
           <div className="md:col-span-2">
-            <Button type="submit">{mode === 'create' ? 'Crear item' : 'Guardar cambios'}</Button>
+            <Button disabled={createMutation.isPending || updateMutation.isPending} type="submit">
+              {mode === 'create' ? t('itemForm.submitCreate') : t('itemForm.submitEdit')}
+            </Button>
           </div>
         </form>
       </Card>

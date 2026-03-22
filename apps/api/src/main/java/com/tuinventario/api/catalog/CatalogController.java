@@ -3,12 +3,14 @@ package com.tuinventario.api.catalog;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -50,6 +52,11 @@ public class CatalogController {
     @GetMapping("/borrowers")
     public List<CatalogDtos.BorrowerResponse> borrowers() {
         return catalogService.listBorrowers();
+    }
+
+    @GetMapping("/public-items")
+    public List<CatalogDtos.CatalogOptionResponse> publicItems(@RequestParam UUID organizationId) {
+        return catalogService.listPublicLoanableItems(organizationId);
     }
 
     @PostMapping("/borrowers")

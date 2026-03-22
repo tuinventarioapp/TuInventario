@@ -4,22 +4,27 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
-import { api } from '../lib/api'
-import { useAuthStore } from '../store/auth-store'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { api } from '../lib/api'
+import { useI18n } from '../i18n/use-i18n'
+import { useAuthStore } from '../store/auth-store'
 
-const schema = z.object({
-  email: z.string().email('Correo invalido'),
-  password: z.string().min(8, 'Minimo 8 caracteres'),
-})
-
-type FormValues = z.infer<typeof schema>
+type FormValues = {
+  email: string
+  password: string
+}
 
 export function LoginPage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const setSession = useAuthStore((state) => state.setSession)
+  const schema = z.object({
+    email: z.string().email(t('validation.email')),
+    password: z.string().min(8, t('validation.password')),
+  })
+
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: 'demo@tuinventario.local', password: 'Demo12345!' },
@@ -37,20 +42,20 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md bg-white/95">
         <div className="mb-6 space-y-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-sky-700">TuInventario</p>
-          <h1 className="text-3xl font-semibold text-slate-950">Accede a tu operacion</h1>
-          <p className="text-sm text-slate-600">Usa el usuario demo o entra con tu propia cuenta.</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-sky-700">{t('auth.login.kicker')}</p>
+          <h1 className="text-3xl font-semibold text-slate-950">{t('auth.login.title')}</h1>
+          <p className="text-sm text-slate-600">{t('auth.login.subtitle')}</p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Correo</label>
+            <label className="text-sm font-medium text-slate-700">{t('common.email')}</label>
             <Input {...register('email')} />
             {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Contrasena</label>
+            <label className="text-sm font-medium text-slate-700">{t('common.password')}</label>
             <Input type="password" {...register('password')} />
             {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
           </div>
@@ -58,13 +63,13 @@ export function LoginPage() {
           {mutation.isError && <p className="text-sm text-red-600">{mutation.error.message}</p>}
 
           <Button className="w-full" type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Entrando...' : 'Iniciar sesion'}
+            {mutation.isPending ? t('auth.login.submitting') : t('auth.login.submit')}
           </Button>
         </form>
 
         <div className="mt-4 flex items-center justify-between text-sm">
-          <Link className="text-sky-700 hover:underline" to="/register">Crear cuenta</Link>
-          <Link className="text-slate-600 hover:underline" to="/forgot-password">Olvide mi contrasena</Link>
+          <Link className="text-sky-700 hover:underline" to="/register">{t('auth.login.createAccount')}</Link>
+          <Link className="text-slate-600 hover:underline" to="/forgot-password">{t('auth.login.forgotPassword')}</Link>
         </div>
       </Card>
     </div>

@@ -2,11 +2,13 @@ package com.tuinventario.api.catalog;
 
 import com.tuinventario.api.domain.entity.BorrowerEntity;
 import com.tuinventario.api.domain.entity.CategoryEntity;
+import com.tuinventario.api.domain.entity.ItemEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.UnitEntity;
 import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.repository.BorrowerRepository;
 import com.tuinventario.api.domain.repository.CategoryRepository;
+import com.tuinventario.api.domain.repository.ItemRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.UnitRepository;
 import com.tuinventario.api.shared.service.CurrentContextService;
@@ -14,7 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ public class CatalogService {
     private final UnitRepository unitRepository;
     private final LocationRepository locationRepository;
     private final BorrowerRepository borrowerRepository;
+    private final ItemRepository itemRepository;
 
     @Transactional(readOnly = true)
     public List<CatalogDtos.CatalogOptionResponse> listCategories() {
@@ -90,6 +95,20 @@ public class CatalogService {
         return borrowerRepository.findByOrganizationIdOrderByNameAsc(currentContextService.currentUser().organizationId())
                 .stream()
                 .map(this::mapBorrower)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CatalogDtos.CatalogOptionResponse> listPublicLoanableItems(UUID organizationId) {
+        return itemRepository.search(organizationId, null, org.springframework.data.domain.PageRequest.of(0, 100))
+                .stream()
+                .filter(ItemEntity::isLendable)
+                .filter(item -> item.getAvailableStock().compareTo(BigDecimal.ZERO) > 0)
+                .map(item -> new CatalogDtos.CatalogOptionResponse(
+                        item.getId().toString(),
+                        item.getName(),
+                        item.getAvailableStock().toPlainString()
+                ))
                 .toList();
     }
 

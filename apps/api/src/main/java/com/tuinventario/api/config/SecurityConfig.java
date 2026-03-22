@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/ws/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/public-items").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/public-loan-requests").permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())

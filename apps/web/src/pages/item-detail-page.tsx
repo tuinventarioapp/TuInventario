@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 
+import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
+import { useI18n } from '../i18n/use-i18n'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 
 export function ItemDetailPage() {
+  const { t, enumLabel } = useI18n()
   const { itemId } = useParams()
   const itemQuery = useQuery({
     queryKey: ['item', itemId],
@@ -16,7 +19,8 @@ export function ItemDetailPage() {
     enabled: Boolean(itemId),
   })
 
-  if (!itemQuery.data) return <Card>Cargando item...</Card>
+  if (itemQuery.isError) return <Notice variant="error">{itemQuery.error.message}</Notice>
+  if (!itemQuery.data) return <Card>{t('common.loading')}</Card>
 
   const item = itemQuery.data
 
@@ -24,33 +28,33 @@ export function ItemDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={item.name}
-        description={`SKU ${item.sku} · ${item.category}`}
-        action={<Link to={`/app/items/${item.id}/edit`}><Button>Editar</Button></Link>}
+        description={`SKU ${item.sku} - ${item.category}`}
+        action={<Link to={`/app/items/${item.id}/edit`}><Button>{t('common.edit')}</Button></Link>}
       />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-slate-500">Estado actual</p>
-              <h2 className="mt-1 text-3xl font-semibold">{item.status}</h2>
+              <p className="text-sm text-slate-500">{t('items.detail.currentStatus')}</p>
+              <h2 className="mt-1 text-3xl font-semibold">{enumLabel('itemStatus', item.status)}</h2>
             </div>
-            <Badge>{item.type}</Badge>
+            <Badge>{enumLabel('itemType', item.type)}</Badge>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <p>Disponible: <strong>{item.availableStock}</strong></p>
-            <p>Reservado: <strong>{item.reservedStock}</strong></p>
-            <p>Prestado: <strong>{item.loanedStock}</strong></p>
-            <p>Total: <strong>{item.totalStock}</strong></p>
+            <p>{t('items.available')}: <strong>{item.availableStock}</strong></p>
+            <p>{t('items.reserved')}: <strong>{item.reservedStock}</strong></p>
+            <p>{t('items.loaned')}: <strong>{item.loanedStock}</strong></p>
+            <p>{t('items.detail.total')}: <strong>{item.totalStock}</strong></p>
           </div>
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold">Resumen</h3>
+          <h3 className="text-lg font-semibold">{t('items.detail.summary')}</h3>
           <dl className="mt-4 space-y-3 text-sm text-slate-600">
-            <div><dt className="font-medium text-slate-900">Ubicacion</dt><dd>{item.primaryLocation}</dd></div>
-            <div><dt className="font-medium text-slate-900">Unidad</dt><dd>{item.unit}</dd></div>
-            <div><dt className="font-medium text-slate-900">Ultimo movimiento</dt><dd>{formatDate(item.lastMovementAt)}</dd></div>
+            <div><dt className="font-medium text-slate-900">{t('items.location')}</dt><dd>{item.primaryLocation}</dd></div>
+            <div><dt className="font-medium text-slate-900">{t('items.detail.unit')}</dt><dd>{item.unit}</dd></div>
+            <div><dt className="font-medium text-slate-900">{t('items.lastMovement')}</dt><dd>{formatDate(item.lastMovementAt)}</dd></div>
           </dl>
         </Card>
       </div>

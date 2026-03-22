@@ -12,6 +12,7 @@ import { PublicLoanRequestPage } from '../pages/public-loan-request-page'
 import { ItemsPage } from '../pages/items-page'
 import { ItemFormPage } from '../pages/item-form-page'
 import { ItemDetailPage } from '../pages/item-detail-page'
+import { CatalogsPage } from '../pages/catalogs-page'
 import { MovementsPage } from '../pages/movements-page'
 import { LoansPage } from '../pages/loans-page'
 import { BorrowersPage } from '../pages/borrowers-page'
@@ -46,11 +47,11 @@ const router = createBrowserRouter([
   { path: '/register', element: <RegisterPage /> },
   {
     path: '/forgot-password',
-    element: <PlaceholderPage title="Recuperacion de contrasena" description="El backend ya tiene la base para este flujo. En este MVP visual dejamos el recordatorio preparado para una siguiente iteracion." />,
+    element: <PlaceholderPage title="" description="" />,
   },
   {
     path: '/reset-password',
-    element: <PlaceholderPage title="Restablecer contrasena" description="Pantalla reservada para el flujo de reset mediante token." />,
+    element: <PlaceholderPage title="" description="" />,
   },
   { path: '/public-loan-request', element: <PublicLoanRequestPage /> },
   {
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="/app/dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'items', element: <ItemsPage /> },
+          { path: 'catalogs', element: <CatalogsPage /> },
           { path: 'items/new', element: <ItemFormPage mode="create" /> },
           { path: 'items/:itemId', element: <ItemDetailPage /> },
           { path: 'items/:itemId/edit', element: <ItemFormPage mode="edit" /> },

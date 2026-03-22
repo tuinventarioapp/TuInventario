@@ -4,27 +4,38 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { queryClient } from '../app/query-client'
+import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useI18n } from '../i18n/use-i18n'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 
-const schema = z.object({
-  movementType: z.enum(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER']),
-  itemId: z.string().min(1),
-  quantity: z.coerce.number().positive(),
-  sourceLocationId: z.string().optional(),
-  targetLocationId: z.string().optional(),
-  reason: z.string().min(3),
-  notes: z.string().optional(),
-})
-
-type FormValues = z.infer<typeof schema>
+type FormValues = {
+  movementType: 'ENTRY' | 'EXIT' | 'ADJUSTMENT' | 'TRANSFER'
+  itemId: string
+  quantity: number
+  sourceLocationId?: string
+  targetLocationId?: string
+  reason: string
+  notes?: string
+}
 
 export function MovementsPage() {
-  const { register, handleSubmit, reset } = useForm<FormValues>({
+  const { t, enumLabel } = useI18n()
+  const schema = z.object({
+    movementType: z.enum(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER']),
+    itemId: z.string().min(1, t('validation.required')),
+    quantity: z.coerce.number().positive(t('validation.quantity')),
+    sourceLocationId: z.string().optional(),
+    targetLocationId: z.string().optional(),
+    reason: z.string().min(3, t('validation.name')),
+    notes: z.string().optional(),
+  })
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { movementType: 'ENTRY' },
   })
@@ -36,7 +47,7 @@ export function MovementsPage() {
   const mutation = useMutation({
     mutationFn: api.createMovement,
     onSuccess: async () => {
-      reset()
+      reset({ movementType: 'ENTRY', itemId: '', quantity: 1, sourceLocationId: '', targetLocationId: '', reason: '', notes: '' })
       await queryClient.invalidateQueries({ queryKey: ['movements'] })
       await queryClient.invalidateQueries({ queryKey: ['items'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -45,74 +56,80 @@ export function MovementsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Movimientos" description="Entradas, salidas, ajustes y traslados con trazabilidad." />
+      <PageHeader title={t('movements.title')} description={t('movements.description')} />
+
+      {mutation.isError && <Notice variant="error">{mutation.error.message}</Notice>}
+      {mutation.isSuccess && <Notice variant="success">{t('movements.success')}</Notice>}
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
           <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tipo</label>
+              <label className="text-sm font-medium">{t('movements.type')}</label>
               <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('movementType')}>
-                {['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER'].map((type) => <option key={type}>{type}</option>)}
+                {(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER'] as const).map((type) => <option key={type} value={type}>{enumLabel('movementType', type)}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Item</label>
               <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('itemId')}>
-                <option value="">Selecciona</option>
+                <option value="">{t('validation.required')}</option>
                 {itemsQuery.data?.content.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
+              {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Cantidad</label>
-              <Input type="number" step="0.01" {...register('quantity')} />
+              <label className="text-sm font-medium">{t('common.quantity')}</label>
+              <Input type="number" step="1" {...register('quantity')} />
+              {errors.quantity && <p className="text-sm text-red-600">{errors.quantity.message}</p>}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ubicacion origen</label>
+              <label className="text-sm font-medium">{t('movements.source')}</label>
               <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('sourceLocationId')}>
-                <option value="">No aplica</option>
+                <option value="">{t('movements.notApplicable')}</option>
                 {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ubicacion destino</label>
+              <label className="text-sm font-medium">{t('movements.target')}</label>
               <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('targetLocationId')}>
-                <option value="">No aplica</option>
+                <option value="">{t('movements.notApplicable')}</option>
                 {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Motivo</label>
+              <label className="text-sm font-medium">{t('movements.reason')}</label>
               <Input {...register('reason')} />
+              {errors.reason && <p className="text-sm text-red-600">{errors.reason.message}</p>}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Notas</label>
+              <label className="text-sm font-medium">{t('common.notes')}</label>
               <Input {...register('notes')} />
             </div>
-            <Button className="w-full" type="submit">Registrar movimiento</Button>
+            <Button className="w-full" type="submit">{t('movements.submit')}</Button>
           </form>
         </Card>
 
         <Card>
           <div className="space-y-4">
-            {movementsQuery.data?.content.map((movement) => (
+            {movementsQuery.data?.content.length ? movementsQuery.data.content.map((movement) => (
               <div key={movement.id} className="rounded-2xl border border-border p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="font-medium text-slate-950">{movement.itemName}</p>
                     <p className="text-sm text-slate-500">{movement.reason}</p>
                   </div>
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium">{movement.movementType}</span>
+                  <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium">{enumLabel('movementType', movement.movementType)}</span>
                 </div>
                 <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
-                  <p>Cantidad: <strong>{movement.quantity}</strong></p>
-                  <p>Responsable: <strong>{movement.performedBy}</strong></p>
-                  <p>Origen: <strong>{movement.sourceLocation ?? 'N/A'}</strong></p>
-                  <p>Destino: <strong>{movement.targetLocation ?? 'N/A'}</strong></p>
+                  <p>{t('common.quantity')}: <strong>{movement.quantity}</strong></p>
+                  <p>{t('movements.responsible')}: <strong>{movement.performedBy}</strong></p>
+                  <p>{t('movements.source')}: <strong>{movement.sourceLocation ?? t('movements.notApplicable')}</strong></p>
+                  <p>{t('movements.target')}: <strong>{movement.targetLocation ?? t('movements.notApplicable')}</strong></p>
                 </div>
                 <p className="mt-3 text-xs text-slate-500">{formatDate(movement.occurredAt)}</p>
               </div>
-            ))}
+            )) : <Notice>{t('common.noRecords')}</Notice>}
           </div>
         </Card>
       </div>

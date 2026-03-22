@@ -53,12 +53,14 @@ docker compose up --build
 - organizacion demo y onboarding basico
 - usuarios y roles
 - categorias, unidades, ubicaciones y prestatarios
+- catalogos administrables desde el frontend
 - items con stock inicial
 - movimientos de inventario
 - solicitudes, aprobacion, entrega y devolucion de prestamos
 - dashboard
 - auditoria
 - reportes CSV y PDF
+- interfaz multidioma (es, en, pt)
 - sincronizacion por WebSocket para invalidar datos en tiempo real
 
 ## Desarrollo local sin Docker
@@ -97,3 +99,7 @@ npm test
 ## Documentacion
 
 La documentacion del proyecto usada como fuente de verdad vive en `docs/`.
+
+## Manual de uso
+
+Consulta el manual funcional en `docs/09-manual-usuario/`.

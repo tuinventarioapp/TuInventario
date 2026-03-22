@@ -1,4 +1,5 @@
 import { useAuthStore } from '../store/auth-store'
+import { useUiStore } from '../store/ui-store'
 import type {
   AuditEntry,
   AuthResponse,
@@ -16,10 +17,34 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'
 
+type ErrorPayload = {
+  code?: string
+  message?: string
+  details?: Record<string, string>
+}
+
+export class ApiError extends Error {
+  code?: string
+  details?: Record<string, string>
+  status: number
+
+  constructor(status: number, payload?: ErrorPayload) {
+    super(payload?.message ?? 'No fue posible completar la solicitud.')
+    this.name = 'ApiError'
+    this.status = status
+    this.code = payload?.code
+    this.details = payload?.details
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const { accessToken, clearSession } = useAuthStore.getState()
+  const { language } = useUiStore.getState()
   const headers = new Headers(init?.headers)
-  headers.set('Content-Type', 'application/json')
+  headers.set('Accept-Language', language)
+  if (init?.body && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -32,8 +57,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const errorPayload = (await response.json().catch(() => null)) as { message?: string } | null
-    throw new Error(errorPayload?.message ?? 'No fue posible completar la solicitud.')
+    const errorPayload = (await response.json().catch(() => null)) as ErrorPayload | null
+    throw new ApiError(response.status, errorPayload ?? undefined)
   }
 
   if (response.status === 204) {
@@ -45,6 +70,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.text()) as T
+}
+
+async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const { accessToken, clearSession } = useAuthStore.getState()
+  const { language } = useUiStore.getState()
+  const headers = new Headers(init?.headers)
+  headers.set('Accept-Language', language)
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  })
+
+  if (response.status === 401) {
+    clearSession()
+  }
+
+  if (!response.ok) {
+    const errorPayload = (await response.json().catch(() => null)) as ErrorPayload | null
+    throw new ApiError(response.status, errorPayload ?? undefined)
+  }
+
+  return response.blob()
 }
 
 export const api = {
@@ -60,8 +109,12 @@ export const api = {
   createItem: (payload: unknown) => request<Item>('/items', { method: 'POST', body: JSON.stringify(payload) }),
   updateItem: (id: string, payload: unknown) => request<Item>(`/items/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   categories: () => request<OptionItem[]>('/categories'),
+  createCategory: (payload: unknown) => request<OptionItem>('/categories', { method: 'POST', body: JSON.stringify(payload) }),
   units: () => request<OptionItem[]>('/units'),
+  createUnit: (payload: unknown) => request<OptionItem>('/units', { method: 'POST', body: JSON.stringify(payload) }),
   locations: () => request<OptionItem[]>('/locations'),
+  createLocation: (payload: unknown) => request<OptionItem>('/locations', { method: 'POST', body: JSON.stringify(payload) }),
+  publicItems: (organizationId: string) => request<OptionItem[]>(`/public-items?organizationId=${encodeURIComponent(organizationId)}`),
   borrowers: () => request<Borrower[]>('/borrowers'),
   createBorrower: (payload: unknown) => request<Borrower>('/borrowers', { method: 'POST', body: JSON.stringify(payload) }),
   createMovement: (payload: unknown) => request<Movement>('/movements', { method: 'POST', body: JSON.stringify(payload) }),
@@ -77,6 +130,7 @@ export const api = {
   createUser: (payload: unknown) => request<UserSummary>('/users', { method: 'POST', body: JSON.stringify(payload) }),
   settings: () => request<SettingsPayload>('/settings'),
   audit: (page = 0, size = 10) => request<PageResponse<AuditEntry>>(`/audit-log?page=${page}&size=${size}`),
-  inventoryCsv: () => request<string>('/reports/inventory.csv'),
-  loansCsv: () => request<string>('/reports/loans.csv'),
+  inventoryCsv: () => requestBlob('/reports/inventory.csv'),
+  loansCsv: () => requestBlob('/reports/loans.csv'),
+  inventoryPdf: () => requestBlob('/reports/inventory.pdf'),
 }

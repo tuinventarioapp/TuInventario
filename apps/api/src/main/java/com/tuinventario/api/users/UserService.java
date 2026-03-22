@@ -30,6 +30,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserDtos.UserSummaryResponse> listUsers() {
+        currentContextService.requireAdmin();
         return membershipRepository.findByOrganizationId(currentContextService.currentUser().organizationId())
                 .stream()
                 .map(membership -> new UserDtos.UserSummaryResponse(
