@@ -15,7 +15,7 @@ describe('LoginPage', () => {
     )
 
     expect(screen.getByText('Accede a tu operacion')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('demo@tuinventario.local')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('admin@admin.com')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar sesion' })).toBeInTheDocument()
   })
 })

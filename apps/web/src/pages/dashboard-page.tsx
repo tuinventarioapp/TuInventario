@@ -21,7 +21,6 @@ export function DashboardPage() {
 
   const metrics = [
     { label: t('dashboard.totalItems'), value: data?.totalItems ?? 0 },
-    { label: t('dashboard.lowStock'), value: data?.lowStockItems ?? 0 },
     { label: t('dashboard.activeLoans'), value: data?.activeLoans ?? 0 },
     { label: t('dashboard.overdueLoans'), value: data?.overdueLoans ?? 0 },
   ]
@@ -42,7 +41,7 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {metrics.map((metric) => (
           <Card key={metric.label}>
             <p className="text-sm text-slate-500">{metric.label}</p>

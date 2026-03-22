@@ -14,7 +14,7 @@ import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
 
-const stockFilterOptions = ['LOW_STOCK', 'OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED', 'DAMAGED'] as const
+const stockFilterOptions = ['OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED', 'DAMAGED'] as const
 
 export function ItemsPage() {
   const { t, enumLabel } = useI18n()

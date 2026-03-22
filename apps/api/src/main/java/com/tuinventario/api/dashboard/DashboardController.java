@@ -44,13 +44,9 @@ public class DashboardController {
         long activeLoans = loans.stream()
                 .filter(loan -> loan.getStatus() == LoanStatus.DELIVERED || loan.getStatus() == LoanStatus.APPROVED)
                 .count();
-        long lowStockItems = items.stream()
-                .filter(item -> item.getAvailableStock().compareTo(java.math.BigDecimal.ONE) <= 0)
-                .count();
 
         return Map.of(
                 "totalItems", items.size(),
-                "lowStockItems", lowStockItems,
                 "activeLoans", activeLoans,
                 "overdueLoans", overdueLoans,
                 "recentMovements", stockMovementRepository.searchByLocation(orgId, effectiveLocationId, org.springframework.data.domain.PageRequest.of(0, 5)).getContent().size()

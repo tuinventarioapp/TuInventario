@@ -38,19 +38,22 @@ docker compose up --build
 - Backend: [http://localhost:8080](http://localhost:8080)
 - Swagger: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-## Usuarios demo
+## Usuarios iniciales
 
-- Admin demo
-  - email: `demo@tuinventario.local`
-  - password: `Demo12345!`
-- Gestor demo
-  - email: `gestor@tuinventario.local`
-  - password: `Gestor12345!`
+- Administrador
+  - email: `admin@admin.com`
+  - password: `admin123`
+- Colaborador
+  - email: `colaborador@colaborador.com`
+  - password: `colaborador123`
+- Trabajador
+  - email: `trabajador@trabajador.com`
+  - password: `trabajador123`
 
 ## Funcionalidades cubiertas
 
 - autenticacion y session JWT
-- organizacion demo y onboarding basico
+- organizacion inicial y onboarding basico
 - usuarios y roles
 - categorias, unidades, ubicaciones y prestatarios
 - catalogos administrables desde el frontend

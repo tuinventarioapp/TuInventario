@@ -114,7 +114,6 @@ export interface Loan {
 
 export interface DashboardSummary {
   totalItems: number
-  lowStockItems: number
   activeLoans: number
   overdueLoans: number
   recentMovements: number

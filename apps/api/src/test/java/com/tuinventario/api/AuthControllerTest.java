@@ -27,15 +27,15 @@ class AuthControllerTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void shouldLoginWithDemoUser() throws Exception {
+    void shouldLoginWithInitialAdminUser() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "email", "demo@tuinventario.local",
-                                "password", "Demo12345!"
+                                "email", "admin@admin.com",
+                                "password", "admin123"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.user.email").value("demo@tuinventario.local"));
+                .andExpect(jsonPath("$.user.email").value("admin@admin.com"));
     }
 }

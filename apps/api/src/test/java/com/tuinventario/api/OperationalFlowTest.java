@@ -4,10 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tuinventario.api.domain.entity.CategoryEntity;
 import com.tuinventario.api.domain.entity.ItemEntity;
-import com.tuinventario.api.domain.entity.LocationEntity;
-import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.entity.UnitEntity;
-import com.tuinventario.api.domain.repository.BorrowerRepository;
+import com.tuinventario.api.domain.entity.LocationEntity;
+import com.tuinventario.api.domain.entity.OrganizationEntity;
+import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.repository.CategoryRepository;
 import com.tuinventario.api.domain.repository.ItemRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
@@ -52,9 +52,6 @@ class OperationalFlowTest {
     private ItemRepository itemRepository;
 
     @Autowired
-    private BorrowerRepository borrowerRepository;
-
-    @Autowired
     private CategoryRepository categoryRepository;
 
     @Autowired
@@ -72,18 +69,17 @@ class OperationalFlowTest {
 
     @BeforeEach
     void authenticate() throws Exception {
-        adminToken = login("demo@tuinventario.local", "Demo12345!");
-        managerToken = login("gestor@tuinventario.local", "Gestor12345!");
-        collaboratorToken = login("colaborador@tuinventario.local", "Colaborador123!");
+        adminToken = login("admin@admin.com", "admin123");
+        managerToken = login("trabajador@trabajador.com", "trabajador123");
+        collaboratorToken = login("colaborador@colaborador.com", "colaborador123");
     }
 
     @Test
     void shouldExposeDashboardAndProtectedReportsForAdmin() throws Exception {
-                mockMvc.perform(get("/api/v1/dashboard")
+        mockMvc.perform(get("/api/v1/dashboard")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalItems").value(greaterThanOrEqualTo(1)))
-                .andExpect(jsonPath("$.lowStockItems").value(greaterThanOrEqualTo(0)))
+                .andExpect(jsonPath("$.totalItems").value(greaterThanOrEqualTo(0)))
                 .andExpect(jsonPath("$.activeLoans").value(greaterThanOrEqualTo(0)))
                 .andExpect(jsonPath("$.overdueLoans").value(greaterThanOrEqualTo(0)));
 
@@ -109,8 +105,9 @@ class OperationalFlowTest {
 
     @Test
     void shouldSupportEndToEndLoanFlow() throws Exception {
-        ItemEntity item = itemRepository.findAll().getFirst();
-        String borrowerId = borrowerRepository.findAll().getFirst().getId().toString();
+        String borrowerId = createBorrower("Borrower Flujo " + System.nanoTime());
+        String itemId = createItem("Item Flujo", "FLOW-" + System.nanoTime(), 4);
+        ItemEntity item = itemRepository.findById(UUID.fromString(itemId)).orElseThrow();
         Instant dueAt = Instant.now().plus(2, ChronoUnit.DAYS);
 
         String requestResponse = mockMvc.perform(post("/api/v1/loan-requests")
@@ -188,21 +185,23 @@ class OperationalFlowTest {
 
     @Test
     void shouldListPublicLoanableItems() throws Exception {
-        String organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId().toString();
+        String itemName = "Taladro Inalambrico " + System.nanoTime();
+        createItem(itemName, "PUB-" + System.nanoTime(), 2);
+        String organizationId = organizationId().toString();
 
-                mockMvc.perform(get("/api/v1/public-items")
+        mockMvc.perform(get("/api/v1/public-items")
                         .param("organizationId", organizationId))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Taladro Inalambrico")));
+                .andExpect(content().string(containsString(itemName)));
     }
 
     @Test
     void shouldFilterInventoryAndExposeDamagedStock() throws Exception {
         String itemId = createItem("Filtro Demo", "FILTRO-" + System.nanoTime(), 1);
 
-                mockMvc.perform(get("/api/v1/items")
+        mockMvc.perform(get("/api/v1/items")
                         .header("Authorization", "Bearer " + adminToken)
-                        .param("stockFilter", "LOW_STOCK")
+                        .param("stockFilter", "IN_STOCK")
                         .param("query", "Filtro Demo"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(itemId))
@@ -440,9 +439,9 @@ class OperationalFlowTest {
     }
 
     private String createItem(String name, String sku, int stock, String locationId) throws Exception {
-        UUID organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId();
-        CategoryEntity category = categoryRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
-        UnitEntity unit = unitRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
+        UUID organizationId = organizationId();
+        CategoryEntity category = ensureCategory(organizationId);
+        UnitEntity unit = ensureUnit(organizationId);
 
         String response = mockMvc.perform(post("/api/v1/items")
                         .header("Authorization", "Bearer " + adminToken)
@@ -526,12 +525,11 @@ class OperationalFlowTest {
     }
 
     private String firstLocationId() {
-        UUID organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId();
-        return locationRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst().getId().toString();
+        return locationRepository.findByOrganizationIdOrderByNameAsc(organizationId()).getFirst().getId().toString();
     }
 
     private String createLocation(String name) {
-        UUID organizationId = organizationRepository.findBySlug("tuinventario-demo").orElseThrow().getId();
+        UUID organizationId = organizationId();
         LocationEntity location = new LocationEntity();
         location.setOrganization(organizationRepository.findById(organizationId).orElseThrow());
         location.setName(name);
@@ -539,5 +537,37 @@ class OperationalFlowTest {
         location.setDescription("Creada en prueba");
         locationRepository.save(location);
         return location.getId().toString();
+    }
+
+    private UUID organizationId() {
+        return organizationRepository.findAll().stream()
+                .map(OrganizationEntity::getId)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private CategoryEntity ensureCategory(UUID organizationId) {
+        return categoryRepository.findByOrganizationIdOrderByNameAsc(organizationId).stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    CategoryEntity category = new CategoryEntity();
+                    category.setOrganization(organizationRepository.findById(organizationId).orElseThrow());
+                    category.setName("General");
+                    category.setDescription("Categoria base para pruebas");
+                    return categoryRepository.save(category);
+                });
+    }
+
+    private UnitEntity ensureUnit(UUID organizationId) {
+        return unitRepository.findByOrganizationIdOrderByNameAsc(organizationId).stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    UnitEntity unit = new UnitEntity();
+                    unit.setOrganization(organizationRepository.findById(organizationId).orElseThrow());
+                    unit.setName("Unidad");
+                    unit.setSymbol("und");
+                    unit.setAllowsDecimal(false);
+                    return unitRepository.save(unit);
+                });
     }
 }

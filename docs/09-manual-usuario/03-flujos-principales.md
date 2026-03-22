@@ -56,7 +56,7 @@ Resultado esperado:
 4. Filtra por estado.
 5. Filtra por tipo.
 6. Filtra por sede si eres `Administrador`.
-7. Filtra por stock critico, sin stock, reservado, prestado o danado.
+7. Filtra por sin stock, reservado, prestado o danado.
 8. Si quieres, limita por cantidad minima y maxima.
 
 Resultado esperado:
