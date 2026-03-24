@@ -134,6 +134,7 @@ class MovementControllerTest {
                     item.setLendable(true);
                     item.setTotalStock(new BigDecimal("5"));
                     item.setAvailableStock(new BigDecimal("5"));
+                    item.setMinimumStock(BigDecimal.ZERO);
                     item.setReservedStock(BigDecimal.ZERO);
                     item.setLoanedStock(BigDecimal.ZERO);
                     item.setDamagedStock(BigDecimal.ZERO);

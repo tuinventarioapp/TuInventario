@@ -12,8 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -28,7 +26,7 @@ public class DashboardController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public Map<String, Object> getDashboard(@RequestParam(required = false) UUID locationId) {
+    public DashboardDtos.DashboardResponse getDashboard(@RequestParam(required = false) UUID locationId) {
         var orgId = currentContextService.currentUser().organizationId();
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         var loans = loanRepository.findByOrganizationIdOrderByCreatedAtDesc(orgId).stream()
@@ -44,12 +42,28 @@ public class DashboardController {
         long activeLoans = loans.stream()
                 .filter(loan -> loan.getStatus() == LoanStatus.DELIVERED || loan.getStatus() == LoanStatus.APPROVED)
                 .count();
+        var lowStockAlerts = items.stream()
+                .filter(item -> item.getMinimumStock() != null && item.getMinimumStock().signum() > 0)
+                .filter(item -> item.getAvailableStock().compareTo(item.getMinimumStock()) <= 0)
+                .sorted((left, right) -> left.getAvailableStock().compareTo(right.getAvailableStock()))
+                .map(item -> new DashboardDtos.LowStockAlert(
+                        item.getId().toString(),
+                        item.getName(),
+                        item.getSku(),
+                        item.getCategory().getName(),
+                        item.getPrimaryLocation().getName(),
+                        item.getUnit().getSymbol(),
+                        item.getAvailableStock(),
+                        item.getMinimumStock()
+                ))
+                .toList();
 
-        return Map.of(
-                "totalItems", items.size(),
-                "activeLoans", activeLoans,
-                "overdueLoans", overdueLoans,
-                "recentMovements", stockMovementRepository.searchByLocation(orgId, effectiveLocationId, org.springframework.data.domain.PageRequest.of(0, 5)).getContent().size()
+        return new DashboardDtos.DashboardResponse(
+                items.size(),
+                activeLoans,
+                overdueLoans,
+                stockMovementRepository.searchByLocation(orgId, effectiveLocationId, org.springframework.data.domain.PageRequest.of(0, 5)).getContent().size(),
+                lowStockAlerts
         );
     }
 }

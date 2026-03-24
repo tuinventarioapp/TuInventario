@@ -10,6 +10,10 @@ import { isAdmin } from '../lib/access'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
 
+function stockWithUnit(quantity: number, unitSymbol: string) {
+  return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
+}
+
 export function DashboardPage() {
   const { t } = useI18n()
   const user = useAuthStore((state) => state.user)
@@ -23,6 +27,7 @@ export function DashboardPage() {
     { label: t('dashboard.totalItems'), value: data?.totalItems ?? 0 },
     { label: t('dashboard.activeLoans'), value: data?.activeLoans ?? 0 },
     { label: t('dashboard.overdueLoans'), value: data?.overdueLoans ?? 0 },
+    { label: t('dashboard.minimumStockAlerts'), value: data?.lowStockAlerts.length ?? 0 },
   ]
 
   return (
@@ -41,7 +46,7 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <Card key={metric.label}>
             <p className="text-sm text-slate-500">{metric.label}</p>
@@ -64,10 +69,34 @@ export function DashboardPage() {
               <p className="text-sm text-slate-500">{t('dashboard.recentMovements')}</p>
               <p className="mt-3 text-3xl font-semibold text-slate-950">{data?.recentMovements ?? 0}</p>
             </div>
-            <Notice variant="info">
-              <p className="font-medium">{t('dashboard.emptyTitle')}</p>
-              <p className="mt-1">{t('dashboard.emptyDescription')}</p>
-            </Notice>
+            {data?.lowStockAlerts.length ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-950">{t('dashboard.minimumStockTitle')}</p>
+                <p className="mt-1 text-sm text-amber-800">{t('dashboard.minimumStockDescription')}</p>
+                <div className="mt-4 space-y-3">
+                  {data.lowStockAlerts.map((alert) => (
+                    <div key={alert.itemId} className="rounded-2xl border border-amber-200 bg-white px-4 py-3 text-sm text-slate-700">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-medium text-slate-950">{alert.itemName}</p>
+                        <Badge className="bg-amber-100 text-amber-900">{t('dashboard.minimumStockBadge')}</Badge>
+                      </div>
+                      <p className="mt-1 text-slate-500">{alert.locationName} - {alert.categoryName}</p>
+                      <p className="mt-2">
+                        {t('items.available')}: <strong className="text-slate-950">{stockWithUnit(alert.availableStock, alert.unitSymbol)}</strong>
+                      </p>
+                      <p>
+                        {t('items.minimumStock')}: <strong className="text-slate-950">{stockWithUnit(alert.minimumStock, alert.unitSymbol)}</strong>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <Notice variant="info">
+                <p className="font-medium">{t('dashboard.emptyTitle')}</p>
+                <p className="mt-1">{t('dashboard.emptyDescription')}</p>
+              </Notice>
+            )}
           </div>
         </Card>
 

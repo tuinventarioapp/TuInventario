@@ -90,7 +90,8 @@ class OperationalFlowTest {
                 .andExpect(jsonPath("$.overdueLoans").value(greaterThanOrEqualTo(0)));
 
         mockMvc.perform(get("/api/v1/reports/inventory.csv")
-                        .header("Authorization", "Bearer " + adminToken))
+                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Accept-Language", "es"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/csv"))
                 .andExpect(content().string(containsString("sep=;")))
@@ -98,7 +99,8 @@ class OperationalFlowTest {
                 .andExpect(content().string(containsString("Inventario operativo")));
 
         mockMvc.perform(get("/api/v1/reports/inventory-admin.csv")
-                        .header("Authorization", "Bearer " + adminToken))
+                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Accept-Language", "es"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/csv"))
                 .andExpect(content().string(containsString("Inventario administrativo")))
@@ -107,6 +109,14 @@ class OperationalFlowTest {
         mockMvc.perform(get("/api/v1/reports/inventory-admin.csv")
                         .header("Authorization", "Bearer " + collaboratorToken))
                 .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/reports/inventory.csv")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Accept-Language", "en"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Report")))
+                .andExpect(content().string(containsString("Operational inventory")))
+                .andExpect(content().string(containsString("Available")));
     }
 
     @Test
@@ -261,6 +271,39 @@ class OperationalFlowTest {
                         .param("type", "LENDABLE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(itemId));
+    }
+
+    @Test
+    void shouldExposeMinimumStockAlertsOnInventoryAndDashboard() throws Exception {
+        String itemName = "Computadores Portatiles " + System.nanoTime();
+        String itemId = createItem(itemName, "MIN-" + System.nanoTime(), 10, firstLocationId(), 2);
+
+        mockMvc.perform(post("/api/v1/movements")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "movementType", "EXIT",
+                                "itemId", itemId,
+                                "quantity", 8,
+                                "reason", "Salida controlada",
+                                "notes", "Baja para probar stock minimo"
+                        ))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("stockFilter", "LOW_STOCK")
+                        .param("query", itemName))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].minimumStock").value(2));
+
+        mockMvc.perform(get("/api/v1/dashboard")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lowStockAlerts[0].itemName").value(itemName))
+                .andExpect(jsonPath("$.lowStockAlerts[0].minimumStock").value(2))
+                .andExpect(jsonPath("$.lowStockAlerts[0].availableStock").value(2));
     }
 
     @Test
@@ -601,10 +644,14 @@ class OperationalFlowTest {
     }
 
     private String createItem(String name, String sku, int stock) throws Exception {
-        return createItem(name, sku, stock, firstLocationId());
+        return createItem(name, sku, stock, firstLocationId(), 0);
     }
 
     private String createItem(String name, String sku, int stock, String locationId) throws Exception {
+        return createItem(name, sku, stock, locationId, 0);
+    }
+
+    private String createItem(String name, String sku, int stock, String locationId, int minimumStock) throws Exception {
         UUID organizationId = organizationId();
         CategoryEntity category = ensureCategory(organizationId);
         UnitEntity unit = ensureUnit(organizationId);
@@ -620,7 +667,8 @@ class OperationalFlowTest {
                                 "categoryId", category.getId().toString(),
                                 "unitId", unit.getId().toString(),
                                 "primaryLocationId", locationId,
-                                "initialStock", stock
+                                "initialStock", stock,
+                                "minimumStock", minimumStock
                         ))))
                 .andExpect(status().isOk())
                 .andReturn()

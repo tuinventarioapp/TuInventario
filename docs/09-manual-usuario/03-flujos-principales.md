@@ -41,20 +41,22 @@ Nota:
 - si eres `Gestor`, la sede queda bloqueada en la tuya.
 
 5. Si tienes existencia inicial, agrega la `Cantidad` inicial.
+6. Define el `Stock minimo` si quieres que el panel te avise cuando el articulo llegue al limite operativo.
 
 Ejemplos:
 
 - `Cantidad 5` + `Unidad` para 5 pesas.
 - `Cantidad 5` + `Kilogramo` para 5 kg de tomate.
 
-6. Guarda.
+7. Guarda.
 
 Resultado esperado:
 
 - el articulo aparece en inventario;
 - queda asociado a una sede;
 - el panel muestra el total correcto;
-- la tarjeta del articulo muestra `Disponible` junto al simbolo de la unidad.
+- la tarjeta del articulo muestra `Disponible` junto al simbolo de la unidad;
+- si el stock disponible llega al stock minimo, el panel muestra la alerta.
 
 ## Flujo 4: filtrar inventario cuando hay muchos articulos
 
@@ -64,7 +66,7 @@ Resultado esperado:
 4. Filtra por estado.
 5. Filtra por tipo.
 6. Filtra por sede si eres `Administrador`.
-7. Filtra por sin stock, reservado, prestado o danado.
+7. Filtra por sin stock, con stock, con prestamos activos, con stock reservado, con stock danado o en stock minimo.
 8. Si quieres, limita por cantidad minima y maxima.
 
 Resultado esperado:
@@ -96,12 +98,26 @@ Resultado esperado:
 ## Flujo 7: crear una solicitud de prestamo
 
 1. Entra a `Prestamos`.
-2. Selecciona prestatario.
-3. Selecciona articulo prestable con stock.
-4. Escribe cantidad.
-5. Elige la fecha maxima que tendra el prestatario para devolver el articulo.
-6. Agrega notas si hace falta.
-7. Guarda.
+2. Identifica el bloque correcto:
+
+- `Solicitudes`;
+- `Prestamos activos`;
+- `Prestamos cerrados`.
+
+3. Usa filtros si hace falta:
+
+- categoria;
+- cantidad minima;
+- cantidad maxima;
+- fechas.
+
+4. Selecciona prestatario.
+5. Si hace falta, usa el buscador por nombre o SKU para encontrar el articulo correcto.
+6. Selecciona articulo prestable con stock.
+7. Escribe cantidad.
+8. Elige la fecha maxima que tendra el prestatario para devolver el articulo.
+9. Agrega notas si hace falta.
+10. Guarda.
 
 Resultado esperado:
 
@@ -235,12 +251,14 @@ Ejemplos:
 3. Si eres administrador, usa el reporte `Inventario administrativo` para control gerencial.
 4. Si eres gestor o colaborador, usa el reporte `Inventario operativo`.
 5. Si lo necesitas, define una fecha inicial y una fecha final.
-6. Elige CSV o PDF.
-7. Pulsa `Descargar`.
+6. Revisa el idioma activo en `Configuracion` si quieres que el reporte salga en espanol, ingles o portugues.
+7. Elige CSV o PDF.
+8. Pulsa `Descargar`.
 
 Resultado esperado:
 
-- el archivo se descarga con el alcance correcto.
+- el archivo se descarga con el alcance correcto;
+- el contenido del reporte respeta el idioma activo de la aplicacion.
 
 ## Flujo 15: restablecer contrasena de un usuario
 

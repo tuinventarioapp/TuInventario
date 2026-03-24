@@ -35,10 +35,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -59,10 +59,12 @@ public class ReportController {
     public ResponseEntity<String> inventoryCsv(
             @RequestParam(required = false) UUID locationId,
             @RequestParam(required = false) LocalDate fromDate,
-            @RequestParam(required = false) LocalDate toDate
+            @RequestParam(required = false) LocalDate toDate,
+            Locale locale
     ) {
-        ReportRange range = resolveRange(fromDate, toDate);
-        return csvResponse("inventario-operativo.csv", buildInventoryCsv(locationId, false, range));
+        ReportLocalization texts = ReportLocalization.from(locale);
+        ReportRange range = resolveRange(fromDate, toDate, texts);
+        return csvResponse(texts.inventoryCsvFile(false), buildInventoryCsv(locationId, false, range, texts));
     }
 
     @GetMapping(value = "/inventory-admin.csv", produces = "text/csv")
@@ -70,11 +72,13 @@ public class ReportController {
     public ResponseEntity<String> inventoryAdminCsv(
             @RequestParam(required = false) UUID locationId,
             @RequestParam(required = false) LocalDate fromDate,
-            @RequestParam(required = false) LocalDate toDate
+            @RequestParam(required = false) LocalDate toDate,
+            Locale locale
     ) {
         currentContextService.requireAdmin();
-        ReportRange range = resolveRange(fromDate, toDate);
-        return csvResponse("inventario-administrativo.csv", buildInventoryCsv(locationId, true, range));
+        ReportLocalization texts = ReportLocalization.from(locale);
+        ReportRange range = resolveRange(fromDate, toDate, texts);
+        return csvResponse(texts.inventoryCsvFile(true), buildInventoryCsv(locationId, true, range, texts));
     }
 
     @GetMapping(value = "/loans.csv", produces = "text/csv")
@@ -82,9 +86,11 @@ public class ReportController {
     public ResponseEntity<String> loansCsv(
             @RequestParam(required = false) UUID locationId,
             @RequestParam(required = false) LocalDate fromDate,
-            @RequestParam(required = false) LocalDate toDate
+            @RequestParam(required = false) LocalDate toDate,
+            Locale locale
     ) {
-        ReportRange range = resolveRange(fromDate, toDate);
+        ReportLocalization texts = ReportLocalization.from(locale);
+        ReportRange range = resolveRange(fromDate, toDate, texts);
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         List<LoanEntity> loans = scopedLoans(effectiveLocationId, range);
 
@@ -95,22 +101,24 @@ public class ReportController {
                     loan.getBorrower().getName(),
                     item == null ? "" : item.getName(),
                     item == null ? "" : item.getPrimaryLocation().getName(),
-                    loan.getStatus().name(),
-                    loan.getDueAt() == null ? "" : formatInstant(loan.getDueAt()),
-                    loan.getLoanedAt() == null ? "" : formatInstant(loan.getLoanedAt()),
-                    loan.getReturnedAt() == null ? "" : formatInstant(loan.getReturnedAt()),
+                    texts.loanStatus(loan.getStatus()),
+                    loan.getDueAt() == null ? "" : formatInstant(loan.getDueAt(), texts),
+                    loan.getLoanedAt() == null ? "" : formatInstant(loan.getLoanedAt(), texts),
+                    loan.getReturnedAt() == null ? "" : formatInstant(loan.getReturnedAt(), texts),
                     loan.getNotes() == null ? "" : loan.getNotes()
             ));
         }
 
         String content = buildCsvDocument(
-                "Prestamos",
-                effectiveLocationId == null ? "Toda la empresa" : resolveLocationName(effectiveLocationId),
+                texts.loansTitle(),
+                effectiveLocationId == null ? texts.wholeOrganization() : resolveLocationName(effectiveLocationId, texts),
                 range.label(),
-                List.of("Prestatario", "Articulo", "Sede", "Estado", "Fecha de vencimiento", "Fecha de entrega", "Fecha de cierre", "Notas"),
+                texts.loanHeaders(),
                 rows
+                ,
+                texts
         );
-        return csvResponse("prestamos.csv", content);
+        return csvResponse(texts.loansCsvFile(), content);
     }
 
     @GetMapping(value = "/inventory.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
@@ -118,9 +126,11 @@ public class ReportController {
     public ResponseEntity<byte[]> inventoryPdf(
             @RequestParam(required = false) UUID locationId,
             @RequestParam(required = false) LocalDate fromDate,
-            @RequestParam(required = false) LocalDate toDate
+            @RequestParam(required = false) LocalDate toDate,
+            Locale locale
     ) {
-        return buildInventoryPdf(locationId, false, resolveRange(fromDate, toDate));
+        ReportLocalization texts = ReportLocalization.from(locale);
+        return buildInventoryPdf(locationId, false, resolveRange(fromDate, toDate, texts), texts);
     }
 
     @GetMapping(value = "/inventory-admin.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
@@ -128,10 +138,12 @@ public class ReportController {
     public ResponseEntity<byte[]> inventoryAdminPdf(
             @RequestParam(required = false) UUID locationId,
             @RequestParam(required = false) LocalDate fromDate,
-            @RequestParam(required = false) LocalDate toDate
+            @RequestParam(required = false) LocalDate toDate,
+            Locale locale
     ) {
         currentContextService.requireAdmin();
-        return buildInventoryPdf(locationId, true, resolveRange(fromDate, toDate));
+        ReportLocalization texts = ReportLocalization.from(locale);
+        return buildInventoryPdf(locationId, true, resolveRange(fromDate, toDate, texts), texts);
     }
 
     private ResponseEntity<String> csvResponse(String fileName, String content) {
@@ -141,7 +153,7 @@ public class ReportController {
                 .body(content);
     }
 
-    private String buildInventoryCsv(UUID locationId, boolean adminView, ReportRange range) {
+    private String buildInventoryCsv(UUID locationId, boolean adminView, ReportRange range, ReportLocalization texts) {
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         List<ItemEntity> items = scopedItems(effectiveLocationId, range);
         List<List<String>> rows = new ArrayList<>();
@@ -154,44 +166,40 @@ public class ReportController {
                         item.getSku(),
                         item.getCategory().getName(),
                         item.getUnit().getName(),
-                        item.getStatus().name(),
+                        texts.itemStatus(item.getStatus()),
                         formatDecimal(item.getTotalStock()),
                         formatDecimal(item.getAvailableStock()),
                         formatDecimal(item.getReservedStock()),
                         formatDecimal(item.getLoanedStock()),
                         formatDecimal(item.getDamagedStock()),
-                        formatInstant(item.getLastMovementAt())
+                        formatInstant(item.getLastMovementAt(), texts)
                 ));
             } else {
                 rows.add(List.of(
                         item.getName(),
                         item.getSku(),
                         item.getCategory().getName(),
-                        item.getStatus().name(),
+                        texts.itemStatus(item.getStatus()),
                         formatDecimal(item.getAvailableStock()),
                         formatDecimal(item.getLoanedStock()),
                         formatDecimal(item.getDamagedStock()),
                         item.getPrimaryLocation().getName(),
-                        formatInstant(item.getLastMovementAt())
+                        formatInstant(item.getLastMovementAt(), texts)
                 ));
             }
         }
 
-        String title = adminView ? "Inventario administrativo" : "Inventario operativo";
-        List<String> headers = adminView
-                ? List.of("Sede", "Articulo", "SKU", "Categoria", "Unidad", "Estado", "Stock total", "Disponible", "Reservado", "Prestado", "Danado", "Ultimo movimiento")
-                : List.of("Articulo", "SKU", "Categoria", "Estado", "Disponible", "Prestado", "Danado", "Sede", "Ultimo movimiento");
-
         return buildCsvDocument(
-                title,
-                effectiveLocationId == null ? "Toda la empresa" : resolveLocationName(effectiveLocationId),
+                texts.inventoryTitle(adminView),
+                effectiveLocationId == null ? texts.wholeOrganization() : resolveLocationName(effectiveLocationId, texts),
                 range.label(),
-                headers,
-                rows
+                texts.inventoryHeaders(adminView),
+                rows,
+                texts
         );
     }
 
-    private ResponseEntity<byte[]> buildInventoryPdf(UUID locationId, boolean adminView, ReportRange range) {
+    private ResponseEntity<byte[]> buildInventoryPdf(UUID locationId, boolean adminView, ReportRange range, ReportLocalization texts) {
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
         List<ItemEntity> items = scopedItems(effectiveLocationId, range);
 
@@ -205,16 +213,14 @@ public class ReportController {
             Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
             Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 9);
 
-            document.add(new Paragraph(adminView ? "Inventario administrativo" : "Inventario operativo", titleFont));
-            document.add(new Paragraph("Alcance: " + (effectiveLocationId == null ? "Toda la empresa" : resolveLocationName(effectiveLocationId)), subtitleFont));
-            document.add(new Paragraph("Periodo: " + range.label(), subtitleFont));
-            document.add(new Paragraph("Generado por: " + currentContextService.currentActorEntity().getFullName(), subtitleFont));
-            document.add(new Paragraph("Fecha: " + formatInstant(Instant.now()), subtitleFont));
+            document.add(new Paragraph(texts.inventoryTitle(adminView), titleFont));
+            document.add(new Paragraph(texts.scopeLabel() + ": " + (effectiveLocationId == null ? texts.wholeOrganization() : resolveLocationName(effectiveLocationId, texts)), subtitleFont));
+            document.add(new Paragraph(texts.periodLabel() + ": " + range.label(), subtitleFont));
+            document.add(new Paragraph(texts.generatedByLabel() + ": " + currentContextService.currentActorEntity().getFullName(), subtitleFont));
+            document.add(new Paragraph(texts.generatedAtLabel() + ": " + formatInstant(Instant.now(), texts), subtitleFont));
             document.add(new Paragraph(" "));
 
-            List<String> headers = adminView
-                    ? List.of("Sede", "Articulo", "SKU", "Categoria", "Unidad", "Estado", "Total", "Disponible", "Reservado", "Prestado", "Danado", "Ultimo movimiento")
-                    : List.of("Articulo", "SKU", "Categoria", "Estado", "Disponible", "Prestado", "Danado", "Sede", "Ultimo movimiento");
+            List<String> headers = texts.inventoryHeaders(adminView);
 
             PdfPTable table = new PdfPTable(headers.size());
             table.setWidthPercentage(100f);
@@ -229,33 +235,33 @@ public class ReportController {
                     table.addCell(bodyCell(item.getSku(), bodyFont));
                     table.addCell(bodyCell(item.getCategory().getName(), bodyFont));
                     table.addCell(bodyCell(item.getUnit().getName(), bodyFont));
-                    table.addCell(bodyCell(item.getStatus().name(), bodyFont));
+                    table.addCell(bodyCell(texts.itemStatus(item.getStatus()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getTotalStock()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getReservedStock()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont));
-                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt()), bodyFont));
+                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont));
                 } else {
                     table.addCell(bodyCell(item.getName(), bodyFont));
                     table.addCell(bodyCell(item.getSku(), bodyFont));
                     table.addCell(bodyCell(item.getCategory().getName(), bodyFont));
-                    table.addCell(bodyCell(item.getStatus().name(), bodyFont));
+                    table.addCell(bodyCell(texts.itemStatus(item.getStatus()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont));
                     table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont));
                     table.addCell(bodyCell(item.getPrimaryLocation().getName(), bodyFont));
-                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt()), bodyFont));
+                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont));
                 }
             }
 
             document.add(table);
             document.close();
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + (adminView ? "inventario-administrativo.pdf" : "inventario-operativo.pdf"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + texts.inventoryPdfFile(adminView))
                     .body(outputStream.toByteArray());
         } catch (Exception exception) {
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "PDF_GENERATION_ERROR", "No fue posible generar el PDF.");
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "PDF_GENERATION_ERROR", texts.pdfGenerationErrorMessage());
         }
     }
 
@@ -308,15 +314,15 @@ public class ReportController {
         return afterStart && beforeEnd;
     }
 
-    private String buildCsvDocument(String title, String scopeLabel, String rangeLabel, List<String> headers, List<List<String>> rows) {
+    private String buildCsvDocument(String title, String scopeLabel, String rangeLabel, List<String> headers, List<List<String>> rows, ReportLocalization texts) {
         StringBuilder builder = new StringBuilder();
         builder.append('\uFEFF');
         builder.append("sep=;\n");
-        builder.append(csvRow(List.of("Reporte", title)));
-        builder.append(csvRow(List.of("Generado por", currentContextService.currentActorEntity().getFullName())));
-        builder.append(csvRow(List.of("Fecha", formatInstant(Instant.now()))));
-        builder.append(csvRow(List.of("Alcance", scopeLabel)));
-        builder.append(csvRow(List.of("Periodo", rangeLabel)));
+        builder.append(csvRow(List.of(texts.reportLabel(), title)));
+        builder.append(csvRow(List.of(texts.generatedByLabel(), currentContextService.currentActorEntity().getFullName())));
+        builder.append(csvRow(List.of(texts.generatedAtLabel(), formatInstant(Instant.now(), texts))));
+        builder.append(csvRow(List.of(texts.scopeLabel(), scopeLabel)));
+        builder.append(csvRow(List.of(texts.periodLabel(), rangeLabel)));
         builder.append('\n');
         builder.append(csvRow(headers));
         for (List<String> row : rows) {
@@ -346,44 +352,32 @@ public class ReportController {
         return cell;
     }
 
-    private String resolveLocationName(UUID locationId) {
+    private String resolveLocationName(UUID locationId, ReportLocalization texts) {
         return locationRepository.findByIdAndOrganizationId(locationId, currentContextService.currentUser().organizationId())
                 .map(LocationEntity::getName)
-                .orElse("Ubicacion");
+                .orElse(texts.locationFallback());
     }
 
-    private ReportRange resolveRange(LocalDate fromDate, LocalDate toDate) {
+    private ReportRange resolveRange(LocalDate fromDate, LocalDate toDate, ReportLocalization texts) {
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REPORT_RANGE", "La fecha inicial no puede ser mayor que la fecha final.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REPORT_RANGE", texts.invalidRangeMessage());
         }
         ZoneId zoneId = ZoneId.of(currentContextService.currentOrganizationEntity().getTimezone());
         Instant fromInclusive = fromDate == null ? null : fromDate.atStartOfDay(zoneId).toInstant();
         Instant toExclusive = toDate == null ? null : toDate.plusDays(1).atStartOfDay(zoneId).toInstant();
-        String label;
-        if (fromDate == null && toDate == null) {
-            label = "Todo el historial";
-        } else if (fromDate != null && toDate != null) {
-            label = fromDate.format(DateTimeFormatter.ISO_LOCAL_DATE) + " a " + toDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
-        } else if (fromDate != null) {
-            label = "Desde " + fromDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
-        } else {
-            label = "Hasta " + toDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
-        }
-        return new ReportRange(fromInclusive, toExclusive, label);
+        return new ReportRange(fromInclusive, toExclusive, texts.rangeLabel(fromDate, toDate));
     }
 
     private String formatDecimal(BigDecimal value) {
         return value == null ? "" : value.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
-    private String formatInstant(Instant instant) {
+    private String formatInstant(Instant instant, ReportLocalization texts) {
         if (instant == null) {
             return "";
         }
         String timezone = currentContextService.currentOrganizationEntity().getTimezone();
-        return DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-                .withZone(ZoneId.of(timezone))
-                .format(instant);
+        return texts.formatInstant(instant, timezone);
     }
 
     private record ReportRange(Instant fromInclusive, Instant toExclusive, String label) {

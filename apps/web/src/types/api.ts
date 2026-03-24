@@ -58,6 +58,7 @@ export interface Item {
   reservedStock: number
   loanedStock: number
   damagedStock: number
+  minimumStock: number
   lastMovementAt?: string | null
 }
 
@@ -81,6 +82,9 @@ export interface LoanRequestItem {
   id: string
   borrowerName: string
   itemName: string
+  categoryId: string
+  categoryName: string
+  unitSymbol: string
   locationId: string
   locationName: string
   quantity: number
@@ -94,6 +98,9 @@ export interface Loan {
   id: string
   borrowerName: string
   itemName: string
+  categoryId: string
+  categoryName: string
+  unitSymbol: string
   locationId: string
   locationName: string
   quantity: number
@@ -115,11 +122,23 @@ export interface Loan {
   deliveredBy?: string | null
 }
 
+export interface LowStockAlert {
+  itemId: string
+  itemName: string
+  sku: string
+  categoryName: string
+  locationName: string
+  unitSymbol: string
+  availableStock: number
+  minimumStock: number
+}
+
 export interface DashboardSummary {
   totalItems: number
   activeLoans: number
   overdueLoans: number
   recentMovements: number
+  lowStockAlerts: LowStockAlert[]
 }
 
 export interface UserSummary {

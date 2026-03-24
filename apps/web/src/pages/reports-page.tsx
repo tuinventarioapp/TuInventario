@@ -11,10 +11,12 @@ import { isAdmin } from '../lib/access'
 import { api } from '../lib/api'
 import { downloadBlob } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
+import { useUiStore } from '../store/ui-store'
 
 export function ReportsPage() {
   const { t } = useI18n()
   const user = useAuthStore((state) => state.user)
+  const language = useUiStore((state) => state.language)
   const isGlobalAdmin = isAdmin(user?.role)
   const [status, setStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
@@ -27,6 +29,29 @@ export function ReportsPage() {
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
   }
+  const reportFileNames = language === 'en'
+    ? {
+        inventoryAdminCsv: 'inventory-admin.csv',
+        inventoryAdminPdf: 'inventory-admin.pdf',
+        inventoryCsv: 'inventory-operational.csv',
+        inventoryPdf: 'inventory-operational.pdf',
+        loansCsv: 'loans.csv',
+      }
+    : language === 'pt'
+      ? {
+          inventoryAdminCsv: 'inventario-administrativo.csv',
+          inventoryAdminPdf: 'inventario-administrativo.pdf',
+          inventoryCsv: 'inventario-operacional.csv',
+          inventoryPdf: 'inventario-operacional.pdf',
+          loansCsv: 'emprestimos.csv',
+        }
+      : {
+          inventoryAdminCsv: 'inventario-administrativo.csv',
+          inventoryAdminPdf: 'inventario-administrativo.pdf',
+          inventoryCsv: 'inventario-operativo.csv',
+          inventoryPdf: 'inventario-operativo.pdf',
+          loansCsv: 'prestamos.csv',
+        }
 
   const download = async (key: string, filename: string, action: () => Promise<Blob>) => {
     try {
@@ -88,13 +113,13 @@ export function ReportsPage() {
               title={t('reports.inventoryAdminCsv')}
               help={t('reports.inventoryAdminHelp')}
               disabled={loadingKey === 'inventoryAdminCsv'}
-              onDownload={() => download('inventoryAdminCsv', 'inventario-administrativo.csv', () => api.inventoryAdminCsv(reportFilters))}
+              onDownload={() => download('inventoryAdminCsv', reportFileNames.inventoryAdminCsv, () => api.inventoryAdminCsv(reportFilters))}
             />
             <ReportCard
               title={t('reports.inventoryAdminPdf')}
               help={t('reports.inventoryAdminHelp')}
               disabled={loadingKey === 'inventoryAdminPdf'}
-              onDownload={() => download('inventoryAdminPdf', 'inventario-administrativo.pdf', () => api.inventoryAdminPdf(reportFilters))}
+              onDownload={() => download('inventoryAdminPdf', reportFileNames.inventoryAdminPdf, () => api.inventoryAdminPdf(reportFilters))}
             />
           </>
         )}
@@ -102,19 +127,19 @@ export function ReportsPage() {
           title={t('reports.inventoryCsv')}
           help={t('reports.inventoryOperationalHelp')}
           disabled={loadingKey === 'inventoryCsv'}
-          onDownload={() => download('inventoryCsv', 'inventario.csv', () => api.inventoryCsv(reportFilters))}
+          onDownload={() => download('inventoryCsv', reportFileNames.inventoryCsv, () => api.inventoryCsv(reportFilters))}
         />
         <ReportCard
           title={t('reports.inventoryPdf')}
           help={t('reports.inventoryOperationalHelp')}
           disabled={loadingKey === 'inventoryPdf'}
-          onDownload={() => download('inventoryPdf', 'inventario.pdf', () => api.inventoryPdf(reportFilters))}
+          onDownload={() => download('inventoryPdf', reportFileNames.inventoryPdf, () => api.inventoryPdf(reportFilters))}
         />
         <ReportCard
           title={t('reports.loansCsv')}
           help={t('reports.loansHelp')}
           disabled={loadingKey === 'loansCsv'}
-          onDownload={() => download('loansCsv', 'prestamos.csv', () => api.loansCsv(reportFilters))}
+          onDownload={() => download('loansCsv', reportFileNames.loansCsv, () => api.loansCsv(reportFilters))}
         />
       </div>
     </div>

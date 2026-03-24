@@ -12,6 +12,10 @@ import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
 
+function stockWithUnit(quantity: number, unitSymbol: string) {
+  return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
+}
+
 export function ItemDetailPage() {
   const { t, enumLabel } = useI18n()
   const { itemId } = useParams()
@@ -45,11 +49,12 @@ export function ItemDetailPage() {
             <Badge>{enumLabel('itemType', item.type)}</Badge>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <p>{t('items.available')}: <strong>{item.availableStock}</strong></p>
-            <p>{t('items.reserved')}: <strong>{item.reservedStock}</strong></p>
-            <p>{t('items.loaned')}: <strong>{item.loanedStock}</strong></p>
-            <p>{t('items.damaged')}: <strong>{item.damagedStock}</strong></p>
-            <p>{t('items.detail.total')}: <strong>{item.totalStock}</strong></p>
+            <p>{t('items.available')}: <strong>{stockWithUnit(item.availableStock, item.unit)}</strong></p>
+            <p>{t('items.reserved')}: <strong>{stockWithUnit(item.reservedStock, item.unit)}</strong></p>
+            <p>{t('items.loaned')}: <strong>{stockWithUnit(item.loanedStock, item.unit)}</strong></p>
+            <p>{t('items.damaged')}: <strong>{stockWithUnit(item.damagedStock, item.unit)}</strong></p>
+            <p>{t('items.detail.total')}: <strong>{stockWithUnit(item.totalStock, item.unit)}</strong></p>
+            <p>{t('items.minimumStock')}: <strong>{stockWithUnit(item.minimumStock, item.unit)}</strong></p>
           </div>
         </Card>
 

@@ -22,7 +22,7 @@ public interface ItemRepository extends JpaRepository<ItemEntity, UUID> {
     Optional<ItemEntity> findByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCase(UUID organizationId, UUID primaryLocationId, String sku);
 
     default Page<ItemEntity> search(UUID organizationId, String query, Pageable pageable) {
-        return search(organizationId, query, null, null, null, null, null, null, null, BigDecimal.ONE, pageable);
+        return search(organizationId, query, null, null, null, null, null, null, null, pageable);
     }
 
     @Query("""
@@ -37,7 +37,7 @@ public interface ItemRepository extends JpaRepository<ItemEntity, UUID> {
               and (:maxAvailableStock is null or i.availableStock <= :maxAvailableStock)
               and (
                     :stockFilter is null
-                    or (:stockFilter = 'LOW_STOCK' and i.availableStock <= :lowStockThreshold and i.availableStock > 0)
+                    or (:stockFilter = 'LOW_STOCK' and i.minimumStock > 0 and i.availableStock <= i.minimumStock)
                     or (:stockFilter = 'OUT_OF_STOCK' and i.availableStock <= 0)
                     or (:stockFilter = 'IN_STOCK' and i.availableStock > 0)
                     or (:stockFilter = 'ON_LOAN' and i.loanedStock > 0)
@@ -56,7 +56,6 @@ public interface ItemRepository extends JpaRepository<ItemEntity, UUID> {
             @Param("stockFilter") String stockFilter,
             @Param("minAvailableStock") BigDecimal minAvailableStock,
             @Param("maxAvailableStock") BigDecimal maxAvailableStock,
-            @Param("lowStockThreshold") BigDecimal lowStockThreshold,
             Pageable pageable
     );
 }

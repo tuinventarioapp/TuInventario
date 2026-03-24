@@ -26,6 +26,7 @@ type CreateValues = {
   unitId: string
   primaryLocationId: string
   initialStock: number
+  minimumStock: number
 }
 
 type UpdateValues = {
@@ -36,6 +37,7 @@ type UpdateValues = {
   categoryId: string
   unitId: string
   primaryLocationId: string
+  minimumStock: number
 }
 
 export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
@@ -54,6 +56,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
     unitId: z.string().min(1, t('validation.required')),
     primaryLocationId: z.string().min(1, t('validation.required')),
     initialStock: z.coerce.number().min(0),
+    minimumStock: z.coerce.number().min(0),
   })
 
   const updateSchema = z.object({
@@ -64,6 +67,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
     categoryId: z.string().min(1, t('validation.required')),
     unitId: z.string().min(1, t('validation.required')),
     primaryLocationId: z.string().min(1, t('validation.required')),
+    minimumStock: z.coerce.number().min(0),
   })
 
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: api.categories })
@@ -77,7 +81,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const createForm = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { type: 'LENDABLE', initialStock: 0 },
+    defaultValues: { type: 'LENDABLE', initialStock: 0, minimumStock: 0 },
   })
 
   const updateForm = useForm<UpdateValues>({
@@ -98,6 +102,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
         categoryId: itemQuery.data.categoryId,
         unitId: itemQuery.data.unitId,
         primaryLocationId: itemQuery.data.primaryLocationId,
+        minimumStock: itemQuery.data.minimumStock,
       })
     }
   }, [itemQuery.data, mode, updateForm])
@@ -192,17 +197,37 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
                     : t('itemForm.quantityHelp')}
                 </p>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('items.minimumStock')}</label>
+                <Input type="number" min="0" step={quantityStep} {...createForm.register('minimumStock')} />
+                <p className="text-xs text-slate-500">
+                  {selectedUnit
+                    ? t('itemForm.minimumStockHelpWithUnit', { unit: selectedUnit.name, symbol: selectedUnit.extra })
+                    : t('itemForm.minimumStockHelp')}
+                </p>
+              </div>
             </>
           )}
           {mode === 'edit' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('common.status')}</label>
-              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...updateForm.register('status')}>
-                {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'DAMAGED', 'LOST', 'ARCHIVED'].map((value) => (
-                  <option key={value} value={value}>{enumLabel('itemStatus', value)}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('common.status')}</label>
+                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...updateForm.register('status')}>
+                  {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'DAMAGED', 'LOST', 'ARCHIVED'].map((value) => (
+                    <option key={value} value={value}>{enumLabel('itemStatus', value)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('items.minimumStock')}</label>
+                <Input type="number" min="0" step={quantityStep} {...updateForm.register('minimumStock')} />
+                <p className="text-xs text-slate-500">
+                  {selectedUnit
+                    ? t('itemForm.minimumStockHelpWithUnit', { unit: selectedUnit.name, symbol: selectedUnit.extra })
+                    : t('itemForm.minimumStockHelp')}
+                </p>
+              </div>
+            </>
           )}
           <div className="space-y-2">
             <label className="text-sm font-medium">{t('catalogs.categories')}</label>

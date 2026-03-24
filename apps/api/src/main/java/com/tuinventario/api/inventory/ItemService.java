@@ -66,11 +66,10 @@ public class ItemService {
                         status,
                         type,
                         effectiveLocationId,
-                        safeStockFilter,
-                        minAvailableStock,
-                        maxAvailableStock,
-                        BigDecimal.ONE,
-                        PageRequest.of(page, size)
+                safeStockFilter,
+                minAvailableStock,
+                maxAvailableStock,
+                PageRequest.of(page, size)
                 )
                 .map(this::mapItem);
         return PageResponse.from(result);
@@ -113,6 +112,7 @@ public class ItemService {
         item.setReservedStock(BigDecimal.ZERO);
         item.setLoanedStock(BigDecimal.ZERO);
         item.setDamagedStock(BigDecimal.ZERO);
+        item.setMinimumStock(normalizeMinimumStock(request.minimumStock()));
         itemRepository.save(item);
 
         BigDecimal initialStock = request.initialStock() == null ? BigDecimal.ZERO : request.initialStock();
@@ -155,6 +155,7 @@ public class ItemService {
         item.setUnit(unitRepository.findByIdAndOrganizationId(UUID.fromString(request.unitId()), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "UNIT_NOT_FOUND", "Unidad no encontrada.")));
         item.setPrimaryLocation(location);
+        item.setMinimumStock(normalizeMinimumStock(request.minimumStock()));
         itemRepository.save(item);
 
         auditService.log(
@@ -210,6 +211,16 @@ public class ItemService {
         return value.trim();
     }
 
+    private BigDecimal normalizeMinimumStock(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "MINIMUM_STOCK_INVALID", "El stock minimo no puede ser negativo.");
+        }
+        return value;
+    }
+
     private ItemDtos.ItemResponse mapItem(ItemEntity item) {
         return new ItemDtos.ItemResponse(
                 item.getId().toString(),
@@ -230,6 +241,7 @@ public class ItemService {
                 item.getReservedStock(),
                 item.getLoanedStock(),
                 item.getDamagedStock(),
+                item.getMinimumStock(),
                 item.getLastMovementAt()
         );
     }

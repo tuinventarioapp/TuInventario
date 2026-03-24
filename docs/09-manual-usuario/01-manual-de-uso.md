@@ -35,6 +35,19 @@ Ejemplo:
 
 Es el resumen general. Te muestra rapidamente cuantos articulos tienes, como va el inventario y cuantos prestamos siguen activos o vencidos.
 
+Tambien muestra las `alertas de stock minimo`.
+
+Eso significa:
+
+- cada articulo puede tener una cantidad minima permitida;
+- cuando el stock disponible llega a esa cantidad o baja de ella, el panel lo avisa;
+- la alerta respeta la unidad del articulo.
+
+Ejemplos:
+
+- `Computadores`: minimo 2 unidades. Si quedan 2, aparece la alerta.
+- `Tomate`: minimo 10 kg. Si quedan 10 kg, aparece la alerta.
+
 ### Inventario
 
 Es la lista completa de articulos. Aqui ves nombre, SKU, tipo, estado, ubicacion y cantidades.
@@ -50,6 +63,10 @@ Ejemplos:
 
 - `Cantidad 5` + `Unidad` = 5 pesas.
 - `Cantidad 5` + `Kilogramo` = 5 kg de tomate.
+
+Cada articulo tambien puede tener un campo `Stock minimo`.
+
+Ese valor sirve para que el sistema detecte cuando el articulo ya llego al limite operativo permitido y lo muestre como alerta en el `Panel`.
 
 ### Catalogos
 
@@ -105,11 +122,31 @@ El flujo se entiende asi:
 3. despues se entrega;
 4. al final se registra la devolucion total o parcial.
 
+Dentro de la pantalla veras tres bloques distintos:
+
+- `Solicitudes`: lo que aun no ha sido aprobado;
+- `Prestamos activos`: lo aprobado, entregado o vencido;
+- `Prestamos cerrados`: lo devuelto, cancelado o rechazado.
+
+Cada bloque tiene sus propios filtros por:
+
+- categoria;
+- cantidad minima;
+- cantidad maxima;
+- rango de fechas.
+
 En el formulario de solicitud hay un campo de fecha. Esa fecha significa:
 
 - `fecha maxima que tendra el prestatario para devolver el articulo`.
 
 No es la fecha de creacion ni la fecha de entrega. Es la fecha limite de devolucion.
+
+Al momento de elegir el articulo en una nueva solicitud interna, tambien puedes usar un buscador por:
+
+- nombre;
+- SKU.
+
+Eso evita tener que recorrer listas muy largas cuando la empresa maneja cientos o miles de articulos.
 
 Ademas, ahora un prestamo ya creado puede editarse para ajustar datos administrativos como:
 
@@ -135,6 +172,13 @@ Los reportes se pueden sacar por rango de fechas. Eso te permite ver, por ejempl
 - el ultimo ano;
 - una semana puntual;
 - cualquier rango especifico.
+
+Ademas, el reporte se genera en el mismo idioma que tengas activo en `Configuracion`.
+
+Ejemplo:
+
+- si la app esta en `Espanol`, el CSV o PDF sale en espanol;
+- si la app esta en `English`, el CSV o PDF sale en ingles.
 
 ### Usuarios
 

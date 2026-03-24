@@ -22,7 +22,8 @@ public final class ItemDtos {
             String categoryId,
             String unitId,
             String primaryLocationId,
-            BigDecimal initialStock
+            BigDecimal initialStock,
+            BigDecimal minimumStock
     ) {
     }
 
@@ -33,7 +34,8 @@ public final class ItemDtos {
             @NotNull ItemStatus status,
             String categoryId,
             String unitId,
-            String primaryLocationId
+            String primaryLocationId,
+            BigDecimal minimumStock
     ) {
     }
 
@@ -56,6 +58,7 @@ public final class ItemDtos {
             BigDecimal reservedStock,
             BigDecimal loanedStock,
             BigDecimal damagedStock,
+            BigDecimal minimumStock,
             Instant lastMovementAt
     ) {
     }

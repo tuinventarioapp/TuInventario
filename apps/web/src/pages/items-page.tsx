@@ -14,10 +14,14 @@ import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
 
-const stockFilterOptions = ['OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED', 'DAMAGED'] as const
+const stockFilterOptions = ['LOW_STOCK', 'OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED', 'DAMAGED'] as const
 
 function stockWithUnit(quantity: number, unitSymbol: string) {
   return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
+}
+
+function isAtMinimumStock(availableStock: number, minimumStock: number) {
+  return minimumStock > 0 && availableStock <= minimumStock
 }
 
 export function ItemsPage() {
@@ -195,7 +199,12 @@ export function ItemsPage() {
             <Card className="h-full border-slate-200 transition hover:border-sky-300">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-950">{item.name}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-slate-950">{item.name}</h3>
+                    {isAtMinimumStock(item.availableStock, item.minimumStock) && (
+                      <Badge className="bg-amber-100 text-amber-900">{t('items.minimumStockAlert')}</Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-slate-500">{item.sku} - {item.category}</p>
                 </div>
                 <Badge>{enumLabel('itemStatus', item.status)}</Badge>
@@ -207,6 +216,7 @@ export function ItemsPage() {
                 <p>{t('items.damaged')}: <strong className="text-slate-950">{stockWithUnit(item.damagedStock, item.unit)}</strong></p>
                 <p>{t('items.location')}: <strong className="text-slate-950">{item.primaryLocation}</strong></p>
                 <p>{t('items.detail.total')}: <strong className="text-slate-950">{stockWithUnit(item.totalStock, item.unit)}</strong></p>
+                <p>{t('items.minimumStock')}: <strong className="text-slate-950">{stockWithUnit(item.minimumStock, item.unit)}</strong></p>
               </div>
               <p className="mt-4 text-xs text-slate-500">{t('items.lastMovement')}: {formatDate(item.lastMovementAt)}</p>
             </Card>
