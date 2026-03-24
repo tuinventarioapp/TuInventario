@@ -32,12 +32,37 @@ type ReturnDraft = {
   notes: string
 }
 
+type LoanEditDraft = {
+  dueAt: string
+  loanedAt: string
+  returnedAt: string
+  notes: string
+  returnNotes: string
+}
+
 function buildDefaultReturnDraft(loan: Loan): ReturnDraft {
   return {
     returnedGoodQuantity: String(loan.outstandingQuantity || 0),
     returnedDamagedQuantity: '0',
     lostQuantity: '0',
     notes: '',
+  }
+}
+
+function toDateTimeLocalValue(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return localDate.toISOString().slice(0, 16)
+}
+
+function buildLoanEditDraft(loan: Loan): LoanEditDraft {
+  return {
+    dueAt: toDateTimeLocalValue(loan.dueAt),
+    loanedAt: toDateTimeLocalValue(loan.loanedAt),
+    returnedAt: toDateTimeLocalValue(loan.returnedAt),
+    notes: loan.notes ?? '',
+    returnNotes: loan.returnNotes ?? '',
   }
 }
 
@@ -49,6 +74,8 @@ export function LoansPage() {
   const [locationFilterId, setLocationFilterId] = useState('')
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
   const [returnDrafts, setReturnDrafts] = useState<Record<string, ReturnDraft>>({})
+  const [editingLoanId, setEditingLoanId] = useState<string | null>(null)
+  const [loanEditDrafts, setLoanEditDrafts] = useState<Record<string, LoanEditDraft>>({})
   const schema = useMemo(() => z.object({
     borrowerId: z.string().min(1, t('validation.required')),
     itemId: z.string().min(1, t('validation.required')),
@@ -122,7 +149,24 @@ export function LoansPage() {
     },
   })
 
+  const updateLoanMutation = useMutation({
+    mutationFn: ({ id, loan, draft }: { id: string; loan: Loan; draft: LoanEditDraft }) => api.updateLoan(id, {
+      dueAt: new Date(draft.dueAt).toISOString(),
+      loanedAt: loan.status === 'APPROVED' ? null : new Date(draft.loanedAt).toISOString(),
+      returnedAt: loan.status === 'RETURNED' ? new Date(draft.returnedAt).toISOString() : null,
+      notes: draft.notes || undefined,
+      returnNotes: loan.status === 'RETURNED' ? draft.returnNotes || undefined : undefined,
+    }),
+    onSuccess: async (_, variables) => {
+      setEditingLoanId((current) => current === variables.id ? null : current)
+      await queryClient.invalidateQueries({ queryKey: ['loans'] })
+      await queryClient.invalidateQueries({ queryKey: ['loan-requests'] })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+
   const getReturnDraft = (loan: Loan) => returnDrafts[loan.id] ?? buildDefaultReturnDraft(loan)
+  const getLoanEditDraft = (loan: Loan) => loanEditDrafts[loan.id] ?? buildLoanEditDraft(loan)
 
   const updateReturnDraft = (loan: Loan, patch: Partial<ReturnDraft>) => {
     setReturnDrafts((current) => ({
@@ -132,6 +176,33 @@ export function LoansPage() {
         ...patch,
       },
     }))
+  }
+
+  const updateLoanDraft = (loan: Loan, patch: Partial<LoanEditDraft>) => {
+    setLoanEditDrafts((current) => ({
+      ...current,
+      [loan.id]: {
+        ...getLoanEditDraft(loan),
+        ...patch,
+      },
+    }))
+  }
+
+  const startEditingLoan = (loan: Loan) => {
+    setLoanEditDrafts((current) => ({
+      ...current,
+      [loan.id]: getLoanEditDraft(loan),
+    }))
+    setEditingLoanId(loan.id)
+  }
+
+  const cancelEditingLoan = (loanId: string) => {
+    setEditingLoanId((current) => current === loanId ? null : current)
+    setLoanEditDrafts((current) => {
+      const next = { ...current }
+      delete next[loanId]
+      return next
+    })
   }
 
   const workflowMessage = (loan: Loan) => {
@@ -154,6 +225,8 @@ export function LoansPage() {
       {deliverMutation.isSuccess && <Notice variant="success">{t('loans.successDelivery')}</Notice>}
       {returnMutation.isError && <Notice variant="error">{returnMutation.error.message}</Notice>}
       {returnMutation.isSuccess && <Notice variant="success">{t('loans.successReturn')}</Notice>}
+      {updateLoanMutation.isError && <Notice variant="error">{updateLoanMutation.error.message}</Notice>}
+      {updateLoanMutation.isSuccess && <Notice variant="success">{t('loans.successEdit')}</Notice>}
 
       {!isGlobalAdmin && user?.assignedLocationName && <Notice>{t('loans.scopeNotice', { location: user.assignedLocationName })}</Notice>}
 
@@ -187,10 +260,17 @@ export function LoansPage() {
             </select>
             {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
 
-            <Input type="number" min="1" step="1" {...register('quantity')} />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('common.quantity')}</label>
+              <Input type="number" min="1" step="1" {...register('quantity')} />
+            </div>
             {errors.quantity && <p className="text-sm text-red-600">{errors.quantity.message}</p>}
 
-            <Input type="datetime-local" {...register('dueAt')} />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('loans.dueField')}</label>
+              <Input type="datetime-local" {...register('dueAt')} />
+              <p className="text-xs text-slate-500">{t('loans.dueHelp')}</p>
+            </div>
             {errors.dueAt && <p className="text-sm text-red-600">{errors.dueAt.message}</p>}
 
             <Input placeholder={t('common.notes')} {...register('notes')} />
@@ -231,6 +311,9 @@ export function LoansPage() {
             <div className="mt-4 space-y-4">
               {loansQuery.data?.map((loan) => {
                 const returnDraft = getReturnDraft(loan)
+                const loanEditDraft = getLoanEditDraft(loan)
+                const isEditingLoan = editingLoanId === loan.id
+                const canEditLoan = canManageLoanLifecycle && ['APPROVED', 'DELIVERED', 'OVERDUE', 'RETURNED'].includes(loan.status)
                 return (
                   <div key={loan.id} className="rounded-2xl border border-border p-4">
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -247,6 +330,85 @@ export function LoansPage() {
 
                       {canManageLoanLifecycle && (
                         <div className="flex w-full max-w-md flex-col gap-3 md:items-end">
+                          {canEditLoan && !isEditingLoan && (
+                            <Button className="bg-secondary text-secondary-foreground" onClick={() => startEditingLoan(loan)}>
+                              {t('loans.editLoan')}
+                            </Button>
+                          )}
+
+                          {canEditLoan && isEditingLoan && (
+                            <div className="w-full space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                              <p className="text-sm font-medium text-slate-900">{t('loans.editLoan')}</p>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('loans.editDueAt')}</label>
+                                <Input
+                                  type="datetime-local"
+                                  value={loanEditDraft.dueAt}
+                                  onChange={(event) => updateLoanDraft(loan, { dueAt: event.target.value })}
+                                />
+                              </div>
+
+                              {loan.status !== 'APPROVED' && (
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">{t('loans.editLoanedAt')}</label>
+                                  <Input
+                                    type="datetime-local"
+                                    value={loanEditDraft.loanedAt}
+                                    onChange={(event) => updateLoanDraft(loan, { loanedAt: event.target.value })}
+                                  />
+                                </div>
+                              )}
+
+                              {loan.status === 'RETURNED' && (
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">{t('loans.editReturnedAt')}</label>
+                                  <Input
+                                    type="datetime-local"
+                                    value={loanEditDraft.returnedAt}
+                                    onChange={(event) => updateLoanDraft(loan, { returnedAt: event.target.value })}
+                                  />
+                                </div>
+                              )}
+
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('loans.editNotes')}</label>
+                                <Input
+                                  value={loanEditDraft.notes}
+                                  onChange={(event) => updateLoanDraft(loan, { notes: event.target.value })}
+                                />
+                              </div>
+
+                              {loan.status === 'RETURNED' && (
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">{t('loans.editReturnNotes')}</label>
+                                  <Input
+                                    value={loanEditDraft.returnNotes}
+                                    onChange={(event) => updateLoanDraft(loan, { returnNotes: event.target.value })}
+                                  />
+                                </div>
+                              )}
+
+                              <p className="text-xs text-slate-500">{t(`loans.editHelp.${loan.status}`)}</p>
+
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  disabled={
+                                    updateLoanMutation.isPending
+                                    || !loanEditDraft.dueAt
+                                    || (loan.status !== 'APPROVED' && !loanEditDraft.loanedAt)
+                                    || (loan.status === 'RETURNED' && !loanEditDraft.returnedAt)
+                                  }
+                                  onClick={() => updateLoanMutation.mutate({ id: loan.id, loan, draft: loanEditDraft })}
+                                >
+                                  {t('loans.saveLoan')}
+                                </Button>
+                                <Button className="bg-secondary text-secondary-foreground" onClick={() => cancelEditingLoan(loan.id)}>
+                                  {t('common.cancel')}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
                           {loan.status === 'APPROVED' && (
                             <>
                               <Input

@@ -16,6 +16,10 @@ import { useAuthStore } from '../store/auth-store'
 
 const stockFilterOptions = ['OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED', 'DAMAGED'] as const
 
+function stockWithUnit(quantity: number, unitSymbol: string) {
+  return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
+}
+
 export function ItemsPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
@@ -197,12 +201,12 @@ export function ItemsPage() {
                 <Badge>{enumLabel('itemStatus', item.status)}</Badge>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
-                <p>{t('items.available')}: <strong className="text-slate-950">{item.availableStock}</strong></p>
-                <p>{t('items.reserved')}: <strong className="text-slate-950">{item.reservedStock}</strong></p>
-                <p>{t('items.loaned')}: <strong className="text-slate-950">{item.loanedStock}</strong></p>
-                <p>{t('items.damaged')}: <strong className="text-slate-950">{item.damagedStock}</strong></p>
+                <p>{t('items.available')}: <strong className="text-slate-950">{stockWithUnit(item.availableStock, item.unit)}</strong></p>
+                <p>{t('items.reserved')}: <strong className="text-slate-950">{stockWithUnit(item.reservedStock, item.unit)}</strong></p>
+                <p>{t('items.loaned')}: <strong className="text-slate-950">{stockWithUnit(item.loanedStock, item.unit)}</strong></p>
+                <p>{t('items.damaged')}: <strong className="text-slate-950">{stockWithUnit(item.damagedStock, item.unit)}</strong></p>
                 <p>{t('items.location')}: <strong className="text-slate-950">{item.primaryLocation}</strong></p>
-                <p>{t('items.detail.total')}: <strong className="text-slate-950">{item.totalStock}</strong></p>
+                <p>{t('items.detail.total')}: <strong className="text-slate-950">{stockWithUnit(item.totalStock, item.unit)}</strong></p>
               </div>
               <p className="mt-4 text-xs text-slate-500">{t('items.lastMovement')}: {formatDate(item.lastMovementAt)}</p>
             </Card>

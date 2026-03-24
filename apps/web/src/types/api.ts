@@ -66,6 +66,8 @@ export interface Movement {
   movementType: string
   itemId: string
   itemName: string
+  itemSku: string
+  unitSymbol: string
   quantity: number
   sourceLocation?: string | null
   targetLocation?: string | null

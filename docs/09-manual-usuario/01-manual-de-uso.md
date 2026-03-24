@@ -2,43 +2,182 @@
 
 ## Que hace la aplicacion
 
-TuInventario ayuda a una empresa con varias sedes a controlar:
+TuInventario sirve para controlar articulos, stock, movimientos, prestamos, devoluciones, usuarios y reportes dentro de una empresa que puede tener una o muchas sedes.
 
-- articulos e inventario;
-- movimientos de stock;
-- prestamos y devoluciones;
-- prestatarios;
-- usuarios internos;
-- reportes y auditoria.
+Piensa la app asi:
 
-La idea mas importante es esta:
+- `Inventario` te muestra lo que tienes.
+- `Movimientos` te muestra por que subio o bajo el stock.
+- `Prestamos` te muestra a quien se le entrego algo y si ya lo devolvio.
+- `Auditoria` te muestra quien hizo cada cambio importante.
+
+La regla mas importante de todo el sistema es esta:
 
 - el `Administrador` puede ver toda la empresa;
 - el `Gestor` y el `Colaborador` trabajan solo en su sede asignada.
 
-Si una persona trabaja en `Exito Laureles`, vera y operara solo lo de `Exito Laureles`.
+Ejemplo:
+
+- si una persona pertenece a `Exito Laureles`, vera y operara solo lo de `Exito Laureles`;
+- si eres `Administrador`, puedes ver `Exito Laureles`, `Exito Envigado`, `Exito Itagui` o toda la empresa junta.
 
 ## Antes de empezar
 
 1. Inicia sesion.
 2. Revisa tu rol.
 3. Revisa tu sede.
-4. Si eres administrador, crea primero catalogos globales.
-5. Luego crea o revisa usuarios y sedes.
-6. Despues crea articulos y empieza a operar.
+4. Si eres `Administrador`, configura primero catalogos, sedes y usuarios.
+5. Despues crea articulos y empieza la operacion.
 
 ## Que significa cada menu
 
-- `Panel`: resumen del estado operativo.
-- `Inventario`: lista de articulos, stock y filtros.
-- `Catalogos`: categorias, unidades, categorias de ubicacion y ubicaciones de toda la empresa.
-- `Movimientos`: entradas, salidas, ajustes y traslados.
-- `Prestamos`: solicitudes, aprobaciones, entregas y devoluciones.
-- `Prestatarios`: personas o clientes que reciben articulos.
-- `Reportes`: archivos CSV y PDF.
-- `Usuarios`: cuentas internas y sedes asignadas.
-- `Auditoria`: historial de acciones importantes.
-- `Configuracion`: datos del espacio de trabajo y del idioma.
+### Panel
+
+Es el resumen general. Te muestra rapidamente cuantos articulos tienes, como va el inventario y cuantos prestamos siguen activos o vencidos.
+
+### Inventario
+
+Es la lista completa de articulos. Aqui ves nombre, SKU, tipo, estado, ubicacion y cantidades.
+
+En cada tarjeta de articulo, el campo `Disponible` ahora debe leerse asi:
+
+- `150 kg` significa que hay 150 kilogramos disponibles;
+- `5 un` significa que hay 5 unidades disponibles.
+
+La `Cantidad` siempre se interpreta junto con la `Unidad`.
+
+Ejemplos:
+
+- `Cantidad 5` + `Unidad` = 5 pesas.
+- `Cantidad 5` + `Kilogramo` = 5 kg de tomate.
+
+### Catalogos
+
+Sirve para crear y mantener la base del sistema:
+
+- categorias de articulos;
+- unidades;
+- categorias de ubicacion;
+- ubicaciones o sedes.
+
+Las `categorias de ubicacion` son personalizables. Cada empresa decide si usa nombres como `Bodega`, `Tienda`, `Showroom`, `Camion`, `Punto de venta` u otros.
+
+### Movimientos
+
+Sirve para registrar cambios de stock:
+
+- `Entrada`: entra mercancia;
+- `Salida`: sale mercancia;
+- `Ajuste`: corriges cantidades;
+- `Traslado`: mueves stock entre sedes.
+
+Cuando vayas a crear un movimiento, el campo de articulo ya no depende solo de un listado largo. Puedes buscar por:
+
+- nombre;
+- SKU;
+- sede.
+
+Eso ayuda mucho cuando la empresa tiene cientos o miles de articulos.
+
+Tambien puedes filtrar el historial por:
+
+- articulo o SKU;
+- tipo de movimiento;
+- cantidad minima;
+- cantidad maxima;
+- fecha inicial;
+- fecha final.
+
+Asi puedes responder preguntas como:
+
+- que movimientos tuvo el tomate esta semana;
+- que salidas hubo el ultimo mes;
+- que ajustes se hicieron entre dos fechas.
+
+### Prestamos
+
+Sirve para pedir, aprobar, entregar y recibir de vuelta articulos prestables.
+
+El flujo se entiende asi:
+
+1. primero se crea la solicitud;
+2. despues se aprueba;
+3. despues se entrega;
+4. al final se registra la devolucion total o parcial.
+
+En el formulario de solicitud hay un campo de fecha. Esa fecha significa:
+
+- `fecha maxima que tendra el prestatario para devolver el articulo`.
+
+No es la fecha de creacion ni la fecha de entrega. Es la fecha limite de devolucion.
+
+Ademas, ahora un prestamo ya creado puede editarse para ajustar datos administrativos como:
+
+- fecha maxima de devolucion;
+- fecha de entrega;
+- fecha de cierre o devolucion;
+- notas del prestamo;
+- notas de devolucion.
+
+Esto sirve, por ejemplo, cuando una operacion real se registro tarde o hubo que corregir una fecha.
+
+### Prestatarios
+
+Aqui registras las personas o clientes que pueden recibir articulos en prestamo.
+
+### Reportes
+
+Aqui descargas archivos CSV o PDF para revisar informacion fuera de la app.
+
+Los reportes se pueden sacar por rango de fechas. Eso te permite ver, por ejemplo:
+
+- solo el ultimo mes;
+- el ultimo ano;
+- una semana puntual;
+- cualquier rango especifico.
+
+### Usuarios
+
+Aqui administras las cuentas internas del equipo.
+
+El `Administrador` puede:
+
+- crear usuarios;
+- editar usuarios;
+- cambiar su sede;
+- bloquearlos;
+- restablecer contrasenas.
+
+### Auditoria
+
+Esta seccion no cambia datos. Solo sirve para revisar el historial de acciones importantes.
+
+Si alguna vez te preguntas:
+
+- quien cambio esto;
+- cuando lo cambio;
+- que accion hizo;
+- sobre cual registro lo hizo;
+
+la respuesta se busca en `Auditoria`.
+
+Cada fila muestra:
+
+- `quien` hizo la accion;
+- `que` accion hizo;
+- `cuando` la hizo;
+- `payload`, que es el detalle tecnico o resumen de lo que se modifico.
+
+Si quieres encontrar algo rapido, usa filtros por:
+
+- tipo de entidad;
+- accion;
+- actor;
+- fechas.
+
+### Configuracion
+
+Aqui ves la informacion general del espacio de trabajo y el idioma de la interfaz.
 
 ## Como funciona la logica por sedes
 
@@ -67,8 +206,8 @@ Eso significa:
 ## Orden facil para empezar a usar la app
 
 1. Entrar a `Configuracion` y revisar rol, empresa y sede.
-2. Si eres administrador, entrar a `Catalogos` y crear categorias, unidades, categorias de ubicacion y ubicaciones.
-3. Si eres administrador, entrar a `Usuarios` y asignar cada usuario a su sede.
+2. Si eres `Administrador`, entrar a `Catalogos` y crear categorias, unidades, categorias de ubicacion y ubicaciones.
+3. Si eres `Administrador`, entrar a `Usuarios` y asignar cada usuario a su sede.
 4. Entrar a `Inventario` y crear articulos.
 5. Entrar a `Prestatarios` y crear personas o clientes.
 6. Entrar a `Prestamos` y crear una solicitud.
@@ -76,16 +215,17 @@ Eso significa:
 8. Entregar el articulo.
 9. Registrar la devolucion total o parcial.
 10. Descargar reportes.
+11. Revisar `Auditoria` cuando necesites entender cambios o detectar errores operativos.
 
 ## Consejos simples
 
-- Si algo no se guarda, mira el mensaje rojo.
+- Si algo no se guarda, mira el mensaje rojo que aparece en pantalla.
 - Si no ves registros, revisa filtros o revisa si tu rol esta limitado a una sede.
 - Si un prestamo no se puede crear, revisa que el articulo tenga stock y sea prestable.
 - Si una devolucion es parcial, registra separado lo que volvio bien, lo danado y lo perdido.
-- Cuando crees un articulo, el campo `Cantidad` depende de la `Unidad`. Ejemplo: `5` con `Unidad` o `5` con `Kilogramo`.
-- Las categorias de ubicacion son personalizables. Cada empresa decide si usa `Bodega`, `Showroom`, `Camion`, `Punto de venta` u otras.
+- Cuando crees un articulo, el campo `Cantidad` depende de la `Unidad`.
+- En inventario, mira siempre la cantidad junto al simbolo de la unidad para no confundirte.
+- En movimientos, usa buscador por nombre o SKU antes de abrir listas muy largas.
 - Si una empresa tiene muchos articulos, usa filtros por categoria, estado, tipo, sede y cantidades.
 - Si quieres reportes de toda la empresa, entra como administrador, deja la sede en `Todos` y usa rango de fechas si solo quieres un periodo.
-- En `Auditoria`, usa filtros por tipo de entidad, accion, actor y fechas para encontrar mas rapido lo que necesitas.
 - Si un usuario olvida su clave, el administrador puede entrar a `Usuarios` y restablecer una nueva contrasena temporal.

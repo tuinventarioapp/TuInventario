@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,6 +44,11 @@ public class LoanController {
     @GetMapping("/loans")
     public List<LoanDtos.LoanResponse> listLoans(@RequestParam(required = false) UUID locationId) {
         return loanService.listLoans(locationId);
+    }
+
+    @PutMapping("/loans/{id}")
+    public LoanDtos.LoanResponse updateLoan(@PathVariable UUID id, @Valid @RequestBody LoanDtos.UpdateLoanPayload request) {
+        return loanService.updateLoan(id, request);
     }
 
     @PostMapping("/loans/{id}/deliver")

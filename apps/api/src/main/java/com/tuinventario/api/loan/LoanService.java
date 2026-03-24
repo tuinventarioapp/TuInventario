@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -65,6 +66,50 @@ public class LoanService {
                 })
                 .map(this::mapLoan)
                 .toList();
+    }
+
+    @Transactional
+    public LoanDtos.LoanResponse updateLoan(UUID loanId, LoanDtos.UpdateLoanPayload request) {
+        currentContextService.requireManagerOrAdmin();
+        LoanEntity loan = findLoan(loanId);
+        LoanItemEntity loanItem = findLoanItem(loan);
+
+        Instant requestedAt = loan.getLoanRequest() == null ? loan.getCreatedAt() : loan.getLoanRequest().getRequestedAt();
+        validateEditableDates(loan, request, requestedAt);
+
+        loan.setDueAt(request.dueAt());
+        if (loan.getLoanRequest() != null) {
+            loan.getLoanRequest().setDueAt(request.dueAt());
+            loanRequestRepository.save(loan.getLoanRequest());
+        }
+
+        if (loan.getStatus() != LoanStatus.APPROVED) {
+            loan.setLoanedAt(request.loanedAt());
+        }
+        if (loan.getStatus() == LoanStatus.RETURNED) {
+            loan.setReturnedAt(request.returnedAt());
+            loanItem.setReturnNotes(normalizeOptional(request.returnNotes()));
+            loanItemRepository.save(loanItem);
+        }
+
+        loan.setNotes(normalizeOptional(request.notes()));
+        loanRepository.save(loan);
+
+        Map<String, Object> auditPayload = new LinkedHashMap<>();
+        auditPayload.put("dueAt", request.dueAt());
+        auditPayload.put("loanedAt", request.loanedAt());
+        auditPayload.put("returnedAt", request.returnedAt());
+
+        auditService.log(
+                currentContextService.currentOrganizationEntity(),
+                currentContextService.currentActorEntity(),
+                "LOAN",
+                loan.getId(),
+                "LOAN_UPDATED",
+                auditPayload
+        );
+        realtimePublisher.publish(currentContextService.currentUser().organizationId(), "loan.updated", Map.of("loanId", loan.getId().toString()));
+        return mapLoan(loan);
     }
 
     @Transactional
@@ -300,10 +345,14 @@ public class LoanService {
     private LoanEntity findLoan(UUID id) {
         LoanEntity loan = loanRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "LOAN_NOT_FOUND", "Prestamo no encontrado."));
-        LoanItemEntity loanItem = loanItemRepository.findByLoanId(loan.getId()).stream().findFirst()
-                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "LOAN_ITEM_MISSING", "El prestamo no tiene items."));
+        LoanItemEntity loanItem = findLoanItem(loan);
         currentContextService.ensureAccessibleLocation(loanItem.getItem().getPrimaryLocation().getId());
         return loan;
+    }
+
+    private LoanItemEntity findLoanItem(LoanEntity loan) {
+        return loanItemRepository.findByLoanId(loan.getId()).stream().findFirst()
+                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "LOAN_ITEM_MISSING", "El prestamo no tiene items."));
     }
 
     private ItemEntity findLendableItem(String itemId) {
@@ -382,6 +431,40 @@ public class LoanService {
         return value;
     }
 
+    private void validateEditableDates(LoanEntity loan, LoanDtos.UpdateLoanPayload request, Instant requestedAt) {
+        if (request.dueAt().isBefore(requestedAt)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "LOAN_DUE_BEFORE_REQUEST", "La fecha limite no puede quedar antes de la solicitud.");
+        }
+
+        if (loan.getStatus() == LoanStatus.APPROVED) {
+            if (request.loanedAt() != null || request.returnedAt() != null) {
+                throw new ApiException(HttpStatus.CONFLICT, "LOAN_APPROVED_DATES_LOCKED", "Un prestamo aprobado solo permite ajustar la fecha limite y las notas.");
+            }
+            return;
+        }
+
+        if (request.loanedAt() == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "LOANED_AT_REQUIRED", "Debes indicar la fecha de entrega para editar este prestamo.");
+        }
+        if (request.loanedAt().isBefore(requestedAt)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "LOANED_AT_BEFORE_REQUEST", "La fecha de entrega no puede quedar antes de la solicitud.");
+        }
+        if (request.dueAt().isBefore(request.loanedAt())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "LOAN_DUE_BEFORE_DELIVERY", "La fecha limite no puede quedar antes de la entrega.");
+        }
+
+        if (loan.getStatus() == LoanStatus.RETURNED) {
+            if (request.returnedAt() == null) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "RETURNED_AT_REQUIRED", "Debes indicar la fecha de cierre para un prestamo devuelto.");
+            }
+            if (request.returnedAt().isBefore(request.loanedAt())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "RETURNED_AT_BEFORE_DELIVERY", "La fecha de cierre no puede quedar antes de la entrega.");
+            }
+        } else if (request.returnedAt() != null) {
+            throw new ApiException(HttpStatus.CONFLICT, "RETURNED_AT_NOT_ALLOWED", "Solo puedes editar la fecha de cierre en prestamos ya devueltos.");
+        }
+    }
+
     private void syncItemStatus(ItemEntity item) {
         if (item.getLoanedStock().compareTo(BigDecimal.ZERO) > 0) {
             item.setStatus(ItemStatus.ON_LOAN);
@@ -441,5 +524,12 @@ public class LoanService {
 
     private String trimTo255(String value) {
         return value.length() <= 255 ? value : value.substring(0, 255);
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return trimTo255(value.trim());
     }
 }

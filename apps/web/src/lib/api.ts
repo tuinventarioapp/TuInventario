@@ -125,6 +125,18 @@ type ReportFilters = {
   toDate?: string
 }
 
+type MovementFilters = {
+  query?: string
+  movementType?: string
+  locationId?: string
+  minQuantity?: number | string
+  maxQuantity?: number | string
+  fromDate?: string
+  toDate?: string
+  page?: number
+  size?: number
+}
+
 function buildQuery(params: Record<string, string | number | undefined | null>) {
   const searchParams = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
@@ -180,12 +192,23 @@ export const api = {
   updateBorrower: (id: string, payload: unknown) => request<Borrower>(`/borrowers/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteBorrower: (id: string) => request<void>(`/borrowers/${id}`, { method: 'DELETE' }),
   createMovement: (payload: unknown) => request<Movement>('/movements', { method: 'POST', body: JSON.stringify(payload) }),
-  movements: (page = 0, size = 10, locationId?: string) => request<PageResponse<Movement>>(`/movements${buildQuery({ page, size, locationId })}`),
+  movements: (filters: MovementFilters = {}) => request<PageResponse<Movement>>(`/movements${buildQuery({
+    query: filters.query,
+    movementType: filters.movementType,
+    locationId: filters.locationId,
+    minQuantity: filters.minQuantity,
+    maxQuantity: filters.maxQuantity,
+    fromDate: filters.fromDate,
+    toDate: filters.toDate,
+    page: filters.page ?? 0,
+    size: filters.size ?? 10,
+  })}`),
   loanRequests: (locationId?: string) => request<LoanRequestItem[]>(`/loan-requests${buildQuery({ locationId })}`),
   createLoanRequest: (payload: unknown) => request<LoanRequestItem>('/loan-requests', { method: 'POST', body: JSON.stringify(payload) }),
   publicLoanRequest: (payload: unknown) => request<LoanRequestItem>('/public-loan-requests', { method: 'POST', body: JSON.stringify(payload) }),
   approveLoanRequest: (id: string) => request<Loan>(`/loan-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({}) }),
   loans: (locationId?: string) => request<Loan[]>(`/loans${buildQuery({ locationId })}`),
+  updateLoan: (id: string, payload: unknown) => request<Loan>(`/loans/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deliverLoan: (id: string, payload: unknown = {}) => request<Loan>(`/loans/${id}/deliver`, { method: 'POST', body: JSON.stringify(payload) }),
   returnLoan: (id: string, payload: unknown) => request<Loan>(`/loans/${id}/return`, { method: 'POST', body: JSON.stringify(payload) }),
   users: () => request<UserSummary[]>('/users'),
@@ -194,7 +217,7 @@ export const api = {
   resetUserPassword: (id: string, payload: unknown) => request<void>(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify(payload) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
   settings: () => request<SettingsPayload>('/settings'),
-  audit: (filters: AuditFilters = {}) => request<PageResponse<AuditEntry>>(`/audit-log${buildQuery({
+  audit: (filters: AuditFilters = {}) => request<PageResponse<AuditEntry>>(`/audit${buildQuery({
     entityType: filters.entityType,
     action: filters.action,
     actor: filters.actor,

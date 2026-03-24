@@ -7,10 +7,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface StockMovementRepository extends JpaRepository<StockMovementEntity, UUID> {
     Page<StockMovementEntity> findByOrganizationIdOrderByOccurredAtDesc(UUID organizationId, Pageable pageable);
+    List<StockMovementEntity> findByOrganizationIdOrderByOccurredAtDesc(UUID organizationId);
     @Query("""
             select m from StockMovementEntity m
             where m.organization.id = :organizationId

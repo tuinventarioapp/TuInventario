@@ -26,6 +26,14 @@ const initialFilters: AuditFilters = {
   toDate: '',
 }
 
+function prettyPayload(payload: string) {
+  try {
+    return JSON.stringify(JSON.parse(payload), null, 2)
+  } catch {
+    return payload
+  }
+}
+
 export function AuditPage() {
   const { t } = useI18n()
   const [draftFilters, setDraftFilters] = useState<AuditFilters>(initialFilters)
@@ -39,6 +47,17 @@ export function AuditPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t('audit.title')} description={t('audit.description')} />
+
+      <Card className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-950">{t('audit.helpTitle')}</h2>
+        <p className="text-sm text-slate-600">{t('audit.helpDescription')}</p>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <HelpPoint title={t('audit.helpWhoTitle')} description={t('audit.helpWhoDescription')} />
+          <HelpPoint title={t('audit.helpWhatTitle')} description={t('audit.helpWhatDescription')} />
+          <HelpPoint title={t('audit.helpWhenTitle')} description={t('audit.helpWhenDescription')} />
+          <HelpPoint title={t('audit.helpPayloadTitle')} description={t('audit.helpPayloadDescription')} />
+        </div>
+      </Card>
 
       <Card className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -98,7 +117,10 @@ export function AuditPage() {
                 </div>
                 <p className="text-xs text-slate-500">{formatDate(entry.createdAt)}</p>
               </div>
-              <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-950 p-3 text-xs text-slate-100">{entry.payload}</pre>
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('audit.payloadLabel')}</p>
+                <pre className="overflow-x-auto rounded-xl bg-slate-950 p-3 text-xs text-slate-100">{prettyPayload(entry.payload)}</pre>
+              </div>
             </div>
           )) : <Notice>{t('common.noRecords')}</Notice>}
         </div>
@@ -130,6 +152,21 @@ export function AuditPage() {
           </div>
         </Card>
       )}
+    </div>
+  )
+}
+
+function HelpPoint({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="font-medium text-slate-950">{title}</p>
+      <p className="mt-1 text-sm text-slate-600">{description}</p>
     </div>
   )
 }

@@ -308,6 +308,76 @@ class OperationalFlowTest {
     }
 
     @Test
+    void shouldAllowEditingDeliveredLoanDatesAndNotes() throws Exception {
+        String borrowerId = createBorrower("Borrower Edit " + System.nanoTime());
+        String itemId = createItem("Item Editable", "EDIT-" + System.nanoTime(), 3);
+        Instant originalDueAt = Instant.now().plus(3, ChronoUnit.DAYS);
+        String loanRequestId = createLoanRequest(borrowerId, itemId, 1, originalDueAt);
+        String loanId = approveLoanRequest(loanRequestId);
+        deliverLoan(loanId, "Entrega original");
+
+        Instant correctedLoanedAt = Instant.now().plus(1, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.SECONDS);
+        Instant correctedDueAt = Instant.now().plus(5, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS);
+
+        mockMvc.perform(put("/api/v1/loans/{id}", loanId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "loanedAt", correctedLoanedAt.toString(),
+                                "dueAt", correctedDueAt.toString(),
+                                "notes", "Fechas corregidas por auditoria"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELIVERED"))
+                .andExpect(jsonPath("$.notes").value("Fechas corregidas por auditoria"))
+                .andExpect(jsonPath("$.dueAt").value(correctedDueAt.toString()))
+                .andExpect(jsonPath("$.loanedAt").value(correctedLoanedAt.toString()));
+    }
+
+    @Test
+    void shouldFilterMovementsByQueryTypeAndDateRange() throws Exception {
+        String itemName = "Tomate Roma " + System.nanoTime();
+        String sku = "MOV-FILTER-" + System.nanoTime();
+        String itemId = createItem(itemName, sku, 5);
+
+        mockMvc.perform(post("/api/v1/movements")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "movementType", "ENTRY",
+                                "itemId", itemId,
+                                "quantity", 2,
+                                "reason", "Carga de prueba",
+                                "notes", "Movimiento filtrable"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itemSku").value(sku))
+                .andExpect(jsonPath("$.unitSymbol").isNotEmpty());
+
+        LocalDate today = LocalDate.now();
+        LocalDate tomorrow = today.plusDays(1);
+
+        mockMvc.perform(get("/api/v1/movements")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("query", "Tomate")
+                        .param("movementType", "ENTRY")
+                        .param("fromDate", today.toString())
+                        .param("toDate", today.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.content[0].itemName").value(itemName))
+                .andExpect(jsonPath("$.content[0].itemSku").value(sku));
+
+        mockMvc.perform(get("/api/v1/movements")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("query", "Tomate")
+                        .param("fromDate", tomorrow.toString())
+                        .param("toDate", tomorrow.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
     void shouldAllowAdminToUpdateAndBlockUsers() throws Exception {
         String email = "usuario." + System.nanoTime() + "@tuinventario.local";
         String userId = createUser(email, "COLLABORATOR");

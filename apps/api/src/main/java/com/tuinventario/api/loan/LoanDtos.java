@@ -36,6 +36,15 @@ public final class LoanDtos {
     public record LoanActionPayload(String notes) {
     }
 
+    public record UpdateLoanPayload(
+            @NotNull Instant dueAt,
+            Instant loanedAt,
+            Instant returnedAt,
+            String notes,
+            String returnNotes
+    ) {
+    }
+
     public record ReturnLoanPayload(
             @NotNull BigDecimal returnedGoodQuantity,
             @NotNull BigDecimal returnedDamagedQuantity,

@@ -14,13 +14,16 @@ import com.tuinventario.api.shared.service.CurrentContextService;
 import com.tuinventario.api.shared.service.RealtimePublisher;
 import com.tuinventario.api.shared.util.QuantityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,15 +38,49 @@ public class MovementService {
     private final RealtimePublisher realtimePublisher;
 
     @Transactional(readOnly = true)
-    public PageResponse<MovementDtos.MovementResponse> listMovements(UUID locationId, int page, int size) {
+    public PageResponse<MovementDtos.MovementResponse> listMovements(
+            UUID locationId,
+            String query,
+            MovementType movementType,
+            BigDecimal minQuantity,
+            BigDecimal maxQuantity,
+            LocalDate fromDate,
+            LocalDate toDate,
+            int page,
+            int size
+    ) {
         UUID effectiveLocationId = currentContextService.effectiveLocationId(locationId);
-        var result = stockMovementRepository.searchByLocation(
-                        currentContextService.currentUser().organizationId(),
-                        effectiveLocationId,
-                        PageRequest.of(page, size)
-                )
-                .map(this::mapMovement);
-        return PageResponse.from(result);
+        validateRange(minQuantity, maxQuantity, fromDate, toDate);
+        Instant fromInstant = toInstant(fromDate);
+        Instant toExclusiveInstant = toExclusiveInstant(toDate);
+        String normalizedQuery = normalizeOptional(query);
+
+        List<MovementDtos.MovementResponse> filtered = stockMovementRepository
+                .findByOrganizationIdOrderByOccurredAtDesc(currentContextService.currentUser().organizationId())
+                .stream()
+                .filter(movement -> matchesLocation(movement, effectiveLocationId))
+                .filter(movement -> movementType == null || movement.getMovementType() == movementType)
+                .filter(movement -> minQuantity == null || movement.getQuantity().compareTo(minQuantity) >= 0)
+                .filter(movement -> maxQuantity == null || movement.getQuantity().compareTo(maxQuantity) <= 0)
+                .filter(movement -> fromInstant == null || !movement.getOccurredAt().isBefore(fromInstant))
+                .filter(movement -> toExclusiveInstant == null || movement.getOccurredAt().isBefore(toExclusiveInstant))
+                .filter(movement -> matchesItemQuery(movement, normalizedQuery))
+                .map(this::mapMovement)
+                .toList();
+
+        int safeSize = size <= 0 ? 10 : size;
+        int safePage = Math.max(page, 0);
+        int start = Math.min(safePage * safeSize, filtered.size());
+        int end = Math.min(start + safeSize, filtered.size());
+        int totalPages = filtered.isEmpty() ? 0 : (int) Math.ceil((double) filtered.size() / safeSize);
+
+        return new PageResponse<>(
+                filtered.subList(start, end),
+                safePage,
+                safeSize,
+                filtered.size(),
+                totalPages
+        );
     }
 
     @Transactional
@@ -245,12 +282,54 @@ public class MovementService {
         return value.trim();
     }
 
+    private boolean matchesLocation(StockMovementEntity movement, UUID effectiveLocationId) {
+        if (effectiveLocationId == null) {
+            return true;
+        }
+        return movement.getItem().getPrimaryLocation().getId().equals(effectiveLocationId)
+                || movement.getSourceLocation() != null && movement.getSourceLocation().getId().equals(effectiveLocationId)
+                || movement.getTargetLocation() != null && movement.getTargetLocation().getId().equals(effectiveLocationId);
+    }
+
+    private boolean matchesItemQuery(StockMovementEntity movement, String normalizedQuery) {
+        if (normalizedQuery == null) {
+            return true;
+        }
+        String haystack = (movement.getItem().getName() + " " + movement.getItem().getSku()).toLowerCase(Locale.ROOT);
+        return haystack.contains(normalizedQuery.toLowerCase(Locale.ROOT));
+    }
+
+    private void validateRange(BigDecimal minQuantity, BigDecimal maxQuantity, LocalDate fromDate, LocalDate toDate) {
+        if (minQuantity != null && maxQuantity != null && minQuantity.compareTo(maxQuantity) > 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "MOVEMENT_QUANTITY_RANGE_INVALID", "La cantidad minima no puede ser mayor que la maxima.");
+        }
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "MOVEMENT_DATE_RANGE_INVALID", "La fecha inicial no puede ser mayor que la fecha final.");
+        }
+    }
+
+    private Instant toInstant(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.atStartOfDay(ZoneId.of(currentContextService.currentOrganizationEntity().getTimezone())).toInstant();
+    }
+
+    private Instant toExclusiveInstant(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.plusDays(1).atStartOfDay(ZoneId.of(currentContextService.currentOrganizationEntity().getTimezone())).toInstant();
+    }
+
     private MovementDtos.MovementResponse mapMovement(StockMovementEntity entity) {
         return new MovementDtos.MovementResponse(
                 entity.getId().toString(),
                 entity.getMovementType().name(),
                 entity.getItem().getId().toString(),
                 entity.getItem().getName(),
+                entity.getItem().getSku(),
+                entity.getItem().getUnit().getSymbol(),
                 entity.getQuantity(),
                 entity.getSourceLocation() == null ? null : entity.getSourceLocation().getName(),
                 entity.getTargetLocation() == null ? null : entity.getTargetLocation().getName(),

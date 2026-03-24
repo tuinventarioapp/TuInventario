@@ -28,6 +28,8 @@ public final class MovementDtos {
             String movementType,
             String itemId,
             String itemName,
+            String itemSku,
+            String unitSymbol,
             BigDecimal quantity,
             String sourceLocation,
             String targetLocation,

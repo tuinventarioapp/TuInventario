@@ -53,7 +53,8 @@ Resultado esperado:
 
 - el articulo aparece en inventario;
 - queda asociado a una sede;
-- el panel muestra el total correcto.
+- el panel muestra el total correcto;
+- la tarjeta del articulo muestra `Disponible` junto al simbolo de la unidad.
 
 ## Flujo 4: filtrar inventario cuando hay muchos articulos
 
@@ -98,7 +99,7 @@ Resultado esperado:
 2. Selecciona prestatario.
 3. Selecciona articulo prestable con stock.
 4. Escribe cantidad.
-5. Elige fecha de devolucion.
+5. Elige la fecha maxima que tendra el prestatario para devolver el articulo.
 6. Agrega notas si hace falta.
 7. Guarda.
 
@@ -129,7 +130,29 @@ Resultado esperado:
 - el stock reservado baja;
 - el stock prestado sube.
 
-## Flujo 10: registrar una devolucion total o parcial
+## Flujo 10: editar un prestamo existente
+
+1. Busca el prestamo en `Prestamos`.
+2. Pulsa `Editar prestamo`.
+3. Ajusta los campos que necesites segun el estado del prestamo.
+
+Puedes corregir:
+
+- fecha maxima de devolucion;
+- fecha de entrega;
+- fecha de cierre o devolucion;
+- notas generales;
+- notas de devolucion.
+
+4. Guarda.
+
+Resultado esperado:
+
+- el prestamo conserva su historial;
+- la informacion administrativa queda corregida;
+- auditoria registra el cambio.
+
+## Flujo 11: registrar una devolucion total o parcial
 
 1. Busca un prestamo `ENTREGADO` o `VENCIDO`.
 2. Revisa la cantidad pendiente.
@@ -156,22 +179,23 @@ Resultado esperado:
 - si aun falta devolver, el prestamo sigue abierto;
 - si ya no falta nada, el prestamo queda cerrado.
 
-## Flujo 11: registrar movimientos
+## Flujo 12: registrar movimientos
 
 1. Entra a `Movimientos`.
-2. Selecciona articulo.
-3. Elige tipo:
+2. Busca el articulo por nombre o SKU.
+3. Selecciona el articulo correcto.
+4. Elige tipo:
 
 - `Entrada`;
 - `Salida`;
 - `Ajuste`;
 - `Traslado`.
 
-4. Escribe cantidad.
-5. Si es traslado, elige la sede destino.
-6. Escribe motivo.
-7. Agrega notas si hace falta.
-8. Guarda.
+5. Escribe cantidad.
+6. Si es traslado, elige la sede destino.
+7. Escribe motivo.
+8. Agrega notas si hace falta.
+9. Guarda.
 
 Resultado esperado:
 
@@ -183,7 +207,28 @@ Importante:
 
 - el traslado entre sedes es una accion de control global y debe revisarse con cuidado.
 
-## Flujo 12: descargar reportes
+## Flujo 13: revisar el historial de movimientos
+
+1. Entra a `Movimientos`.
+2. Baja a la seccion `Historial`.
+3. Si quieres, filtra por articulo o SKU.
+4. Filtra por tipo de movimiento.
+5. Si hace falta, define cantidad minima y maxima.
+6. Si hace falta, define fecha inicial y fecha final.
+7. Usa los accesos rapidos de ultimos 7 o 30 dias si te sirven.
+8. Pulsa `Aplicar`.
+
+Resultado esperado:
+
+- ves solo los movimientos que cumplen la busqueda.
+
+Ejemplos:
+
+- todos los movimientos del tomate esta semana;
+- todas las salidas del ultimo mes;
+- todos los ajustes entre dos fechas.
+
+## Flujo 14: descargar reportes
 
 1. Entra a `Reportes`.
 2. Si eres `Administrador`, decide si quieres toda la empresa o una sede.
@@ -197,7 +242,7 @@ Resultado esperado:
 
 - el archivo se descarga con el alcance correcto.
 
-## Flujo 13: restablecer contrasena de un usuario
+## Flujo 15: restablecer contrasena de un usuario
 
 1. Inicia sesion como `Administrador`.
 2. Entra a `Usuarios`.
@@ -210,15 +255,23 @@ Resultado esperado:
 - la clave anterior deja de funcionar;
 - el usuario ya puede entrar con la nueva clave temporal.
 
-## Flujo 14: revisar auditoria
+## Flujo 16: revisar auditoria
 
 1. Entra a `Auditoria`.
-2. Si hace falta, filtra por tipo de entidad.
-3. Filtra por accion.
-4. Filtra por actor.
-5. Filtra por rango de fechas.
-6. Revisa accion, actor, fecha y payload.
+2. Lee primero la ayuda superior para entender que significa cada columna.
+3. Si hace falta, filtra por tipo de entidad.
+4. Filtra por accion.
+5. Filtra por actor.
+6. Filtra por rango de fechas.
+7. Revisa accion, actor, fecha y payload.
 
 Resultado esperado:
 
 - puedes entender quien hizo que, cuando y sobre que registro.
+
+Como leer auditoria:
+
+- `actor`: quien hizo el cambio;
+- `action`: que hizo;
+- `entityType`: sobre que modulo trabajo;
+- `payload`: detalle del cambio.

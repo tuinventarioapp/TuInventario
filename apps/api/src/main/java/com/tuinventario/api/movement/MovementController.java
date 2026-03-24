@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -22,10 +24,16 @@ public class MovementController {
     @GetMapping
     public PageResponse<MovementDtos.MovementResponse> listMovements(
             @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) com.tuinventario.api.domain.enums.MovementType movementType,
+            @RequestParam(required = false) BigDecimal minQuantity,
+            @RequestParam(required = false) BigDecimal maxQuantity,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return movementService.listMovements(locationId, page, size);
+        return movementService.listMovements(locationId, query, movementType, minQuantity, maxQuantity, fromDate, toDate, page, size);
     }
 
     @PostMapping
