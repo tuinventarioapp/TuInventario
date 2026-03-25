@@ -68,6 +68,8 @@ Resultado esperado:
 6. Filtra por sede si eres `Administrador`.
 7. Filtra por sin stock, con stock, con prestamos activos, con stock reservado, con stock danado o en stock minimo.
 8. Si quieres, limita por cantidad minima y maxima.
+9. Si el listado es muy grande, cambia a `Vista tabla`.
+10. Si hace falta, ordena por nombre, disponible, stock minimo o ultimo movimiento.
 
 Resultado esperado:
 
@@ -98,7 +100,7 @@ Resultado esperado:
 ## Flujo 7: crear una solicitud de prestamo
 
 1. Entra a `Prestamos`.
-2. Identifica el bloque correcto:
+2. Identifica la pestana correcta:
 
 - `Solicitudes`;
 - `Prestamos activos`;
@@ -122,6 +124,7 @@ Resultado esperado:
 Resultado esperado:
 
 - la solicitud queda en estado `PENDIENTE`.
+- solo ves la pestana que estas trabajando, para no mezclar estados.
 
 ## Flujo 8: aprobar una solicitud
 
@@ -251,9 +254,10 @@ Ejemplos:
 3. Si eres administrador, usa el reporte `Inventario administrativo` para control gerencial.
 4. Si eres gestor o colaborador, usa el reporte `Inventario operativo`.
 5. Si lo necesitas, define una fecha inicial y una fecha final.
-6. Revisa el idioma activo en `Configuracion` si quieres que el reporte salga en espanol, ingles o portugues.
-7. Elige CSV o PDF.
-8. Pulsa `Descargar`.
+6. Si quieres ir mas rapido, usa los botones de hoy, ultimos 7 dias, ultimos 30 dias o este mes.
+7. Revisa el idioma activo en `Configuracion` si quieres que el reporte salga en espanol, ingles o portugues.
+8. Elige CSV o PDF.
+9. Pulsa `Descargar`.
 
 Resultado esperado:
 
@@ -281,7 +285,7 @@ Resultado esperado:
 4. Filtra por accion.
 5. Filtra por actor.
 6. Filtra por rango de fechas.
-7. Revisa accion, actor, fecha y payload.
+7. Revisa accion, actor, fecha, resumen rapido y payload.
 
 Resultado esperado:
 
@@ -292,4 +296,5 @@ Como leer auditoria:
 - `actor`: quien hizo el cambio;
 - `action`: que hizo;
 - `entityType`: sobre que modulo trabajo;
+- `resumen rapido`: explicacion simple de lo mas importante;
 - `payload`: detalle del cambio.

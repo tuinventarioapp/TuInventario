@@ -75,6 +75,12 @@ export function ReportsPage() {
       {!isGlobalAdmin && user?.assignedLocationName && <Notice>{t('reports.scopeNotice', { location: user.assignedLocationName })}</Notice>}
 
       <Card className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <PresetButton label={t('reports.quickToday')} onClick={() => applyPreset('today', setFromDate, setToDate)} />
+          <PresetButton label={t('reports.quickLast7')} onClick={() => applyPreset('last7', setFromDate, setToDate)} />
+          <PresetButton label={t('reports.quickLast30')} onClick={() => applyPreset('last30', setFromDate, setToDate)} />
+          <PresetButton label={t('reports.quickThisMonth')} onClick={() => applyPreset('month', setFromDate, setToDate)} />
+        </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {isGlobalAdmin && (
             <div className="space-y-2">
@@ -143,6 +149,51 @@ export function ReportsPage() {
         />
       </div>
     </div>
+  )
+}
+
+function applyPreset(
+  preset: 'today' | 'last7' | 'last30' | 'month',
+  setFromDate: (value: string) => void,
+  setToDate: (value: string) => void,
+) {
+  const now = new Date()
+  const current = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+  const format = (value: Date) => value.toISOString().slice(0, 10)
+
+  if (preset === 'today') {
+    const day = format(current)
+    setFromDate(day)
+    setToDate(day)
+    return
+  }
+
+  if (preset === 'last7') {
+    const from = new Date(current)
+    from.setDate(from.getDate() - 6)
+    setFromDate(format(from))
+    setToDate(format(current))
+    return
+  }
+
+  if (preset === 'last30') {
+    const from = new Date(current)
+    from.setDate(from.getDate() - 29)
+    setFromDate(format(from))
+    setToDate(format(current))
+    return
+  }
+
+  const from = new Date(current.getFullYear(), current.getMonth(), 1)
+  setFromDate(format(from))
+  setToDate(format(current))
+}
+
+function PresetButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <Button className="bg-secondary text-secondary-foreground" onClick={onClick}>
+      {label}
+    </Button>
   )
 }
 

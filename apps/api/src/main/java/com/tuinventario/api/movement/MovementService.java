@@ -218,6 +218,7 @@ public class MovementService {
         targetItem.setReservedStock(BigDecimal.ZERO);
         targetItem.setLoanedStock(BigDecimal.ZERO);
         targetItem.setDamagedStock(BigDecimal.ZERO);
+        targetItem.setMinimumStock(sourceItem.getMinimumStock());
         return targetItem;
     }
 

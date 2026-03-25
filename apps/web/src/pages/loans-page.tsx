@@ -48,6 +48,8 @@ type LoanFilters = {
   toDate: string
 }
 
+type LoanSection = 'requests' | 'active' | 'closed'
+
 const initialLoanFilters: LoanFilters = {
   categoryId: '',
   minQuantity: '',
@@ -179,6 +181,7 @@ export function LoansPage() {
   const [requestFilters, setRequestFilters] = useState<LoanFilters>(initialLoanFilters)
   const [activeFilters, setActiveFilters] = useState<LoanFilters>(initialLoanFilters)
   const [closedFilters, setClosedFilters] = useState<LoanFilters>(initialLoanFilters)
+  const [activeSection, setActiveSection] = useState<LoanSection>('requests')
   const schema = useMemo(() => z.object({
     borrowerId: z.string().min(1, t('validation.required')),
     itemId: z.string().min(1, t('validation.required')),
@@ -418,6 +421,16 @@ export function LoansPage() {
 
         <div className="space-y-6">
           <Card className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <LoanSectionButton active={activeSection === 'requests'} label={t('loans.requestsTab', { count: requestItems.length })} onClick={() => setActiveSection('requests')} />
+              <LoanSectionButton active={activeSection === 'active'} label={t('loans.activeTab', { count: activeLoans.length })} onClick={() => setActiveSection('active')} />
+              <LoanSectionButton active={activeSection === 'closed'} label={t('loans.closedTab', { count: closedLoans.length })} onClick={() => setActiveSection('closed')} />
+            </div>
+            <p className="text-sm text-slate-500">{t('loans.sectionHelp')}</p>
+          </Card>
+
+          {activeSection === 'requests' && (
+            <Card className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold">{t('loans.requests')}</h2>
               <p className="text-sm text-slate-600">{t('loans.requestsSummary', { count: requestItems.length })}</p>
@@ -451,9 +464,11 @@ export function LoansPage() {
                 </div>
               )) : <Notice>{t('loans.noRequests')}</Notice>}
             </div>
-          </Card>
+            </Card>
+          )}
 
-          <Card className="space-y-4">
+          {activeSection === 'active' && (
+            <Card className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold">{t('loans.active')}</h2>
               <p className="text-sm text-slate-600">{t('loans.activeSummary', { count: activeLoans.length })}</p>
@@ -660,9 +675,11 @@ export function LoansPage() {
                 )
               }) : <Notice>{t('loans.noActive')}</Notice>}
             </div>
-          </Card>
+            </Card>
+          )}
 
-          <Card className="space-y-4">
+          {activeSection === 'closed' && (
+            <Card className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold">{t('loans.closed')}</h2>
               <p className="text-sm text-slate-600">{t('loans.closedSummary', { count: closedLoans.length })}</p>
@@ -760,9 +777,30 @@ export function LoansPage() {
                 )
               }) : <Notice>{t('loans.noClosed')}</Notice>}
             </div>
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
     </div>
+  )
+}
+
+function LoanSectionButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      className={`rounded-full px-4 py-2 text-sm font-medium transition ${active ? 'bg-slate-950 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:border-sky-300'}`}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+    </button>
   )
 }

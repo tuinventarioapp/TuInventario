@@ -139,6 +139,7 @@ export interface DashboardSummary {
   overdueLoans: number
   recentMovements: number
   lowStockAlerts: LowStockAlert[]
+  hasOperationalData: boolean
 }
 
 export interface UserSummary {

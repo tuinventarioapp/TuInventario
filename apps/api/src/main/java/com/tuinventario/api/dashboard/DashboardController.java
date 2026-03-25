@@ -42,6 +42,7 @@ public class DashboardController {
         long activeLoans = loans.stream()
                 .filter(loan -> loan.getStatus() == LoanStatus.DELIVERED || loan.getStatus() == LoanStatus.APPROVED)
                 .count();
+        int recentMovements = stockMovementRepository.searchByLocation(orgId, effectiveLocationId, org.springframework.data.domain.PageRequest.of(0, 5)).getContent().size();
         var lowStockAlerts = items.stream()
                 .filter(item -> item.getMinimumStock() != null && item.getMinimumStock().signum() > 0)
                 .filter(item -> item.getAvailableStock().compareTo(item.getMinimumStock()) <= 0)
@@ -62,8 +63,9 @@ public class DashboardController {
                 items.size(),
                 activeLoans,
                 overdueLoans,
-                stockMovementRepository.searchByLocation(orgId, effectiveLocationId, org.springframework.data.domain.PageRequest.of(0, 5)).getContent().size(),
-                lowStockAlerts
+                recentMovements,
+                lowStockAlerts,
+                !items.isEmpty() || activeLoans > 0 || overdueLoans > 0 || recentMovements > 0
         );
     }
 }

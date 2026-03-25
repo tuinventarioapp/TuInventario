@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
@@ -22,6 +23,7 @@ export function DashboardPage() {
   const effectiveLocationId = isGlobalAdmin ? locationId || undefined : user?.assignedLocationId ?? undefined
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['dashboard', effectiveLocationId], queryFn: () => api.dashboard(effectiveLocationId) })
   const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations, enabled: isGlobalAdmin })
+  const showEmptyState = Boolean(data && !data.hasOperationalData)
 
   const metrics = [
     { label: t('dashboard.totalItems'), value: data?.totalItems ?? 0 },
@@ -91,25 +93,69 @@ export function DashboardPage() {
                   ))}
                 </div>
               </div>
-            ) : (
+            ) : showEmptyState ? (
               <Notice variant="info">
                 <p className="font-medium">{t('dashboard.emptyTitle')}</p>
                 <p className="mt-1">{t('dashboard.emptyDescription')}</p>
               </Notice>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-medium text-slate-950">{t('dashboard.healthyTitle')}</p>
+                <p className="mt-1 text-sm text-slate-600">{t('dashboard.healthyDescription')}</p>
+              </div>
             )}
           </div>
         </Card>
 
         <Card className="space-y-4">
-          <h2 className="text-lg font-semibold">{t('manual.title')}</h2>
-          <p className="text-sm text-slate-600">{t('manual.description')}</p>
-          <div className="rounded-2xl border border-border p-4 text-sm text-slate-600">
-            <p>{t('dashboard.step1')}</p>
-            <p className="mt-2">{t('dashboard.step2')}</p>
-            <p className="mt-2">{t('dashboard.step3')}</p>
+          <h2 className="text-lg font-semibold">{t('dashboard.quickActionsTitle')}</h2>
+          <p className="text-sm text-slate-600">{t('dashboard.quickActionsDescription')}</p>
+          <div className="space-y-3">
+            <DashboardAction to="/app/items?stockFilter=LOW_STOCK" title={t('dashboard.actionLowStock')} description={t('dashboard.actionLowStockHelp')} />
+            <DashboardAction to="/app/movements" title={t('dashboard.actionMovements')} description={t('dashboard.actionMovementsHelp')} />
+            <DashboardAction to="/app/loans" title={t('dashboard.actionLoans')} description={t('dashboard.actionLoansHelp')} />
+            <DashboardAction href="/manual/manual-de-uso.pdf" targetBlank title={t('manual.title')} description={t('manual.description')} />
           </div>
         </Card>
       </div>
     </div>
+  )
+}
+
+function DashboardAction({
+  to,
+  href,
+  download,
+  targetBlank,
+  title,
+  description,
+}: {
+  to?: string
+  href?: string
+  download?: string
+  targetBlank?: boolean
+  title: string
+  description: string
+}) {
+  if (href) {
+    return (
+      <a
+        className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-white"
+        href={href}
+        download={download}
+        rel={targetBlank ? 'noreferrer' : undefined}
+        target={targetBlank ? '_blank' : undefined}
+      >
+        <p className="font-medium text-slate-950">{title}</p>
+        <p className="mt-1 text-sm text-slate-600">{description}</p>
+      </a>
+    )
+  }
+
+  return (
+    <Link className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-white" to={to ?? '/'}>
+      <p className="font-medium text-slate-950">{title}</p>
+      <p className="mt-1 text-sm text-slate-600">{description}</p>
+    </Link>
   )
 }

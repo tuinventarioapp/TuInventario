@@ -75,6 +75,24 @@ export function AppShell() {
       </aside>
 
       <main className="space-y-6 px-4 py-6 md:px-8">
+        <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-panel">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('shell.contextTitle')}</p>
+              <p className="mt-1 text-sm font-medium text-slate-950">
+                {user?.organizationName ?? t('shell.noOrganization')}
+              </p>
+            </div>
+            <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-3">
+              <p><span className="font-medium text-slate-900">{t('settings.currentRole')}:</span> {enumLabel('role', user?.role)}</p>
+              <p>
+                <span className="font-medium text-slate-900">{t('shell.scopeLabel')}:</span>{' '}
+                {user?.assignedLocationName ?? t('shell.scopeOrganization')}
+              </p>
+              <p><span className="font-medium text-slate-900">{t('common.name')}:</span> {user?.fullName}</p>
+            </div>
+          </div>
+        </div>
         <Outlet />
       </main>
     </div>

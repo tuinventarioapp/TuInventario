@@ -29,6 +29,8 @@ export function ItemsPage() {
   const user = useAuthStore((state) => state.user)
   const [searchParams, setSearchParams] = useSearchParams()
   const [draftQuery, setDraftQuery] = useState(searchParams.get('query') ?? '')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [sortBy, setSortBy] = useState<'name' | 'available' | 'minimumStock' | 'lastMovement'>('name')
 
   const filters = useMemo(() => ({
     query: searchParams.get('query') ?? '',
@@ -82,6 +84,15 @@ export function ItemsPage() {
   const isGlobalAdmin = isAdmin(user?.role)
   const currentPage = itemsQuery.data?.page ?? filters.page
   const totalPages = itemsQuery.data?.totalPages ?? 0
+  const sortedItems = useMemo(() => {
+    const content = [...(itemsQuery.data?.content ?? [])]
+    return content.sort((left, right) => {
+      if (sortBy === 'available') return right.availableStock - left.availableStock
+      if (sortBy === 'minimumStock') return right.minimumStock - left.minimumStock
+      if (sortBy === 'lastMovement') return new Date(right.lastMovementAt ?? 0).getTime() - new Date(left.lastMovementAt ?? 0).getTime()
+      return left.name.localeCompare(right.name)
+    })
+  }, [itemsQuery.data?.content, sortBy])
 
   return (
     <div className="space-y-6">
@@ -103,7 +114,11 @@ export function ItemsPage() {
               count: itemsQuery.data?.totalElements ?? 0,
             })}</p>
           </div>
-          <Button onClick={clearFilters} className="bg-secondary text-secondary-foreground">{t('common.clear')}</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button className={viewMode === 'cards' ? '' : 'bg-secondary text-secondary-foreground'} onClick={() => setViewMode('cards')}>{t('items.viewCards')}</Button>
+            <Button className={viewMode === 'table' ? '' : 'bg-secondary text-secondary-foreground'} onClick={() => setViewMode('table')}>{t('items.viewTable')}</Button>
+            <Button onClick={clearFilters} className="bg-secondary text-secondary-foreground">{t('common.clear')}</Button>
+          </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -186,6 +201,16 @@ export function ItemsPage() {
             <label className="text-sm font-medium">{t('items.maxAvailable')}</label>
             <Input type="number" min="0" step="1" value={filters.maxAvailableStock} onChange={(event) => updateFilters({ maxAvailableStock: event.target.value })} />
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">{t('items.sortBy')}</label>
+            <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}>
+              <option value="name">{t('items.sort.name')}</option>
+              <option value="available">{t('items.sort.available')}</option>
+              <option value="minimumStock">{t('items.sort.minimumStock')}</option>
+              <option value="lastMovement">{t('items.sort.lastMovement')}</option>
+            </select>
+          </div>
         </div>
       </Card>
 
@@ -193,36 +218,76 @@ export function ItemsPage() {
 
       {!itemsQuery.data?.content.length && <Notice>{t('items.empty')}</Notice>}
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        {itemsQuery.data?.content.map((item) => (
-          <Link key={item.id} to={`/app/items/${item.id}`}>
-            <Card className="h-full border-slate-200 transition hover:border-sky-300">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-slate-950">{item.name}</h3>
-                    {isAtMinimumStock(item.availableStock, item.minimumStock) && (
-                      <Badge className="bg-amber-100 text-amber-900">{t('items.minimumStockAlert')}</Badge>
-                    )}
+      {viewMode === 'cards' ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {sortedItems.map((item) => (
+            <Link key={item.id} to={`/app/items/${item.id}`}>
+              <Card className="h-full border-slate-200 transition hover:border-sky-300">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg font-semibold text-slate-950">{item.name}</h3>
+                      {isAtMinimumStock(item.availableStock, item.minimumStock) && (
+                        <Badge className="bg-amber-100 text-amber-900">{t('items.minimumStockAlert')}</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500">{item.sku} - {item.category}</p>
                   </div>
-                  <p className="text-sm text-slate-500">{item.sku} - {item.category}</p>
+                  <Badge>{enumLabel('itemStatus', item.status)}</Badge>
                 </div>
-                <Badge>{enumLabel('itemStatus', item.status)}</Badge>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
-                <p>{t('items.available')}: <strong className="text-slate-950">{stockWithUnit(item.availableStock, item.unit)}</strong></p>
-                <p>{t('items.reserved')}: <strong className="text-slate-950">{stockWithUnit(item.reservedStock, item.unit)}</strong></p>
-                <p>{t('items.loaned')}: <strong className="text-slate-950">{stockWithUnit(item.loanedStock, item.unit)}</strong></p>
-                <p>{t('items.damaged')}: <strong className="text-slate-950">{stockWithUnit(item.damagedStock, item.unit)}</strong></p>
-                <p>{t('items.location')}: <strong className="text-slate-950">{item.primaryLocation}</strong></p>
-                <p>{t('items.detail.total')}: <strong className="text-slate-950">{stockWithUnit(item.totalStock, item.unit)}</strong></p>
-                <p>{t('items.minimumStock')}: <strong className="text-slate-950">{stockWithUnit(item.minimumStock, item.unit)}</strong></p>
-              </div>
-              <p className="mt-4 text-xs text-slate-500">{t('items.lastMovement')}: {formatDate(item.lastMovementAt)}</p>
-            </Card>
-          </Link>
-        ))}
-      </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
+                  <p>{t('items.available')}: <strong className="text-slate-950">{stockWithUnit(item.availableStock, item.unit)}</strong></p>
+                  <p>{t('items.reserved')}: <strong className="text-slate-950">{stockWithUnit(item.reservedStock, item.unit)}</strong></p>
+                  <p>{t('items.loaned')}: <strong className="text-slate-950">{stockWithUnit(item.loanedStock, item.unit)}</strong></p>
+                  <p>{t('items.damaged')}: <strong className="text-slate-950">{stockWithUnit(item.damagedStock, item.unit)}</strong></p>
+                  <p>{t('items.location')}: <strong className="text-slate-950">{item.primaryLocation}</strong></p>
+                  <p>{t('items.detail.total')}: <strong className="text-slate-950">{stockWithUnit(item.totalStock, item.unit)}</strong></p>
+                  <p>{t('items.minimumStock')}: <strong className="text-slate-950">{stockWithUnit(item.minimumStock, item.unit)}</strong></p>
+                </div>
+                <p className="mt-4 text-xs text-slate-500">{t('items.lastMovement')}: {formatDate(item.lastMovementAt)}</p>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Card className="overflow-x-auto p-0">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
+              <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3">{t('common.name')}</th>
+                <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">{t('items.category')}</th>
+                <th className="px-4 py-3">{t('items.location')}</th>
+                <th className="px-4 py-3">{t('items.available')}</th>
+                <th className="px-4 py-3">{t('items.minimumStock')}</th>
+                <th className="px-4 py-3">{t('common.status')}</th>
+                <th className="px-4 py-3">{t('common.actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white text-sm text-slate-700">
+              {sortedItems.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <Link className="font-medium text-slate-950 hover:text-sky-700" to={`/app/items/${item.id}`}>{item.name}</Link>
+                  </td>
+                  <td className="px-4 py-3">{item.sku}</td>
+                  <td className="px-4 py-3">{item.category}</td>
+                  <td className="px-4 py-3">{item.primaryLocation}</td>
+                  <td className="px-4 py-3">{stockWithUnit(item.availableStock, item.unit)}</td>
+                  <td className="px-4 py-3">{stockWithUnit(item.minimumStock, item.unit)}</td>
+                  <td className="px-4 py-3">{enumLabel('itemStatus', item.status)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Link className="text-sky-700 hover:text-sky-900" to={`/app/items/${item.id}`}>{t('common.view')}</Link>
+                      <Link className="text-slate-600 hover:text-slate-900" to="/app/movements">{t('items.quickMovement')}</Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
 
       {!!itemsQuery.data?.content.length && (
         <Card className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

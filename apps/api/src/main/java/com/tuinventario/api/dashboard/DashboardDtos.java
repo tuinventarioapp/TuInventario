@@ -25,7 +25,8 @@ public final class DashboardDtos {
             long activeLoans,
             long overdueLoans,
             int recentMovements,
-            List<LowStockAlert> lowStockAlerts
+            List<LowStockAlert> lowStockAlerts,
+            boolean hasOperationalData
     ) {
     }
 }

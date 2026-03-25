@@ -48,9 +48,28 @@ Ejemplos:
 - `Computadores`: minimo 2 unidades. Si quedan 2, aparece la alerta.
 - `Tomate`: minimo 10 kg. Si quedan 10 kg, aparece la alerta.
 
+Tambien tiene accesos rapidos para:
+
+- abrir inventario ya filtrado por stock minimo;
+- entrar directo a movimientos;
+- entrar directo a prestamos.
+- descargar el manual de uso actualizado.
+
 ### Inventario
 
 Es la lista completa de articulos. Aqui ves nombre, SKU, tipo, estado, ubicacion y cantidades.
+
+Ahora puedes ver inventario en dos formatos:
+
+- `Vista tarjetas`, para leer rapido cada articulo;
+- `Vista tabla`, para trabajar mejor cuando la empresa tiene muchos registros.
+
+Tambien puedes ordenar por:
+
+- nombre;
+- disponible;
+- stock minimo;
+- ultimo movimiento.
 
 En cada tarjeta de articulo, el campo `Disponible` ahora debe leerse asi:
 
@@ -122,13 +141,13 @@ El flujo se entiende asi:
 3. despues se entrega;
 4. al final se registra la devolucion total o parcial.
 
-Dentro de la pantalla veras tres bloques distintos:
+Dentro de la pantalla veras tres pestañas operativas:
 
 - `Solicitudes`: lo que aun no ha sido aprobado;
 - `Prestamos activos`: lo aprobado, entregado o vencido;
 - `Prestamos cerrados`: lo devuelto, cancelado o rechazado.
 
-Cada bloque tiene sus propios filtros por:
+Cada pestaña tiene sus filtros por:
 
 - categoria;
 - cantidad minima;
@@ -158,6 +177,10 @@ Ademas, ahora un prestamo ya creado puede editarse para ajustar datos administra
 
 Esto sirve, por ejemplo, cuando una operacion real se registro tarde o hubo que corregir una fecha.
 
+Consejo:
+
+- trabaja una pestaña a la vez para no mezclar solicitudes nuevas con prestamos ya cerrados.
+
 ### Prestatarios
 
 Aqui registras las personas o clientes que pueden recibir articulos en prestamo.
@@ -165,6 +188,13 @@ Aqui registras las personas o clientes que pueden recibir articulos en prestamo.
 ### Reportes
 
 Aqui descargas archivos CSV o PDF para revisar informacion fuera de la app.
+
+Ademas de poner fechas manualmente, ahora tienes botones rapidos para:
+
+- hoy;
+- ultimos 7 dias;
+- ultimos 30 dias;
+- este mes.
 
 Los reportes se pueden sacar por rango de fechas. Eso te permite ver, por ejemplo:
 
@@ -210,7 +240,8 @@ Cada fila muestra:
 - `quien` hizo la accion;
 - `que` accion hizo;
 - `cuando` la hizo;
-- `payload`, que es el detalle tecnico o resumen de lo que se modifico.
+- `resumen rapido`, que explica de forma mas humana lo mas importante;
+- `payload`, que es el detalle tecnico de soporte.
 
 Si quieres encontrar algo rapido, usa filtros por:
 

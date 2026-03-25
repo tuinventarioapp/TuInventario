@@ -169,19 +169,21 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
           <div className="space-y-2">
             <label className="text-sm font-medium">{t('common.name')}</label>
             <Input {...registerField('name')} />
+            <FieldError message={form.formState.errors.name?.message} />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">SKU</label>
             <Input {...createForm.register('sku')} disabled={mode === 'edit'} />
+            {mode === 'create' && <FieldError message={createForm.formState.errors.sku?.message} />}
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium">{t('catalogs.categoryDescription')}</label>
-            <Input {...registerField('description')} />
+            <label className="text-sm font-medium">{t('itemForm.descriptionField')}</label>
+            <textarea className="min-h-28 w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400" {...registerField('description')} />
           </div>
           {mode === 'create' && (
             <>
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('movements.type')}</label>
+                <label className="text-sm font-medium">{t('items.type')}</label>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('type')}>
                   {(['CONSUMABLE', 'LENDABLE', 'HYBRID'] as const).map((value) => (
                     <option key={value} value={value}>{enumLabel('itemType', value)}</option>
@@ -230,29 +232,32 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </>
           )}
           <div className="space-y-2">
-            <label className="text-sm font-medium">{t('catalogs.categories')}</label>
+            <label className="text-sm font-medium">{t('items.category')}</label>
             <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...registerField('categoryId')}>
-              <option value="">{t('validation.required')}</option>
+              <option value="">{t('itemForm.selectCategory')}</option>
               {categoriesQuery.data?.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
+            <FieldError message={form.formState.errors.categoryId?.message} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">{t('catalogs.units')}</label>
+            <label className="text-sm font-medium">{t('itemForm.unitLabel')}</label>
             <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...registerField('unitId')}>
-              <option value="">{t('validation.required')}</option>
+              <option value="">{t('itemForm.selectUnit')}</option>
               {unitsQuery.data?.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
+            <FieldError message={form.formState.errors.unitId?.message} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">{t('catalogs.locations')}</label>
+            <label className="text-sm font-medium">{t('items.location')}</label>
             <select
               className="h-11 w-full rounded-xl border border-border bg-white px-3"
               disabled={!isGlobalAdmin}
               {...registerField('primaryLocationId')}
             >
-              {isGlobalAdmin && <option value="">{t('validation.required')}</option>}
+              {isGlobalAdmin && <option value="">{t('itemForm.selectLocation')}</option>}
               {locationsQuery.data?.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
+            <FieldError message={form.formState.errors.primaryLocationId?.message} />
           </div>
           <div className="md:col-span-2">
             <Button disabled={createMutation.isPending || updateMutation.isPending} type="submit">
@@ -263,4 +268,9 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
       </Card>
     </div>
   )
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-sm text-red-600">{message}</p>
 }

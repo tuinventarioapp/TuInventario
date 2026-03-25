@@ -26,11 +26,26 @@ const initialFilters: AuditFilters = {
   toDate: '',
 }
 
+const entityOptions = ['ITEM', 'STOCK_MOVEMENT', 'LOAN', 'LOAN_REQUEST', 'USER', 'BORROWER', 'CATEGORY', 'LOCATION']
+const actionOptions = ['ITEM_CREATED', 'ITEM_UPDATED', 'MOVEMENT_CREATED', 'LOAN_APPROVED', 'LOAN_DELIVERED', 'LOAN_RETURNED', 'USER_CREATED', 'USER_UPDATED', 'PASSWORD_RESET']
+
 function prettyPayload(payload: string) {
   try {
     return JSON.stringify(JSON.parse(payload), null, 2)
   } catch {
     return payload
+  }
+}
+
+function buildSummary(entityType: string, action: string, actor: string, payload: string) {
+  try {
+    const parsed = JSON.parse(payload) as Record<string, string | number>
+    const fragments = Object.entries(parsed)
+      .slice(0, 4)
+      .map(([key, value]) => `${key}: ${value}`)
+    return `${actor} -> ${entityType} / ${action}${fragments.length ? ` (${fragments.join(', ')})` : ''}`
+  } catch {
+    return `${actor} -> ${entityType} / ${action}`
   }
 }
 
@@ -61,14 +76,18 @@ export function AuditPage() {
 
       <Card className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <FilterField
+          <SelectField
             label={t('audit.filterEntityType')}
+            options={entityOptions}
             value={draftFilters.entityType}
+            allLabel={t('common.all')}
             onChange={(value) => setDraftFilters((current) => ({ ...current, entityType: value }))}
           />
-          <FilterField
+          <SelectField
             label={t('audit.filterAction')}
+            options={actionOptions}
             value={draftFilters.action}
+            allLabel={t('common.all')}
             onChange={(value) => setDraftFilters((current) => ({ ...current, action: value }))}
           />
           <FilterField
@@ -116,6 +135,10 @@ export function AuditPage() {
                   <p className="text-sm text-slate-500">{entry.actor}</p>
                 </div>
                 <p className="text-xs text-slate-500">{formatDate(entry.createdAt)}</p>
+              </div>
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <p className="font-medium text-slate-900">{t('audit.summaryLabel')}</p>
+                <p className="mt-1">{buildSummary(entry.entityType, entry.action, entry.actor, entry.payload)}</p>
               </div>
               <div className="mt-3 space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('audit.payloadLabel')}</p>
@@ -184,6 +207,30 @@ function FilterField({
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
       <Input value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  )
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  allLabel,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: string[]
+  allLabel: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium">{label}</label>
+      <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">{allLabel}</option>
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
     </div>
   )
 }

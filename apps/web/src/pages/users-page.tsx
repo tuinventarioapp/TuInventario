@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -186,26 +186,35 @@ export function UsersPage() {
           {editingUser ? (
             <form className="space-y-3" onSubmit={editForm.handleSubmit((values) => updateMutation.mutate(values))}>
               <h2 className="text-lg font-semibold">{t('users.editing')}</h2>
-              <Input placeholder={t('common.name')} {...editForm.register('fullName')} />
-              <Input placeholder={t('common.email')} {...editForm.register('email')} />
-              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...editForm.register('role')}>
-                {(['ADMIN', 'MANAGER', 'COLLABORATOR'] as const).map((role) => (
-                  <option key={role} value={role}>{enumLabel('role', role)}</option>
-                ))}
-              </select>
-              {editRole !== 'ADMIN' && (
-                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...editForm.register('assignedLocationId')}>
-                  <option value="">{t('users.selectLocation')}</option>
-                  {locationsQuery.data?.map((location) => (
-                    <option key={location.id} value={location.id}>{location.name}</option>
+              <Field label={t('common.name')} error={editForm.formState.errors.fullName?.message}>
+                <Input {...editForm.register('fullName')} />
+              </Field>
+              <Field label={t('common.email')} error={editForm.formState.errors.email?.message}>
+                <Input {...editForm.register('email')} />
+              </Field>
+              <Field label={t('common.role')}>
+                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...editForm.register('role')}>
+                  {(['ADMIN', 'MANAGER', 'COLLABORATOR'] as const).map((role) => (
+                    <option key={role} value={role}>{enumLabel('role', role)}</option>
                   ))}
                 </select>
+              </Field>
+              {editRole !== 'ADMIN' && (
+                <Field label={t('items.location')} error={editForm.formState.errors.assignedLocationId?.message} hint={t('users.locationHelp')}>
+                  <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...editForm.register('assignedLocationId')}>
+                    <option value="">{t('users.selectLocation')}</option>
+                    {locationsQuery.data?.map((location) => (
+                      <option key={location.id} value={location.id}>{location.name}</option>
+                    ))}
+                  </select>
+                </Field>
               )}
-              {editForm.formState.errors.assignedLocationId && <p className="text-sm text-red-600">{editForm.formState.errors.assignedLocationId.message}</p>}
-              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...editForm.register('status')}>
-                <option value="ACTIVE">{t('users.status.ACTIVE')}</option>
-                <option value="BLOCKED">{t('users.status.BLOCKED')}</option>
-              </select>
+              <Field label={t('common.status')}>
+                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...editForm.register('status')}>
+                  <option value="ACTIVE">{t('users.status.ACTIVE')}</option>
+                  <option value="BLOCKED">{t('users.status.BLOCKED')}</option>
+                </select>
+              </Field>
               <div className="rounded-2xl border border-border p-3">
                 <p className="text-sm font-medium text-slate-900">{t('users.passwordResetTitle')}</p>
                 <p className="mt-1 text-sm text-slate-500">{t('users.passwordResetHelp')}</p>
@@ -232,23 +241,33 @@ export function UsersPage() {
             </form>
           ) : (
             <form className="space-y-3" onSubmit={createForm.handleSubmit((values) => createMutation.mutate(values))}>
-              <Input placeholder={t('common.name')} {...createForm.register('fullName')} />
-              <Input placeholder={t('common.email')} {...createForm.register('email')} />
-              <Input type="password" placeholder={t('common.password')} {...createForm.register('password')} />
-              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('role')}>
-                {(['ADMIN', 'MANAGER', 'COLLABORATOR'] as const).map((role) => (
-                  <option key={role} value={role}>{enumLabel('role', role)}</option>
-                ))}
-              </select>
-              {createRole !== 'ADMIN' && (
-                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('assignedLocationId')}>
-                  <option value="">{t('users.selectLocation')}</option>
-                  {locationsQuery.data?.map((location) => (
-                    <option key={location.id} value={location.id}>{location.name}</option>
+              <h2 className="text-lg font-semibold">{t('users.createTitle')}</h2>
+              <Field label={t('common.name')} error={createForm.formState.errors.fullName?.message}>
+                <Input {...createForm.register('fullName')} />
+              </Field>
+              <Field label={t('common.email')} error={createForm.formState.errors.email?.message}>
+                <Input {...createForm.register('email')} />
+              </Field>
+              <Field label={t('common.password')} error={createForm.formState.errors.password?.message} hint={t('users.passwordHelp')}>
+                <Input type="password" {...createForm.register('password')} />
+              </Field>
+              <Field label={t('common.role')}>
+                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('role')}>
+                  {(['ADMIN', 'MANAGER', 'COLLABORATOR'] as const).map((role) => (
+                    <option key={role} value={role}>{enumLabel('role', role)}</option>
                   ))}
                 </select>
+              </Field>
+              {createRole !== 'ADMIN' && (
+                <Field label={t('items.location')} error={createForm.formState.errors.assignedLocationId?.message} hint={t('users.locationHelp')}>
+                  <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('assignedLocationId')}>
+                    <option value="">{t('users.selectLocation')}</option>
+                    {locationsQuery.data?.map((location) => (
+                      <option key={location.id} value={location.id}>{location.name}</option>
+                    ))}
+                  </select>
+                </Field>
               )}
-              {createForm.formState.errors.assignedLocationId && <p className="text-sm text-red-600">{createForm.formState.errors.assignedLocationId.message}</p>}
               <Button className="w-full" disabled={createMutation.isPending} type="submit">
                 {t('users.submit')}
               </Button>
@@ -287,6 +306,27 @@ export function UsersPage() {
           </div>
         </Card>
       </div>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  error,
+  hint,
+  children,
+}: {
+  label: string
+  error?: string
+  hint?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium">{label}</label>
+      {children}
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   )
 }

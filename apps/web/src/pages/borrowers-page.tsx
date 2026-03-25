@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -104,10 +104,19 @@ export function BorrowersPage() {
               else createMutation.mutate(values)
             })}
           >
-            <Input placeholder={t('common.name')} {...form.register('name')} />
-            <Input placeholder={t('common.email')} {...form.register('email')} />
-            <Input placeholder={t('common.phone')} {...form.register('phone')} />
-            <Input placeholder={t('common.notes')} {...form.register('notes')} />
+            <h2 className="text-lg font-semibold text-slate-950">{editingBorrower ? t('borrowers.editTitle') : t('borrowers.createTitle')}</h2>
+            <Field label={t('common.name')} error={form.formState.errors.name?.message}>
+              <Input {...form.register('name')} />
+            </Field>
+            <Field label={t('common.email')} error={form.formState.errors.email?.message}>
+              <Input {...form.register('email')} />
+            </Field>
+            <Field label={t('common.phone')}>
+              <Input {...form.register('phone')} />
+            </Field>
+            <Field label={t('common.notes')} hint={t('borrowers.notesHelp')}>
+              <Input {...form.register('notes')} />
+            </Field>
 
             <div className="flex gap-2">
               <Button className="flex-1" disabled={createMutation.isPending || updateMutation.isPending} type="submit">
@@ -149,6 +158,27 @@ export function BorrowersPage() {
           </div>
         </Card>
       </div>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  error,
+  hint,
+  children,
+}: {
+  label: string
+  error?: string
+  hint?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium">{label}</label>
+      {children}
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   )
 }
