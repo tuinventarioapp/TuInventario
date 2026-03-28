@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { AppShell } from '../components/layout/app-shell'
+import { canSeeAudit } from '../lib/access'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
 import { DashboardPage } from '../pages/dashboard-page'
@@ -41,6 +42,16 @@ function RequireAuth() {
   return <Outlet />
 }
 
+function RequireAuditAccess() {
+  const user = useAuthStore((state) => state.user)
+
+  if (!canSeeAudit(user?.role)) {
+    return <Navigate to="/app/dashboard" replace />
+  }
+
+  return <AuditPage />
+}
+
 const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/login', element: <LoginPage /> },
@@ -74,7 +85,7 @@ const router = createBrowserRouter([
           { path: 'reports', element: <ReportsPage /> },
           { path: 'users', element: <UsersPage /> },
           { path: 'settings', element: <SettingsPage /> },
-          { path: 'audit', element: <AuditPage /> },
+          { path: 'audit', element: <RequireAuditAccess /> },
         ],
       },
     ],

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { queryClient } from '../app/query-client'
@@ -34,12 +34,7 @@ export function CatalogsPage() {
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: api.units })
   const locationCategoriesQuery = useQuery({ queryKey: ['location-categories'], queryFn: api.locationCategories })
   const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations })
-
-  useEffect(() => {
-    if (!editingLocationId && !locationForm.locationCategoryId && locationCategoriesQuery.data?.[0]?.id) {
-      setLocationForm((current) => ({ ...current, locationCategoryId: locationCategoriesQuery.data?.[0]?.id ?? '' }))
-    }
-  }, [editingLocationId, locationCategoriesQuery.data, locationForm.locationCategoryId])
+  const effectiveLocationCategoryId = locationForm.locationCategoryId || locationCategoriesQuery.data?.[0]?.id || ''
 
   const invalidateCatalogs = async () => {
     await queryClient.invalidateQueries({ queryKey: ['categories'] })
@@ -81,9 +76,12 @@ export function CatalogsPage() {
   const deleteLocationCategoryMutation = useMutation({ mutationFn: api.deleteLocationCategory, onSuccess: invalidateCatalogs })
 
   const locationMutation = useMutation({
-    mutationFn: () => editingLocationId ? api.updateLocation(editingLocationId, locationForm) : api.createLocation(locationForm),
+    mutationFn: () => {
+      const payload = { ...locationForm, locationCategoryId: effectiveLocationCategoryId }
+      return editingLocationId ? api.updateLocation(editingLocationId, payload) : api.createLocation(payload)
+    },
     onSuccess: async () => {
-      setLocationForm({ name: '', locationCategoryId: locationCategoriesQuery.data?.[0]?.id ?? '', description: '' })
+      setLocationForm({ name: '', locationCategoryId: '', description: '' })
       setEditingLocationId(null)
       await invalidateCatalogs()
     },
@@ -258,7 +256,7 @@ export function CatalogsPage() {
           />
           <select
             className="h-11 w-full rounded-xl border border-border bg-white px-3"
-            value={locationForm.locationCategoryId}
+            value={effectiveLocationCategoryId}
             onChange={(event) => setLocationForm((current) => ({ ...current, locationCategoryId: event.target.value }))}
           >
             <option value="">{t('catalogs.selectLocationCategory')}</option>
@@ -278,7 +276,7 @@ export function CatalogsPage() {
             onSave={() => locationMutation.mutate()}
             onCancel={() => {
               setEditingLocationId(null)
-              setLocationForm({ name: '', locationCategoryId: locationCategoriesQuery.data?.[0]?.id ?? '', description: '' })
+              setLocationForm({ name: '', locationCategoryId: '', description: '' })
             }}
             cancelLabel={t('common.cancel')}
           >

@@ -38,4 +38,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.user.email").value("admin@admin.com"));
     }
+
+    @Test
+    void shouldReturnBadRequestForMalformedJson() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"admin@admin.com\","))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_JSON"))
+                .andExpect(jsonPath("$.message").value("El cuerpo JSON de la solicitud no es valido."));
+    }
 }

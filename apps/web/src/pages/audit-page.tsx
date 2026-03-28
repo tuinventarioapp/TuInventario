@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
@@ -51,6 +53,7 @@ function buildSummary(entityType: string, action: string, actor: string, payload
 
 export function AuditPage() {
   const { t } = useI18n()
+  const isPhone = useIsMobile()
   const [draftFilters, setDraftFilters] = useState<AuditFilters>(initialFilters)
   const [appliedFilters, setAppliedFilters] = useState<AuditFilters>(initialFilters)
   const [page, setPage] = useState(0)
@@ -66,7 +69,7 @@ export function AuditPage() {
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold text-slate-950">{t('audit.helpTitle')}</h2>
         <p className="text-sm text-slate-600">{t('audit.helpDescription')}</p>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <HelpPoint title={t('audit.helpWhoTitle')} description={t('audit.helpWhoDescription')} />
           <HelpPoint title={t('audit.helpWhatTitle')} description={t('audit.helpWhatDescription')} />
           <HelpPoint title={t('audit.helpWhenTitle')} description={t('audit.helpWhenDescription')} />
@@ -74,53 +77,55 @@ export function AuditPage() {
         </div>
       </Card>
 
-      <Card className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <SelectField
-            label={t('audit.filterEntityType')}
-            options={entityOptions}
-            value={draftFilters.entityType}
-            allLabel={t('common.all')}
-            onChange={(value) => setDraftFilters((current) => ({ ...current, entityType: value }))}
-          />
-          <SelectField
-            label={t('audit.filterAction')}
-            options={actionOptions}
-            value={draftFilters.action}
-            allLabel={t('common.all')}
-            onChange={(value) => setDraftFilters((current) => ({ ...current, action: value }))}
-          />
-          <FilterField
-            label={t('audit.filterActor')}
-            value={draftFilters.actor}
-            onChange={(value) => setDraftFilters((current) => ({ ...current, actor: value }))}
-          />
-          <DateField
-            label={t('audit.fromDate')}
-            value={draftFilters.fromDate}
-            onChange={(value) => setDraftFilters((current) => ({ ...current, fromDate: value }))}
-          />
-          <DateField
-            label={t('audit.toDate')}
-            value={draftFilters.toDate}
-            onChange={(value) => setDraftFilters((current) => ({ ...current, toDate: value }))}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => {
-            setPage(0)
-            setAppliedFilters(draftFilters)
-          }}>
-            {t('common.apply')}
-          </Button>
-          <Button className="bg-secondary text-secondary-foreground" onClick={() => {
-            setPage(0)
-            setDraftFilters(initialFilters)
-            setAppliedFilters(initialFilters)
-          }}>
-            {t('common.clear')}
-          </Button>
-        </div>
+      <Card>
+        <MobileDisclosure defaultOpen={false} isMobile={isPhone} title={t('items.filtersTitle')}>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <SelectField
+              label={t('audit.filterEntityType')}
+              options={entityOptions}
+              value={draftFilters.entityType}
+              allLabel={t('common.all')}
+              onChange={(value) => setDraftFilters((current) => ({ ...current, entityType: value }))}
+            />
+            <SelectField
+              label={t('audit.filterAction')}
+              options={actionOptions}
+              value={draftFilters.action}
+              allLabel={t('common.all')}
+              onChange={(value) => setDraftFilters((current) => ({ ...current, action: value }))}
+            />
+            <FilterField
+              label={t('audit.filterActor')}
+              value={draftFilters.actor}
+              onChange={(value) => setDraftFilters((current) => ({ ...current, actor: value }))}
+            />
+            <DateField
+              label={t('audit.fromDate')}
+              value={draftFilters.fromDate}
+              onChange={(value) => setDraftFilters((current) => ({ ...current, fromDate: value }))}
+            />
+            <DateField
+              label={t('audit.toDate')}
+              value={draftFilters.toDate}
+              onChange={(value) => setDraftFilters((current) => ({ ...current, toDate: value }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Button className="w-full sm:w-auto" onClick={() => {
+              setPage(0)
+              setAppliedFilters(draftFilters)
+            }}>
+              {t('common.apply')}
+            </Button>
+            <Button className="w-full bg-secondary text-secondary-foreground sm:w-auto" onClick={() => {
+              setPage(0)
+              setDraftFilters(initialFilters)
+              setAppliedFilters(initialFilters)
+            }}>
+              {t('common.clear')}
+            </Button>
+          </div>
+        </MobileDisclosure>
       </Card>
 
       {auditQuery.isError && <Notice variant="error">{auditQuery.error.message}</Notice>}
@@ -158,15 +163,16 @@ export function AuditPage() {
               totalPages: Math.max(auditQuery.data.totalPages, 1),
             })}
           </p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
-              className="bg-secondary text-secondary-foreground"
+              className="w-full bg-secondary text-secondary-foreground sm:w-auto"
               disabled={page <= 0}
               onClick={() => setPage((current) => Math.max(current - 1, 0))}
             >
               {t('common.back')}
             </Button>
             <Button
+              className="w-full sm:w-auto"
               disabled={page + 1 >= (auditQuery.data.totalPages || 1)}
               onClick={() => setPage((current) => current + 1)}
             >

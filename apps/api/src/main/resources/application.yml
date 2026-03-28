@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   application:
@@ -32,11 +32,13 @@ management:
       show-details: always
 
 app:
+  env: ${APP_ENV:local}
   base-url: ${APP_BASE_URL:http://localhost:8080}
   access-token-minutes: 30
   refresh-token-days: 14
   jwt-access-secret: ${JWT_ACCESS_SECRET:tuinventario-access-secret-change-me}
   jwt-refresh-secret: ${JWT_REFRESH_SECRET:tuinventario-refresh-secret-change-me}
+  demo-seed-enabled: ${APP_DEMO_SEED_ENABLED:}
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
 
 springdoc:

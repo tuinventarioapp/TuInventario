@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { queryClient } from '../app/query-client'
+import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { canManageBorrowers } from '../lib/access'
 import { api } from '../lib/api'
@@ -26,6 +28,7 @@ type FormValues = {
 export function BorrowersPage() {
   const { t } = useI18n()
   const user = useAuthStore((state) => state.user)
+  const isPhone = useIsMobile()
   const [editingBorrower, setEditingBorrower] = useState<Borrower | null>(null)
   const schema = z.object({
     name: z.string().min(3, t('validation.name')),
@@ -97,38 +100,43 @@ export function BorrowersPage() {
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
-          <form
-            className="space-y-3"
-            onSubmit={form.handleSubmit((values) => {
-              if (editingBorrower) updateMutation.mutate(values)
-              else createMutation.mutate(values)
-            })}
+          <MobileDisclosure
+            defaultOpen
+            isMobile={isPhone}
+            title={editingBorrower ? t('borrowers.editTitle') : t('borrowers.createTitle')}
           >
-            <h2 className="text-lg font-semibold text-slate-950">{editingBorrower ? t('borrowers.editTitle') : t('borrowers.createTitle')}</h2>
-            <Field label={t('common.name')} error={form.formState.errors.name?.message}>
-              <Input {...form.register('name')} />
-            </Field>
-            <Field label={t('common.email')} error={form.formState.errors.email?.message}>
-              <Input {...form.register('email')} />
-            </Field>
-            <Field label={t('common.phone')}>
-              <Input {...form.register('phone')} />
-            </Field>
-            <Field label={t('common.notes')} hint={t('borrowers.notesHelp')}>
-              <Input {...form.register('notes')} />
-            </Field>
+            <form
+              className="space-y-3"
+              onSubmit={form.handleSubmit((values) => {
+                if (editingBorrower) updateMutation.mutate(values)
+                else createMutation.mutate(values)
+              })}
+            >
+              <Field label={t('common.name')} error={form.formState.errors.name?.message}>
+                <Input {...form.register('name')} />
+              </Field>
+              <Field label={t('common.email')} error={form.formState.errors.email?.message}>
+                <Input {...form.register('email')} />
+              </Field>
+              <Field label={t('common.phone')}>
+                <Input {...form.register('phone')} />
+              </Field>
+              <Field label={t('common.notes')} hint={t('borrowers.notesHelp')}>
+                <Input {...form.register('notes')} />
+              </Field>
 
-            <div className="flex gap-2">
-              <Button className="flex-1" disabled={createMutation.isPending || updateMutation.isPending} type="submit">
-                {editingBorrower ? t('borrowers.update') : t('borrowers.submit')}
-              </Button>
-              {editingBorrower && (
-                <Button className="flex-1 bg-secondary text-secondary-foreground" type="button" onClick={() => setEditingBorrower(null)}>
-                  {t('common.cancel')}
+              <div className={editingBorrower ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
+                <Button className="flex-1" disabled={createMutation.isPending || updateMutation.isPending} type="submit">
+                  {editingBorrower ? t('borrowers.update') : t('borrowers.submit')}
                 </Button>
-              )}
-            </div>
-          </form>
+                {editingBorrower && (
+                  <Button className="flex-1 bg-secondary text-secondary-foreground" type="button" onClick={() => setEditingBorrower(null)}>
+                    {t('common.cancel')}
+                  </Button>
+                )}
+              </div>
+            </form>
+          </MobileDisclosure>
         </Card>
         <Card>
           <div className="space-y-3">
@@ -140,9 +148,10 @@ export function BorrowersPage() {
                     <p className="text-sm text-slate-500">{borrower.email ?? t('common.notAvailable')} - {borrower.phone ?? t('common.notAvailable')}</p>
                     {borrower.notes && <p className="mt-2 text-sm text-slate-600">{borrower.notes}</p>}
                   </div>
-                  <div className="flex gap-2">
-                    <Button className="bg-secondary text-secondary-foreground" onClick={() => setEditingBorrower(borrower)}>{t('common.edit')}</Button>
+                  <div className="flex w-full flex-wrap gap-2 md:w-auto">
+                    <Button className="flex-1 bg-secondary text-secondary-foreground md:flex-none" onClick={() => setEditingBorrower(borrower)}>{t('common.edit')}</Button>
                     <Button
+                      className="flex-1 md:flex-none"
                       onClick={() => {
                         if (window.confirm(t('borrowers.deleteConfirm'))) {
                           deleteMutation.mutate(borrower.id)

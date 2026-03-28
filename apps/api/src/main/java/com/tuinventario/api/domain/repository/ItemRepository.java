@@ -44,7 +44,7 @@ public interface ItemRepository extends JpaRepository<ItemEntity, UUID> {
                     or (:stockFilter = 'RESERVED' and i.reservedStock > 0)
                     or (:stockFilter = 'DAMAGED' and i.damagedStock > 0)
                   )
-            order by i.updatedAt desc
+            order by i.updatedAt desc, i.id desc
             """)
     Page<ItemEntity> search(
             @Param("organizationId") UUID organizationId,

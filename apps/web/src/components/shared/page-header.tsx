@@ -12,8 +12,8 @@ export function PageHeader({
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
         <p className="text-sm text-slate-600">{description}</p>
       </div>
-      {action}
-      {children}
+      {action ? <div className="w-full md:w-auto">{action}</div> : null}
+      {children ? <div className="w-full md:w-auto">{children}</div> : null}
     </div>
   )
 }

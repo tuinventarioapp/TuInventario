@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -36,6 +37,12 @@ public class GlobalExceptionHandler {
     ResponseEntity<ErrorResponse> handleConstraint(ConstraintViolationException exception) {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("VALIDATION_ERROR", exception.getMessage(), Map.of(), Instant.now()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse("INVALID_JSON", "El cuerpo JSON de la solicitud no es valido.", Map.of(), Instant.now()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

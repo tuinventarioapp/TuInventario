@@ -5,14 +5,18 @@
 - proveedor objetivo: Vercel;
 - build desde `apps/web`;
 - variables apuntando a backend de staging o produccion;
-- revisar CORS y URL de WebSocket.
+- revisar CORS y URL de WebSocket;
+- usar `https://` para API y `wss://` para WebSocket en internet.
 
 ## Backend
 
 - proveedor objetivo: Render;
 - build de Spring Boot;
 - migraciones al inicio del arranque o como job controlado;
-- variables seguras por entorno.
+- variables seguras por entorno;
+- definir `APP_ENV=production`;
+- definir `APP_DEMO_SEED_ENABLED=false`;
+- configurar `FRONTEND_ORIGIN` con el dominio final del frontend o una lista separada por comas.
 
 ## Base de datos
 

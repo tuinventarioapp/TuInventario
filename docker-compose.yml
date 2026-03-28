@@ -21,6 +21,7 @@ services:
       dockerfile: Dockerfile
     environment:
       APP_ENV: ${APP_ENV:-local}
+      APP_DEMO_SEED_ENABLED: ${APP_DEMO_SEED_ENABLED:-true}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
       DB_HOST: db
       DB_PORT: ${DB_PORT:-5432}

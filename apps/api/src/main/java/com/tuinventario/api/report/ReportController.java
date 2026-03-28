@@ -18,6 +18,8 @@ import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.shared.exception.ApiException;
 import com.tuinventario.api.shared.service.CurrentContextService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -48,6 +50,7 @@ import java.util.stream.Collectors;
 public class ReportController {
 
     private static final MediaType CSV_UTF8 = new MediaType("text", "csv", StandardCharsets.UTF_8);
+    private static final int ITEM_BATCH_SIZE = 250;
 
     private final CurrentContextService currentContextService;
     private final ItemRepository itemRepository;
@@ -266,13 +269,25 @@ public class ReportController {
     }
 
     private List<ItemEntity> scopedItems(UUID effectiveLocationId, ReportRange range) {
-        return itemRepository.search(currentContextService.currentUser().organizationId(), "", org.springframework.data.domain.PageRequest.of(0, 1000))
+        return fetchAllItems(currentContextService.currentUser().organizationId())
                 .stream()
                 .filter(item -> effectiveLocationId == null || item.getPrimaryLocation().getId().equals(effectiveLocationId))
                 .filter(item -> matchesRange(resolveItemActivityAt(item), range))
                 .sorted(Comparator.comparing((ItemEntity item) -> item.getPrimaryLocation().getName())
                         .thenComparing(ItemEntity::getName))
                 .toList();
+    }
+
+    private List<ItemEntity> fetchAllItems(UUID organizationId) {
+        List<ItemEntity> items = new ArrayList<>();
+        Page<ItemEntity> currentPage;
+        int page = 0;
+        do {
+            currentPage = itemRepository.search(organizationId, "", PageRequest.of(page, ITEM_BATCH_SIZE));
+            items.addAll(currentPage.getContent());
+            page++;
+        } while (currentPage.hasNext());
+        return items;
     }
 
     private List<LoanEntity> scopedLoans(UUID effectiveLocationId, ReportRange range) {

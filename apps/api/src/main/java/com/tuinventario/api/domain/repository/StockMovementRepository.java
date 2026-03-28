@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface StockMovementRepository extends JpaRepository<StockMovementEntity, UUID> {
+    java.util.Optional<StockMovementEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
     Page<StockMovementEntity> findByOrganizationIdOrderByOccurredAtDesc(UUID organizationId, Pageable pageable);
     List<StockMovementEntity> findByOrganizationIdOrderByOccurredAtDesc(UUID organizationId);
     @Query("""

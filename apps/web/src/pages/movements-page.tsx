@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { queryClient } from '../app/query-client'
+import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { canManageInventory, isAdmin } from '../lib/access'
 import { api } from '../lib/api'
@@ -57,6 +59,7 @@ function isoDateFromToday(daysBack: number) {
 export function MovementsPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
+  const isPhone = useIsMobile()
   const canEditInventory = canManageInventory(user?.role)
   const isGlobalAdmin = isAdmin(user?.role)
   const [locationFilterId, setLocationFilterId] = useState('')
@@ -163,74 +166,81 @@ export function MovementsPage() {
       <div className={`grid gap-6 ${canEditInventory ? 'xl:grid-cols-[360px_1fr]' : ''}`}>
         {canEditInventory && (
           <Card>
-            <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate({
-              movementType: values.movementType,
-              itemId: values.itemId,
-              quantity: values.quantity,
-              targetLocationId: values.movementType === 'TRANSFER' ? values.targetLocationId : undefined,
-              reason: values.reason,
-              notes: values.notes,
-            }))}>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('movements.type')}</label>
-                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('movementType')}>
-                  {(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER'] as const).map((type) => <option key={type} value={type}>{enumLabel('movementType', type)}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('movements.itemSearch')}</label>
-                <Input
-                  value={itemSearch}
-                  placeholder={t('movements.itemSearchPlaceholder')}
-                  onChange={(event) => setItemSearch(event.target.value)}
-                />
-                <p className="text-xs text-slate-500">{t('movements.itemSearchHelp')}</p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('movements.itemLabel')}</label>
-                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('itemId')}>
-                  <option value="">{t('movements.selectItem')}</option>
-                  {itemsQuery.data?.content.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} - {item.sku} - {item.primaryLocation}
-                    </option>
-                  ))}
-                </select>
-                {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('common.quantity')}</label>
-                <Input type="number" step="1" {...register('quantity')} />
-                {errors.quantity && <p className="text-sm text-red-600">{errors.quantity.message}</p>}
-              </div>
-
-              {movementType === 'TRANSFER' && (
+            <MobileDisclosure
+              defaultOpen
+              description={t('movements.description')}
+              isMobile={isPhone}
+              title={t('movements.submit')}
+            >
+              <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate({
+                movementType: values.movementType,
+                itemId: values.itemId,
+                quantity: values.quantity,
+                targetLocationId: values.movementType === 'TRANSFER' ? values.targetLocationId : undefined,
+                reason: values.reason,
+                notes: values.notes,
+              }))}>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">{t('movements.target')}</label>
-                  <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('targetLocationId')}>
-                    <option value="">{t('movements.selectTarget')}</option>
-                    {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                  <label className="text-sm font-medium">{t('movements.type')}</label>
+                  <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('movementType')}>
+                    {(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER'] as const).map((type) => <option key={type} value={type}>{enumLabel('movementType', type)}</option>)}
                   </select>
-                  {errors.targetLocationId && <p className="text-sm text-red-600">{errors.targetLocationId.message}</p>}
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('movements.reason')}</label>
-                <Input {...register('reason')} />
-                {errors.reason && <p className="text-sm text-red-600">{errors.reason.message}</p>}
-              </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('movements.itemSearch')}</label>
+                  <Input
+                    value={itemSearch}
+                    placeholder={t('movements.itemSearchPlaceholder')}
+                    onChange={(event) => setItemSearch(event.target.value)}
+                  />
+                  <p className="text-xs text-slate-500">{t('movements.itemSearchHelp')}</p>
+                </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t('common.notes')}</label>
-                <Input {...register('notes')} />
-              </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('movements.itemLabel')}</label>
+                  <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('itemId')}>
+                    <option value="">{t('movements.selectItem')}</option>
+                    {itemsQuery.data?.content.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} - {item.sku} - {item.primaryLocation}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
+                </div>
 
-              <Button className="w-full" type="submit">{t('movements.submit')}</Button>
-            </form>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('common.quantity')}</label>
+                  <Input type="number" step="1" {...register('quantity')} />
+                  {errors.quantity && <p className="text-sm text-red-600">{errors.quantity.message}</p>}
+                </div>
+
+                {movementType === 'TRANSFER' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('movements.target')}</label>
+                    <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('targetLocationId')}>
+                      <option value="">{t('movements.selectTarget')}</option>
+                      {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                    </select>
+                    {errors.targetLocationId && <p className="text-sm text-red-600">{errors.targetLocationId.message}</p>}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('movements.reason')}</label>
+                  <Input {...register('reason')} />
+                  {errors.reason && <p className="text-sm text-red-600">{errors.reason.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('common.notes')}</label>
+                  <Input {...register('notes')} />
+                </div>
+
+                <Button className="w-full" type="submit">{t('movements.submit')}</Button>
+              </form>
+            </MobileDisclosure>
           </Card>
         )}
 
@@ -242,55 +252,61 @@ export function MovementsPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <div className="space-y-2 xl:col-span-2">
-              <label className="text-sm font-medium">{t('common.search')}</label>
-              <Input
-                value={draftFilters.query}
-                placeholder={t('movements.historySearchPlaceholder')}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))}
-              />
+          <MobileDisclosure
+            defaultOpen={false}
+            isMobile={isPhone}
+            title={t('items.filtersTitle')}
+          >
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-2 xl:col-span-2">
+                <label className="text-sm font-medium">{t('common.search')}</label>
+                <Input
+                  value={draftFilters.query}
+                  placeholder={t('movements.historySearchPlaceholder')}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, query: event.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('movements.type')}</label>
+                <select
+                  className="h-11 w-full rounded-xl border border-border bg-white px-3"
+                  value={draftFilters.movementType}
+                  onChange={(event) => setDraftFilters((current) => ({ ...current, movementType: event.target.value }))}
+                >
+                  <option value="">{t('common.all')}</option>
+                  {(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER'] as const).map((type) => <option key={type} value={type}>{enumLabel('movementType', type)}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('movements.minQuantity')}</label>
+                <Input type="number" min="0" step="0.01" value={draftFilters.minQuantity} onChange={(event) => setDraftFilters((current) => ({ ...current, minQuantity: event.target.value }))} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('movements.maxQuantity')}</label>
+                <Input type="number" min="0" step="0.01" value={draftFilters.maxQuantity} onChange={(event) => setDraftFilters((current) => ({ ...current, maxQuantity: event.target.value }))} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('movements.fromDate')}</label>
+                <Input type="date" value={draftFilters.fromDate} onChange={(event) => setDraftFilters((current) => ({ ...current, fromDate: event.target.value }))} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('movements.toDate')}</label>
+                <Input type="date" value={draftFilters.toDate} onChange={(event) => setDraftFilters((current) => ({ ...current, toDate: event.target.value }))} />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('movements.type')}</label>
-              <select
-                className="h-11 w-full rounded-xl border border-border bg-white px-3"
-                value={draftFilters.movementType}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, movementType: event.target.value }))}
-              >
-                <option value="">{t('common.all')}</option>
-                {(['ENTRY', 'EXIT', 'ADJUSTMENT', 'TRANSFER'] as const).map((type) => <option key={type} value={type}>{enumLabel('movementType', type)}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <Button className="w-full sm:w-auto" onClick={() => applyFilters(draftFilters)}>{t('common.apply')}</Button>
+              <Button className="w-full bg-secondary text-secondary-foreground sm:w-auto" onClick={clearFilters}>{t('common.clear')}</Button>
+              <Button className="w-full bg-secondary text-secondary-foreground sm:w-auto" onClick={() => applyQuickRange(6)}>{t('movements.quickLast7')}</Button>
+              <Button className="w-full bg-secondary text-secondary-foreground sm:w-auto" onClick={() => applyQuickRange(29)}>{t('movements.quickLast30')}</Button>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('movements.minQuantity')}</label>
-              <Input type="number" min="0" step="0.01" value={draftFilters.minQuantity} onChange={(event) => setDraftFilters((current) => ({ ...current, minQuantity: event.target.value }))} />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('movements.maxQuantity')}</label>
-              <Input type="number" min="0" step="0.01" value={draftFilters.maxQuantity} onChange={(event) => setDraftFilters((current) => ({ ...current, maxQuantity: event.target.value }))} />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('movements.fromDate')}</label>
-              <Input type="date" value={draftFilters.fromDate} onChange={(event) => setDraftFilters((current) => ({ ...current, fromDate: event.target.value }))} />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('movements.toDate')}</label>
-              <Input type="date" value={draftFilters.toDate} onChange={(event) => setDraftFilters((current) => ({ ...current, toDate: event.target.value }))} />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => applyFilters(draftFilters)}>{t('common.apply')}</Button>
-            <Button className="bg-secondary text-secondary-foreground" onClick={clearFilters}>{t('common.clear')}</Button>
-            <Button className="bg-secondary text-secondary-foreground" onClick={() => applyQuickRange(6)}>{t('movements.quickLast7')}</Button>
-            <Button className="bg-secondary text-secondary-foreground" onClick={() => applyQuickRange(29)}>{t('movements.quickLast30')}</Button>
-          </div>
+          </MobileDisclosure>
 
           {movementsQuery.isError && <Notice variant="error">{movementsQuery.error.message}</Notice>}
 
@@ -304,7 +320,7 @@ export function MovementsPage() {
                   </div>
                   <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium">{enumLabel('movementType', movement.movementType)}</span>
                 </div>
-                <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+                <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                   <p>{t('common.quantity')}: <strong>{quantityWithUnit(movement.quantity, movement.unitSymbol)}</strong></p>
                   <p>{t('movements.responsible')}: <strong>{movement.performedBy}</strong></p>
                   <p>{t('movements.source')}: <strong>{movement.sourceLocation ?? t('movements.notApplicable')}</strong></p>
@@ -319,15 +335,16 @@ export function MovementsPage() {
           {!!movementsQuery.data?.content.length && (
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-slate-600">{t('items.pagination', { page: page + 1, totalPages: Math.max(totalPages, 1) })}</p>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <Button
-                  className="bg-secondary text-secondary-foreground"
+                  className="w-full bg-secondary text-secondary-foreground sm:w-auto"
                   disabled={page <= 0}
                   onClick={() => setPage((current) => Math.max(current - 1, 0))}
                 >
                   {t('common.back')}
                 </Button>
                 <Button
+                  className="w-full sm:w-auto"
                   disabled={page + 1 >= totalPages}
                   onClick={() => setPage((current) => current + 1)}
                 >

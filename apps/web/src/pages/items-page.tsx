@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 
+import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { canManageInventory, isAdmin } from '../lib/access'
 import { api } from '../lib/api'
@@ -27,8 +29,12 @@ function isAtMinimumStock(availableStock: number, minimumStock: number) {
 export function ItemsPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
+  const isPhone = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [draftQuery, setDraftQuery] = useState(searchParams.get('query') ?? '')
+  const [draftQueryState, setDraftQueryState] = useState(() => ({
+    source: searchParams.get('query') ?? '',
+    value: searchParams.get('query') ?? '',
+  }))
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [sortBy, setSortBy] = useState<'name' | 'available' | 'minimumStock' | 'lastMovement'>('name')
 
@@ -44,10 +50,7 @@ export function ItemsPage() {
     page: Number(searchParams.get('page') ?? '0'),
     size: 12,
   }), [searchParams])
-
-  useEffect(() => {
-    setDraftQuery(filters.query)
-  }, [filters.query])
+  const draftQuery = draftQueryState.source === filters.query ? draftQueryState.value : filters.query
 
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: api.categories })
   const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations })
@@ -76,7 +79,7 @@ export function ItemsPage() {
   }
 
   const clearFilters = () => {
-    setDraftQuery('')
+    setDraftQueryState({ source: '', value: '' })
     setSearchParams({})
   }
 
@@ -106,36 +109,35 @@ export function ItemsPage() {
         <Notice>{t('items.scopeNotice', { location: user.assignedLocationName })}</Notice>
       )}
 
-      <Card className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-950">{t('items.filtersTitle')}</h2>
-            <p className="text-sm text-slate-500">{t('items.resultSummary', {
-              count: itemsQuery.data?.totalElements ?? 0,
-            })}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button className={viewMode === 'cards' ? '' : 'bg-secondary text-secondary-foreground'} onClick={() => setViewMode('cards')}>{t('items.viewCards')}</Button>
-            <Button className={viewMode === 'table' ? '' : 'bg-secondary text-secondary-foreground'} onClick={() => setViewMode('table')}>{t('items.viewTable')}</Button>
-            <Button onClick={clearFilters} className="bg-secondary text-secondary-foreground">{t('common.clear')}</Button>
-          </div>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <Card>
+        <MobileDisclosure
+          actions={(
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+              <Button className={viewMode === 'cards' ? 'w-full sm:w-auto' : 'w-full bg-secondary text-secondary-foreground sm:w-auto'} onClick={() => setViewMode('cards')}>{t('items.viewCards')}</Button>
+              <Button className={viewMode === 'table' ? 'w-full sm:w-auto' : 'w-full bg-secondary text-secondary-foreground sm:w-auto'} onClick={() => setViewMode('table')}>{t('items.viewTable')}</Button>
+              <Button className="col-span-2 w-full bg-secondary text-secondary-foreground sm:col-auto sm:w-auto" onClick={clearFilters}>{t('common.clear')}</Button>
+            </div>
+          )}
+          defaultOpen={false}
+          description={t('items.resultSummary', { count: itemsQuery.data?.totalElements ?? 0 })}
+          isMobile={isPhone}
+          title={t('items.filtersTitle')}
+        >
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-2 xl:col-span-2">
             <label className="text-sm font-medium">{t('common.search')}</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 value={draftQuery}
                 placeholder={t('items.searchPlaceholder')}
-                onChange={(event) => setDraftQuery(event.target.value)}
+                onChange={(event) => setDraftQueryState({ source: filters.query, value: event.target.value })}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     updateFilters({ query: draftQuery })
                   }
                 }}
               />
-              <Button onClick={() => updateFilters({ query: draftQuery })}>{t('common.apply')}</Button>
+              <Button className="w-full sm:w-auto" onClick={() => updateFilters({ query: draftQuery })}>{t('common.apply')}</Button>
             </div>
           </div>
 
@@ -211,7 +213,8 @@ export function ItemsPage() {
               <option value="lastMovement">{t('items.sort.lastMovement')}</option>
             </select>
           </div>
-        </div>
+          </div>
+        </MobileDisclosure>
       </Card>
 
       {itemsQuery.isError && <Notice variant="error">{itemsQuery.error.message}</Notice>}
@@ -235,7 +238,7 @@ export function ItemsPage() {
                   </div>
                   <Badge>{enumLabel('itemStatus', item.status)}</Badge>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
+                <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-2">
                   <p>{t('items.available')}: <strong className="text-slate-950">{stockWithUnit(item.availableStock, item.unit)}</strong></p>
                   <p>{t('items.reserved')}: <strong className="text-slate-950">{stockWithUnit(item.reservedStock, item.unit)}</strong></p>
                   <p>{t('items.loaned')}: <strong className="text-slate-950">{stockWithUnit(item.loanedStock, item.unit)}</strong></p>
@@ -251,7 +254,7 @@ export function ItemsPage() {
         </div>
       ) : (
         <Card className="overflow-x-auto p-0">
-          <table className="min-w-full divide-y divide-slate-200">
+          <table className="min-w-[720px] divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-3">{t('common.name')}</th>
@@ -292,15 +295,16 @@ export function ItemsPage() {
       {!!itemsQuery.data?.content.length && (
         <Card className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <p className="text-sm text-slate-600">{t('items.pagination', { page: currentPage + 1, totalPages: Math.max(totalPages, 1) })}</p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
-              className="bg-secondary text-secondary-foreground"
+              className="w-full bg-secondary text-secondary-foreground sm:w-auto"
               disabled={currentPage <= 0}
               onClick={() => updateFilters({ page: String(Math.max(currentPage - 1, 0)) }, false)}
             >
               {t('common.back')}
             </Button>
             <Button
+              className="w-full sm:w-auto"
               disabled={currentPage + 1 >= totalPages}
               onClick={() => updateFilters({ page: String(currentPage + 1) }, false)}
             >

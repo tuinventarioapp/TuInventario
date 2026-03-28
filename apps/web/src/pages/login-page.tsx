@@ -27,7 +27,7 @@ export function LoginPage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: 'admin@admin.com', password: 'admin123' },
+    defaultValues: { email: '', password: '' },
   })
 
   const mutation = useMutation({

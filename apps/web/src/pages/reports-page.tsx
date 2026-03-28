@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { isAdmin } from '../lib/access'
 import { api } from '../lib/api'
@@ -17,6 +19,7 @@ export function ReportsPage() {
   const { t } = useI18n()
   const user = useAuthStore((state) => state.user)
   const language = useUiStore((state) => state.language)
+  const isPhone = useIsMobile()
   const isGlobalAdmin = isAdmin(user?.role)
   const [status, setStatus] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
@@ -74,45 +77,51 @@ export function ReportsPage() {
       {status && <Notice variant={status.kind}>{status.message}</Notice>}
       {!isGlobalAdmin && user?.assignedLocationName && <Notice>{t('reports.scopeNotice', { location: user.assignedLocationName })}</Notice>}
 
-      <Card className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <PresetButton label={t('reports.quickToday')} onClick={() => applyPreset('today', setFromDate, setToDate)} />
-          <PresetButton label={t('reports.quickLast7')} onClick={() => applyPreset('last7', setFromDate, setToDate)} />
-          <PresetButton label={t('reports.quickLast30')} onClick={() => applyPreset('last30', setFromDate, setToDate)} />
-          <PresetButton label={t('reports.quickThisMonth')} onClick={() => applyPreset('month', setFromDate, setToDate)} />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {isGlobalAdmin && (
+      <Card>
+        <MobileDisclosure
+          defaultOpen={false}
+          description={t('reports.periodHelp')}
+          isMobile={isPhone}
+          title={t('items.filtersTitle')}
+        >
+          <div className="grid gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap">
+            <PresetButton label={t('reports.quickToday')} onClick={() => applyPreset('today', setFromDate, setToDate)} />
+            <PresetButton label={t('reports.quickLast7')} onClick={() => applyPreset('last7', setFromDate, setToDate)} />
+            <PresetButton label={t('reports.quickLast30')} onClick={() => applyPreset('last30', setFromDate, setToDate)} />
+            <PresetButton label={t('reports.quickThisMonth')} onClick={() => applyPreset('month', setFromDate, setToDate)} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {isGlobalAdmin && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('items.location')}</label>
+                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={locationId} onChange={(event) => setLocationId(event.target.value)}>
+                  <option value="">{t('common.all')}</option>
+                  {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t('items.location')}</label>
-              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={locationId} onChange={(event) => setLocationId(event.target.value)}>
-                <option value="">{t('common.all')}</option>
-                {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-              </select>
+              <label className="text-sm font-medium">{t('reports.fromDate')}</label>
+              <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
             </div>
-          )}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{t('reports.fromDate')}</label>
-            <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('reports.toDate')}</label>
+              <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
+            </div>
+            <div className="flex items-end">
+              <Button className="w-full bg-secondary text-secondary-foreground" onClick={() => {
+                setLocationId('')
+                setFromDate('')
+                setToDate('')
+              }}>
+                {t('common.clear')}
+              </Button>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{t('reports.toDate')}</label>
-            <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
-          </div>
-          <div className="flex items-end">
-            <Button className="w-full bg-secondary text-secondary-foreground" onClick={() => {
-              setLocationId('')
-              setFromDate('')
-              setToDate('')
-            }}>
-              {t('common.clear')}
-            </Button>
-          </div>
-        </div>
-        <p className="text-sm text-slate-500">{t('reports.periodHelp')}</p>
+        </MobileDisclosure>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {isGlobalAdmin && (
           <>
             <ReportCard
@@ -191,7 +200,7 @@ function applyPreset(
 
 function PresetButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <Button className="bg-secondary text-secondary-foreground" onClick={onClick}>
+    <Button className="w-full bg-secondary text-secondary-foreground xl:w-auto" onClick={onClick}>
       {label}
     </Button>
   )
@@ -214,7 +223,7 @@ function ReportCard({
     <Card className="space-y-4">
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="text-sm text-slate-500">{help}</p>
-      <Button disabled={disabled} onClick={onDownload}>
+      <Button className="w-full" disabled={disabled} onClick={onDownload}>
         {t('common.download')}
       </Button>
     </Card>

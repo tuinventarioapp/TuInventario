@@ -1,6 +1,13 @@
 package com.tuinventario.api.audit;
 
+import com.tuinventario.api.domain.entity.AuditLogEntity;
+import com.tuinventario.api.domain.entity.StockMovementEntity;
+import com.tuinventario.api.domain.repository.ItemRepository;
 import com.tuinventario.api.domain.repository.AuditLogRepository;
+import com.tuinventario.api.domain.repository.LoanItemRepository;
+import com.tuinventario.api.domain.repository.LoanRepository;
+import com.tuinventario.api.domain.repository.LoanRequestRepository;
+import com.tuinventario.api.domain.repository.StockMovementRepository;
 import com.tuinventario.api.shared.exception.ApiException;
 import com.tuinventario.api.shared.model.PageResponse;
 import com.tuinventario.api.shared.service.CurrentContextService;
@@ -17,6 +24,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/audit")
@@ -25,6 +33,11 @@ public class AuditController {
 
     private final AuditLogRepository auditLogRepository;
     private final CurrentContextService currentContextService;
+    private final ItemRepository itemRepository;
+    private final StockMovementRepository stockMovementRepository;
+    private final LoanRequestRepository loanRequestRepository;
+    private final LoanRepository loanRepository;
+    private final LoanItemRepository loanItemRepository;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -43,10 +56,12 @@ public class AuditController {
         String normalizedActor = normalize(actor);
         Instant fromInstant = toInstant(fromDate);
         Instant toExclusiveInstant = toExclusiveInstant(toDate);
+        UUID organizationId = currentContextService.currentUser().organizationId();
 
         List<AuditEntryResponse> filtered = auditLogRepository
-                .findByOrganizationIdOrderByCreatedAtDesc(currentContextService.currentUser().organizationId())
+                .findByOrganizationIdOrderByCreatedAtDesc(organizationId)
                 .stream()
+                .filter(this::hasAuditAccess)
                 .filter(entry -> containsIgnoreCase(entry.getEntityType(), normalizedEntityType))
                 .filter(entry -> containsIgnoreCase(entry.getAction(), normalizedAction))
                 .filter(entry -> containsIgnoreCase(entry.getActorUser() == null ? "Sistema" : entry.getActorUser().getFullName(), normalizedActor))
@@ -75,6 +90,47 @@ public class AuditController {
                 filtered.size(),
                 totalPages
         );
+    }
+
+    private boolean hasAuditAccess(AuditLogEntity entry) {
+        var currentUser = currentContextService.currentUser();
+        if (currentUser.isAdmin()) {
+            return true;
+        }
+        if (!currentUser.isManagerOrAdmin()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "INSUFFICIENT_PERMISSIONS", "No tienes permisos para consultar la auditoria.");
+        }
+        UUID assignedLocationId = currentUser.assignedLocationId();
+        if (assignedLocationId == null) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "LOCATION_SCOPE_REQUIRED", "El usuario debe estar asociado a una ubicacion para consultar la auditoria.");
+        }
+        UUID organizationId = currentUser.organizationId();
+        return switch (entry.getEntityType()) {
+            case "ITEM" -> itemRepository.findByIdAndOrganizationId(entry.getEntityId(), organizationId)
+                    .map(item -> hasLocationAccess(item.getPrimaryLocation().getId(), assignedLocationId))
+                    .orElse(false);
+            case "STOCK_MOVEMENT" -> stockMovementRepository.findByIdAndOrganizationId(entry.getEntityId(), organizationId)
+                    .map(movement -> hasLocationAccess(movement, assignedLocationId))
+                    .orElse(false);
+            case "LOAN_REQUEST" -> loanRequestRepository.findByIdAndOrganizationId(entry.getEntityId(), organizationId)
+                    .map(loanRequest -> hasLocationAccess(loanRequest.getItem().getPrimaryLocation().getId(), assignedLocationId))
+                    .orElse(false);
+            case "LOAN" -> loanRepository.findByIdAndOrganizationId(entry.getEntityId(), organizationId)
+                    .flatMap(loan -> loanItemRepository.findByLoanId(loan.getId()).stream().findFirst())
+                    .map(loanItem -> hasLocationAccess(loanItem.getItem().getPrimaryLocation().getId(), assignedLocationId))
+                    .orElse(false);
+            default -> false;
+        };
+    }
+
+    private boolean hasLocationAccess(StockMovementEntity movement, UUID assignedLocationId) {
+        return hasLocationAccess(movement.getItem().getPrimaryLocation().getId(), assignedLocationId)
+                || movement.getSourceLocation() != null && hasLocationAccess(movement.getSourceLocation().getId(), assignedLocationId)
+                || movement.getTargetLocation() != null && hasLocationAccess(movement.getTargetLocation().getId(), assignedLocationId);
+    }
+
+    private boolean hasLocationAccess(UUID locationId, UUID assignedLocationId) {
+        return assignedLocationId.equals(locationId);
     }
 
     private void validateRange(LocalDate fromDate, LocalDate toDate) {

@@ -3,6 +3,7 @@
 ## Backend
 
 - `APP_ENV`
+- `APP_DEMO_SEED_ENABLED`
 - `APP_BASE_URL`
 - `DB_HOST`
 - `DB_PORT`
@@ -11,6 +12,7 @@
 - `DB_PASSWORD`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
+- `FRONTEND_ORIGIN`
 - `MAIL_HOST`
 - `MAIL_PORT`
 - `MAIL_USER`
@@ -28,4 +30,6 @@
 - documentar default y obligatoriedad;
 - nunca hardcodear secretos;
 - separar `.env.local`, `.env.staging` y `.env.production`;
+- usar `APP_DEMO_SEED_ENABLED=false` en produccion para evitar usuarios demo;
+- `FRONTEND_ORIGIN` puede recibir uno o varios orígenes separados por coma, incluidos patrones si el hosting lo soporta;
 - mantener un `.env.example` actualizado.

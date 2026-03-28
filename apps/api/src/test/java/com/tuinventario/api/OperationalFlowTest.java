@@ -24,9 +24,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 
@@ -159,6 +162,71 @@ class OperationalFlowTest {
                         .param("toDate", today.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void shouldRestrictAuditByRoleAndLocationScope() throws Exception {
+        String localSku = "AUD-LOCAL-" + System.nanoTime();
+        String remoteSku = "AUD-REMOTE-" + System.nanoTime();
+        createItem("Item auditoria local " + System.nanoTime(), localSku, 1);
+        String remoteLocationId = createLocation("Sucursal auditoria " + System.nanoTime());
+        createItem("Item auditoria remota " + System.nanoTime(), remoteSku, 1, remoteLocationId);
+        createUser("audit.user." + System.nanoTime() + "@tuinventario.local", "COLLABORATOR");
+        LocalDate today = LocalDate.now();
+
+        mockMvc.perform(get("/api/v1/audit")
+                        .header("Authorization", "Bearer " + collaboratorToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("INSUFFICIENT_PERMISSIONS"));
+
+        String managerAudit = mockMvc.perform(get("/api/v1/audit")
+                        .header("Authorization", "Bearer " + managerToken)
+                        .param("entityType", "ITEM")
+                        .param("action", "ITEM_CREATED")
+                        .param("fromDate", today.toString())
+                        .param("toDate", today.toString()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(managerAudit.contains(localSku));
+        org.junit.jupiter.api.Assertions.assertFalse(managerAudit.contains(remoteSku));
+
+        mockMvc.perform(get("/api/v1/audit")
+                        .header("Authorization", "Bearer " + managerToken)
+                        .param("entityType", "USER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        String adminAudit = mockMvc.perform(get("/api/v1/audit")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("entityType", "ITEM")
+                        .param("action", "ITEM_CREATED")
+                        .param("fromDate", today.toString())
+                        .param("toDate", today.toString()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(adminAudit.contains(localSku));
+        org.junit.jupiter.api.Assertions.assertTrue(adminAudit.contains(remoteSku));
+    }
+
+    @Test
+    void shouldNotSilentlyTruncatePublicCatalogOrInventoryReport() throws Exception {
+        String markerName = createBulkItemsForCatalogAndReport(1005);
+
+        mockMvc.perform(get("/api/v1/public-items")
+                        .param("organizationId", organizationId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(markerName)));
+
+        mockMvc.perform(get("/api/v1/reports/inventory.csv")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(markerName)));
     }
 
     @Test
@@ -785,5 +853,40 @@ class OperationalFlowTest {
                     unit.setAllowsDecimal(false);
                     return unitRepository.save(unit);
                 });
+    }
+
+    private String createBulkItemsForCatalogAndReport(int totalItems) {
+        UUID organizationId = organizationId();
+        CategoryEntity category = ensureCategory(organizationId);
+        UnitEntity unit = ensureUnit(organizationId);
+        LocationEntity location = locationRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst();
+        List<ItemEntity> items = new ArrayList<>();
+        String markerName = null;
+
+        for (int index = 0; index < totalItems; index++) {
+            ItemEntity item = new ItemEntity();
+            item.setOrganization(organizationRepository.findById(organizationId).orElseThrow());
+            item.setCategory(category);
+            item.setUnit(unit);
+            item.setPrimaryLocation(location);
+            markerName = "Carga masiva " + System.nanoTime() + "-" + index;
+            item.setName(markerName);
+            item.setSku("MASS-" + System.nanoTime() + "-" + index);
+            item.setType(com.tuinventario.api.domain.enums.ItemType.LENDABLE);
+            item.setStatus(com.tuinventario.api.domain.enums.ItemStatus.AVAILABLE);
+            item.setConsumable(false);
+            item.setLendable(true);
+            item.setTotalStock(BigDecimal.ONE);
+            item.setAvailableStock(BigDecimal.ONE);
+            item.setReservedStock(BigDecimal.ZERO);
+            item.setLoanedStock(BigDecimal.ZERO);
+            item.setDamagedStock(BigDecimal.ZERO);
+            item.setMinimumStock(BigDecimal.ZERO);
+            item.setLastMovementAt(Instant.now());
+            items.add(item);
+        }
+
+        itemRepository.saveAll(items);
+        return markerName;
     }
 }

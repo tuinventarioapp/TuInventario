@@ -3,6 +3,7 @@
 ## Seguridad
 
 - secretos configurados por entorno;
+- `APP_DEMO_SEED_ENABLED=false` en produccion;
 - HTTPS activo;
 - rate limiting activo;
 - politicas de CORS revisadas;

@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { queryClient } from '../app/query-client'
+import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { isAdmin, isManagerOrAdmin } from '../lib/access'
 import { api } from '../lib/api'
@@ -113,7 +115,7 @@ function LoanFiltersPanel({
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <div className="space-y-2">
         <label className="text-sm font-medium">{t('items.category')}</label>
         <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={filters.categoryId} onChange={(event) => onChange({ categoryId: event.target.value })}>
@@ -170,6 +172,7 @@ function buildLoanEditDraft(loan: Loan): LoanEditDraft {
 export function LoansPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
+  const isPhone = useIsMobile()
   const canManageLoanLifecycle = isManagerOrAdmin(user?.role)
   const isGlobalAdmin = isAdmin(user?.role)
   const [locationFilterId, setLocationFilterId] = useState('')
@@ -370,58 +373,63 @@ export function LoansPage() {
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
-          <form className="space-y-4" onSubmit={handleSubmit((values) => createMutation.mutate(values))}>
-            <h2 className="text-lg font-semibold">{t('loans.newRequest')}</h2>
+          <MobileDisclosure
+            defaultOpen
+            description={t('loans.description')}
+            isMobile={isPhone}
+            title={t('loans.newRequest')}
+          >
+            <form className="space-y-4" onSubmit={handleSubmit((values) => createMutation.mutate(values))}>
+              {!borrowersQuery.data?.length && <Notice variant="warning">{t('loans.emptyBorrowers')}</Notice>}
+              {!availableItems.length && <Notice variant="warning">{t('loans.emptyItems')}</Notice>}
 
-            {!borrowersQuery.data?.length && <Notice variant="warning">{t('loans.emptyBorrowers')}</Notice>}
-            {!availableItems.length && <Notice variant="warning">{t('loans.emptyItems')}</Notice>}
+              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('borrowerId')}>
+                <option value="">{t('loans.selectBorrower')}</option>
+                {borrowersQuery.data?.map((borrower) => <option key={borrower.id} value={borrower.id}>{borrower.name}</option>)}
+              </select>
+              {errors.borrowerId && <p className="text-sm text-red-600">{errors.borrowerId.message}</p>}
 
-            <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('borrowerId')}>
-              <option value="">{t('loans.selectBorrower')}</option>
-              {borrowersQuery.data?.map((borrower) => <option key={borrower.id} value={borrower.id}>{borrower.name}</option>)}
-            </select>
-            {errors.borrowerId && <p className="text-sm text-red-600">{errors.borrowerId.message}</p>}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('movements.itemSearch')}</label>
+                <Input
+                  value={itemSearch}
+                  placeholder={t('movements.itemSearchPlaceholder')}
+                  onChange={(event) => setItemSearch(event.target.value)}
+                />
+                <p className="text-xs text-slate-500">{t('movements.itemSearchHelp')}</p>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('movements.itemSearch')}</label>
-              <Input
-                value={itemSearch}
-                placeholder={t('movements.itemSearchPlaceholder')}
-                onChange={(event) => setItemSearch(event.target.value)}
-              />
-              <p className="text-xs text-slate-500">{t('movements.itemSearchHelp')}</p>
-            </div>
+              <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('itemId')}>
+                <option value="">{t('loans.selectItem')}</option>
+                {availableItems.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.sku} - {item.primaryLocation}</option>)}
+              </select>
+              {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
 
-            <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('itemId')}>
-              <option value="">{t('loans.selectItem')}</option>
-              {availableItems.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.sku} - {item.primaryLocation}</option>)}
-            </select>
-            {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('common.quantity')}</label>
+                <Input type="number" min="1" step="1" {...register('quantity')} />
+              </div>
+              {errors.quantity && <p className="text-sm text-red-600">{errors.quantity.message}</p>}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('common.quantity')}</label>
-              <Input type="number" min="1" step="1" {...register('quantity')} />
-            </div>
-            {errors.quantity && <p className="text-sm text-red-600">{errors.quantity.message}</p>}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('loans.dueField')}</label>
+                <Input type="datetime-local" {...register('dueAt')} />
+                <p className="text-xs text-slate-500">{t('loans.dueHelp')}</p>
+              </div>
+              {errors.dueAt && <p className="text-sm text-red-600">{errors.dueAt.message}</p>}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('loans.dueField')}</label>
-              <Input type="datetime-local" {...register('dueAt')} />
-              <p className="text-xs text-slate-500">{t('loans.dueHelp')}</p>
-            </div>
-            {errors.dueAt && <p className="text-sm text-red-600">{errors.dueAt.message}</p>}
+              <Input placeholder={t('common.notes')} {...register('notes')} />
 
-            <Input placeholder={t('common.notes')} {...register('notes')} />
-
-            <Button className="w-full" disabled={createMutation.isPending || !borrowersQuery.data?.length || !availableItems.length} type="submit">
-              {t('loans.createRequest')}
-            </Button>
-          </form>
+              <Button className="w-full" disabled={createMutation.isPending || !borrowersQuery.data?.length || !availableItems.length} type="submit">
+                {t('loans.createRequest')}
+              </Button>
+            </form>
+          </MobileDisclosure>
         </Card>
 
         <div className="space-y-6">
           <Card className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <LoanSectionButton active={activeSection === 'requests'} label={t('loans.requestsTab', { count: requestItems.length })} onClick={() => setActiveSection('requests')} />
               <LoanSectionButton active={activeSection === 'active'} label={t('loans.activeTab', { count: activeLoans.length })} onClick={() => setActiveSection('active')} />
               <LoanSectionButton active={activeSection === 'closed'} label={t('loans.closedTab', { count: closedLoans.length })} onClick={() => setActiveSection('closed')} />
@@ -431,18 +439,20 @@ export function LoansPage() {
 
           {activeSection === 'requests' && (
             <Card className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">{t('loans.requests')}</h2>
-              <p className="text-sm text-slate-600">{t('loans.requestsSummary', { count: requestItems.length })}</p>
-            </div>
-            <LoanFiltersPanel
-              categories={categoriesQuery.data ?? []}
-              filters={requestFilters}
-              fromLabel={t('loans.requestedFrom')}
-              toLabel={t('loans.requestedTo')}
-              onChange={(patch) => setRequestFilters((current) => ({ ...current, ...patch }))}
-              t={t}
-            />
+              <div>
+                <h2 className="text-lg font-semibold">{t('loans.requests')}</h2>
+                <p className="text-sm text-slate-600">{t('loans.requestsSummary', { count: requestItems.length })}</p>
+              </div>
+              <MobileDisclosure defaultOpen={false} isMobile={isPhone} title={t('items.filtersTitle')}>
+                <LoanFiltersPanel
+                  categories={categoriesQuery.data ?? []}
+                  filters={requestFilters}
+                  fromLabel={t('loans.requestedFrom')}
+                  toLabel={t('loans.requestedTo')}
+                  onChange={(patch) => setRequestFilters((current) => ({ ...current, ...patch }))}
+                  t={t}
+                />
+              </MobileDisclosure>
             <div className="space-y-3">
               {requestItems.length ? requestItems.map((request) => (
                 <div key={request.id} className="rounded-2xl border border-border p-4">
@@ -455,7 +465,7 @@ export function LoansPage() {
                       {request.notes && <p className="mt-2 text-sm text-slate-600">{request.notes}</p>}
                     </div>
                     {canManageLoanLifecycle && (
-                      <Button disabled={approveMutation.isPending} onClick={() => approveMutation.mutate(request.id)}>
+                      <Button className="w-full md:w-auto" disabled={approveMutation.isPending} onClick={() => approveMutation.mutate(request.id)}>
                         {t('loans.approve')}
                       </Button>
                     )}
@@ -473,14 +483,16 @@ export function LoansPage() {
               <h2 className="text-lg font-semibold">{t('loans.active')}</h2>
               <p className="text-sm text-slate-600">{t('loans.activeSummary', { count: activeLoans.length })}</p>
             </div>
-            <LoanFiltersPanel
-              categories={categoriesQuery.data ?? []}
-              filters={activeFilters}
-              fromLabel={t('loans.dueFrom')}
-              toLabel={t('loans.dueTo')}
-              onChange={(patch) => setActiveFilters((current) => ({ ...current, ...patch }))}
-              t={t}
-            />
+            <MobileDisclosure defaultOpen={false} isMobile={isPhone} title={t('items.filtersTitle')}>
+              <LoanFiltersPanel
+                categories={categoriesQuery.data ?? []}
+                filters={activeFilters}
+                fromLabel={t('loans.dueFrom')}
+                toLabel={t('loans.dueTo')}
+                onChange={(patch) => setActiveFilters((current) => ({ ...current, ...patch }))}
+                t={t}
+              />
+            </MobileDisclosure>
             <div className="space-y-4">
               {activeLoans.length ? activeLoans.map((loan) => {
                 const returnDraft = getReturnDraft(loan)
@@ -504,7 +516,7 @@ export function LoansPage() {
                       {canManageLoanLifecycle && (
                         <div className="flex w-full max-w-md flex-col gap-3 md:items-end">
                           {canEditLoan && !isEditingLoan && (
-                            <Button className="bg-secondary text-secondary-foreground" onClick={() => startEditingLoan(loan)}>
+                            <Button className="w-full bg-secondary text-secondary-foreground md:w-auto" onClick={() => startEditingLoan(loan)}>
                               {t('loans.editLoan')}
                             </Button>
                           )}
@@ -563,8 +575,9 @@ export function LoansPage() {
 
                               <p className="text-xs text-slate-500">{t(`loans.editHelp.${loan.status}`)}</p>
 
-                              <div className="flex flex-wrap gap-2">
+                              <div className="grid grid-cols-2 gap-2 sm:flex">
                                 <Button
+                                  className="w-full sm:w-auto"
                                   disabled={
                                     updateLoanMutation.isPending
                                     || !loanEditDraft.dueAt
@@ -589,7 +602,11 @@ export function LoansPage() {
                                 value={deliveryNotes[loan.id] ?? ''}
                                 onChange={(event) => setDeliveryNotes((current) => ({ ...current, [loan.id]: event.target.value }))}
                               />
-                              <Button disabled={deliverMutation.isPending} onClick={() => deliverMutation.mutate({ id: loan.id, notes: deliveryNotes[loan.id] })}>
+                              <Button
+                                className="w-full md:w-auto"
+                                disabled={deliverMutation.isPending}
+                                onClick={() => deliverMutation.mutate({ id: loan.id, notes: deliveryNotes[loan.id] })}
+                              >
                                 {t('loans.deliver')}
                               </Button>
                             </>
@@ -598,7 +615,7 @@ export function LoansPage() {
                           {['DELIVERED', 'OVERDUE'].includes(loan.status) && (
                             <div className="w-full space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                               <p className="text-sm font-medium text-slate-900">{t('loans.partialReturnHelp')}</p>
-                              <div className="grid gap-2 md:grid-cols-3">
+                              <div className="grid gap-2 sm:grid-cols-3">
                                 <Input
                                   type="number"
                                   min="0"
@@ -650,7 +667,7 @@ export function LoansPage() {
                       )}
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
                       <p>{t('common.quantity')}: <strong className="text-slate-950">{quantityWithUnit(loan.quantity, loan.unitSymbol)}</strong></p>
                       <p>{t('loans.pendingReturn')}: <strong className="text-slate-950">{quantityWithUnit(loan.outstandingQuantity, loan.unitSymbol)}</strong></p>
                       <p>{t('loans.returnedGood')}: <strong className="text-slate-950">{quantityWithUnit(loan.returnedGoodQuantity, loan.unitSymbol)}</strong></p>
@@ -684,14 +701,16 @@ export function LoansPage() {
               <h2 className="text-lg font-semibold">{t('loans.closed')}</h2>
               <p className="text-sm text-slate-600">{t('loans.closedSummary', { count: closedLoans.length })}</p>
             </div>
-            <LoanFiltersPanel
-              categories={categoriesQuery.data ?? []}
-              filters={closedFilters}
-              fromLabel={t('loans.closedFrom')}
-              toLabel={t('loans.closedTo')}
-              onChange={(patch) => setClosedFilters((current) => ({ ...current, ...patch }))}
-              t={t}
-            />
+            <MobileDisclosure defaultOpen={false} isMobile={isPhone} title={t('items.filtersTitle')}>
+              <LoanFiltersPanel
+                categories={categoriesQuery.data ?? []}
+                filters={closedFilters}
+                fromLabel={t('loans.closedFrom')}
+                toLabel={t('loans.closedTo')}
+                onChange={(patch) => setClosedFilters((current) => ({ ...current, ...patch }))}
+                t={t}
+              />
+            </MobileDisclosure>
             <div className="space-y-4">
               {closedLoans.length ? closedLoans.map((loan) => {
                 const loanEditDraft = getLoanEditDraft(loan)
@@ -713,7 +732,7 @@ export function LoansPage() {
                       {canEditLoan && (
                         <div className="flex w-full max-w-md flex-col gap-3 md:items-end">
                           {!isEditingLoan && (
-                            <Button className="bg-secondary text-secondary-foreground" onClick={() => startEditingLoan(loan)}>
+                            <Button className="w-full bg-secondary text-secondary-foreground md:w-auto" onClick={() => startEditingLoan(loan)}>
                               {t('loans.editLoan')}
                             </Button>
                           )}
@@ -742,14 +761,15 @@ export function LoansPage() {
                                 <Input value={loanEditDraft.returnNotes} onChange={(event) => updateLoanDraft(loan, { returnNotes: event.target.value })} />
                               </div>
                               <p className="text-xs text-slate-500">{t(`loans.editHelp.${loan.status}`)}</p>
-                              <div className="flex flex-wrap gap-2">
+                              <div className="grid grid-cols-2 gap-2 sm:flex">
                                 <Button
+                                  className="w-full sm:w-auto"
                                   disabled={updateLoanMutation.isPending || !loanEditDraft.dueAt || !loanEditDraft.loanedAt || !loanEditDraft.returnedAt}
                                   onClick={() => updateLoanMutation.mutate({ id: loan.id, loan, draft: loanEditDraft })}
                                 >
                                   {t('loans.saveLoan')}
                                 </Button>
-                                <Button className="bg-secondary text-secondary-foreground" onClick={() => cancelEditingLoan(loan.id)}>
+                                <Button className="w-full bg-secondary text-secondary-foreground sm:w-auto" onClick={() => cancelEditingLoan(loan.id)}>
                                   {t('common.cancel')}
                                 </Button>
                               </div>
@@ -759,7 +779,7 @@ export function LoansPage() {
                       )}
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
                       <p>{t('loans.requestedAt')}: <strong className="text-slate-950">{formatDate(loan.requestedAt)}</strong></p>
                       <p>{t('loans.approvedAt')}: <strong className="text-slate-950">{formatDate(loan.approvedAt)}</strong></p>
                       <p>{t('loans.deliveredAt')}: <strong className="text-slate-950">{formatDate(loan.loanedAt)}</strong></p>
@@ -796,7 +816,7 @@ function LoanSectionButton({
 }) {
   return (
     <button
-      className={`rounded-full px-4 py-2 text-sm font-medium transition ${active ? 'bg-slate-950 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:border-sky-300'}`}
+      className={`min-h-11 rounded-2xl px-3 py-2 text-xs font-medium transition sm:text-sm ${active ? 'bg-slate-950 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:border-sky-300'}`}
       onClick={onClick}
       type="button"
     >

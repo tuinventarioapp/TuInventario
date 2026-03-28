@@ -7,7 +7,7 @@ export function Button({ className, type = 'button', ...props }: ButtonHTMLAttri
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-panel transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60',
+        'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold leading-tight text-primary-foreground shadow-panel transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60',
         className,
       )}
       {...props}

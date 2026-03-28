@@ -37,8 +37,13 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const { accessToken, clearSession } = useAuthStore.getState()
+let refreshPromise: Promise<AuthResponse | null> | null = null
+
+function shouldAttemptRefresh(path: string) {
+  return path !== '/auth/login' && path !== '/auth/register' && path !== '/auth/refresh'
+}
+
+function buildHeaders(init: RequestInit | undefined, accessToken: string | null) {
   const { language } = useUiStore.getState()
   const headers = new Headers(init?.headers)
   headers.set('Accept-Language', language)
@@ -47,53 +52,94 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  return headers
+}
+
+async function performFetch(path: string, init: RequestInit | undefined, accessToken: string | null) {
+  return fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers,
+    headers: buildHeaders(init, accessToken),
   })
+}
+
+async function refreshSession() {
+  const { refreshToken, clearSession, setSession } = useAuthStore.getState()
+  if (!refreshToken) {
+    clearSession()
+    return null
+  }
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await performFetch('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      }, null)
+
+      if (!response.ok) {
+        clearSession()
+        return null
+      }
+
+      const payload = await response.json() as AuthResponse
+      setSession(payload)
+      return payload
+    })().finally(() => {
+      refreshPromise = null
+    })
+  }
+
+  return refreshPromise
+}
+
+async function parseError(response: Response): Promise<never> {
+  const errorPayload = (await response.json().catch(() => null)) as ErrorPayload | null
+  throw new ApiError(response.status, errorPayload ?? undefined)
+}
+
+async function requestWithRetry<T>(
+  path: string,
+  init: RequestInit | undefined,
+  parser: (response: Response) => Promise<T>,
+  retried = false,
+): Promise<T> {
+  const { accessToken, clearSession } = useAuthStore.getState()
+  const response = await performFetch(path, init, accessToken)
+
+  if (response.status === 401 && !retried && shouldAttemptRefresh(path)) {
+    const refreshedSession = await refreshSession()
+    if (refreshedSession?.accessToken) {
+      return requestWithRetry(path, init, parser, true)
+    }
+  }
 
   if (response.status === 401) {
     clearSession()
   }
 
   if (!response.ok) {
-    const errorPayload = (await response.json().catch(() => null)) as ErrorPayload | null
-    throw new ApiError(response.status, errorPayload ?? undefined)
+    return parseError(response)
   }
 
-  if (response.status === 204) {
-    return undefined as T
-  }
+  return parser(response)
+}
 
-  if (response.headers.get('content-type')?.includes('application/json')) {
-    return response.json() as Promise<T>
-  }
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return requestWithRetry(path, init, async (response) => {
+    if (response.status === 204) {
+      return undefined as T
+    }
 
-  return (await response.text()) as T
+    if (response.headers.get('content-type')?.includes('application/json')) {
+      return response.json() as Promise<T>
+    }
+
+    return (await response.text()) as T
+  })
 }
 
 async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
-  const { accessToken, clearSession } = useAuthStore.getState()
-  const { language } = useUiStore.getState()
-  const headers = new Headers(init?.headers)
-  headers.set('Accept-Language', language)
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  })
-
-  if (response.status === 401) {
-    clearSession()
-  }
-
-  if (!response.ok) {
-    const errorPayload = (await response.json().catch(() => null)) as ErrorPayload | null
-    throw new ApiError(response.status, errorPayload ?? undefined)
-  }
-
-  return response.blob()
+  return requestWithRetry(path, init, (response) => response.blob())
 }
 
 type ItemFilters = {

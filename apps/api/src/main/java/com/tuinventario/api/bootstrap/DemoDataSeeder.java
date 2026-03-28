@@ -1,5 +1,6 @@
 package com.tuinventario.api.bootstrap;
 
+import com.tuinventario.api.config.AppProperties;
 import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.LocationCategoryEntity;
 import com.tuinventario.api.domain.entity.MembershipEntity;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DemoDataSeeder implements ApplicationRunner {
 
+    private final AppProperties appProperties;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -38,6 +40,10 @@ public class DemoDataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!isDemoSeedEnabled()) {
+            return;
+        }
+
         if (organizationRepository.findBySlug("tuinventario").isPresent()) {
             return;
         }
@@ -122,5 +128,12 @@ public class DemoDataSeeder implements ApplicationRunner {
         category.setName(name);
         category.setDescription(description);
         return locationCategoryRepository.save(category);
+    }
+
+    private boolean isDemoSeedEnabled() {
+        if (appProperties.demoSeedEnabled() != null) {
+            return appProperties.demoSeedEnabled();
+        }
+        return !"production".equalsIgnoreCase(appProperties.env());
     }
 }

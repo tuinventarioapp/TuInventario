@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { queryClient } from '../app/query-client'
+import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { canManageUsers } from '../lib/access'
 import { api } from '../lib/api'
@@ -51,6 +53,7 @@ function requireAssignedLocation<T extends { role: UserRole; assignedLocationId?
 export function UsersPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
+  const isPhone = useIsMobile()
   const [editingUser, setEditingUser] = useState<UserSummary | null>(null)
   const [passwordDraft, setPasswordDraft] = useState('')
   const createSchema = useMemo(() => z.object({
@@ -183,9 +186,13 @@ export function UsersPage() {
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
-          {editingUser ? (
-            <form className="space-y-3" onSubmit={editForm.handleSubmit((values) => updateMutation.mutate(values))}>
-              <h2 className="text-lg font-semibold">{t('users.editing')}</h2>
+          <MobileDisclosure
+            defaultOpen
+            isMobile={isPhone}
+            title={editingUser ? t('users.editing') : t('users.createTitle')}
+          >
+            {editingUser ? (
+              <form className="space-y-3" onSubmit={editForm.handleSubmit((values) => updateMutation.mutate(values))}>
               <Field label={t('common.name')} error={editForm.formState.errors.fullName?.message}>
                 <Input {...editForm.register('fullName')} />
               </Field>
@@ -218,7 +225,7 @@ export function UsersPage() {
               <div className="rounded-2xl border border-border p-3">
                 <p className="text-sm font-medium text-slate-900">{t('users.passwordResetTitle')}</p>
                 <p className="mt-1 text-sm text-slate-500">{t('users.passwordResetHelp')}</p>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Input
                     type="password"
                     placeholder={t('users.newPassword')}
@@ -226,6 +233,7 @@ export function UsersPage() {
                     onChange={(event) => setPasswordDraft(event.target.value)}
                   />
                   <Button
+                    className="shrink-0"
                     disabled={resetPasswordMutation.isPending || passwordDraft.trim().length < 8}
                     type="button"
                     onClick={() => resetPasswordMutation.mutate({ id: editingUser.id, newPassword: passwordDraft })}
@@ -234,14 +242,13 @@ export function UsersPage() {
                   </Button>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button className="flex-1" disabled={updateMutation.isPending} type="submit">{t('users.update')}</Button>
                 <Button className="flex-1 bg-secondary text-secondary-foreground" type="button" onClick={() => setEditingUser(null)}>{t('common.cancel')}</Button>
               </div>
             </form>
           ) : (
             <form className="space-y-3" onSubmit={createForm.handleSubmit((values) => createMutation.mutate(values))}>
-              <h2 className="text-lg font-semibold">{t('users.createTitle')}</h2>
               <Field label={t('common.name')} error={createForm.formState.errors.fullName?.message}>
                 <Input {...createForm.register('fullName')} />
               </Field>
@@ -272,7 +279,8 @@ export function UsersPage() {
                 {t('users.submit')}
               </Button>
             </form>
-          )}
+            )}
+          </MobileDisclosure>
         </Card>
 
         <Card>
@@ -286,10 +294,11 @@ export function UsersPage() {
                     <p className="text-sm text-slate-500">{enumLabel('role', entry.role)} - {t(`users.status.${entry.status}`)}</p>
                     <p className="text-sm text-slate-500">{t('items.location')}: {entry.assignedLocationName ?? t('users.globalScope')}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button className="bg-secondary text-secondary-foreground" onClick={() => setEditingUser(entry)}>{t('common.edit')}</Button>
+                  <div className="flex w-full flex-wrap gap-2 md:w-auto">
+                    <Button className="flex-1 bg-secondary text-secondary-foreground md:flex-none" onClick={() => setEditingUser(entry)}>{t('common.edit')}</Button>
                     {entry.id !== user?.id && (
                       <Button
+                        className="flex-1 md:flex-none"
                         onClick={() => {
                           if (window.confirm(t('users.deleteConfirm'))) {
                             deleteMutation.mutate(entry.id)
