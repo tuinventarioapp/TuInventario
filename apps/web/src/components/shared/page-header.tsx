@@ -7,10 +7,10 @@ export function PageHeader({
   children,
 }: PropsWithChildren<{ title: string; description: string; action?: ReactNode }>) {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="flex flex-col gap-3 md:gap-4 md:flex-row md:items-start md:justify-between">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
-        <p className="text-sm text-slate-600">{description}</p>
+        <h1 className="text-[1.7rem] font-semibold tracking-tight text-slate-900 sm:text-2xl">{title}</h1>
+        <p className="max-w-[32rem] text-sm leading-6 text-slate-600">{description}</p>
       </div>
       {action ? <div className="w-full md:w-auto">{action}</div> : null}
       {children ? <div className="w-full md:w-auto">{children}</div> : null}

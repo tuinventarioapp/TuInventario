@@ -1,0 +1,12 @@
+<svg width="960" height="220" viewBox="0 0 960 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>TuInventario logo for dark surfaces</title>
+  <rect width="960" height="220" rx="34" fill="#020617"/>
+  <rect x="42" y="34" width="152" height="152" rx="34" fill="white"/>
+  <rect x="76" y="72" width="52" height="11" rx="5.5" fill="#1D2735"/>
+  <rect x="76" y="107" width="52" height="11" rx="5.5" fill="#1D2735"/>
+  <rect x="76" y="142" width="40" height="11" rx="5.5" fill="#1D2735"/>
+  <path d="M150 64V158" stroke="#1B7DA7" stroke-width="13" stroke-linecap="round"/>
+  <path d="M120 138L138 156L167 127" stroke="#DFF1EA" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="234" y="102" fill="white" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="58" font-weight="700">TuInventario</text>
+  <text x="238" y="142" fill="#BAE6FD" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="20" font-weight="600" letter-spacing="3">CONTROL OPERATIVO EN TIEMPO REAL</text>
+</svg>

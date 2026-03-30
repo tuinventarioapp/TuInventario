@@ -32,29 +32,30 @@ export function ReportsPage() {
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
   }
-  const reportFileNames = language === 'en'
-    ? {
-        inventoryAdminCsv: 'inventory-admin.csv',
-        inventoryAdminPdf: 'inventory-admin.pdf',
-        inventoryCsv: 'inventory-operational.csv',
-        inventoryPdf: 'inventory-operational.pdf',
-        loansCsv: 'loans.csv',
-      }
-    : language === 'pt'
+  const reportFileNames =
+    language === 'en'
       ? {
-          inventoryAdminCsv: 'inventario-administrativo.csv',
-          inventoryAdminPdf: 'inventario-administrativo.pdf',
-          inventoryCsv: 'inventario-operacional.csv',
-          inventoryPdf: 'inventario-operacional.pdf',
-          loansCsv: 'emprestimos.csv',
+          inventoryAdminCsv: 'inventory-admin.csv',
+          inventoryAdminPdf: 'inventory-admin.pdf',
+          inventoryCsv: 'inventory-operational.csv',
+          inventoryPdf: 'inventory-operational.pdf',
+          loansCsv: 'loans.csv',
         }
-      : {
-          inventoryAdminCsv: 'inventario-administrativo.csv',
-          inventoryAdminPdf: 'inventario-administrativo.pdf',
-          inventoryCsv: 'inventario-operativo.csv',
-          inventoryPdf: 'inventario-operativo.pdf',
-          loansCsv: 'prestamos.csv',
-        }
+      : language === 'pt'
+        ? {
+            inventoryAdminCsv: 'inventario-administrativo.csv',
+            inventoryAdminPdf: 'inventario-administrativo.pdf',
+            inventoryCsv: 'inventario-operacional.csv',
+            inventoryPdf: 'inventario-operacional.pdf',
+            loansCsv: 'emprestimos.csv',
+          }
+        : {
+            inventoryAdminCsv: 'inventario-administrativo.csv',
+            inventoryAdminPdf: 'inventario-administrativo.pdf',
+            inventoryCsv: 'inventario-operativo.csv',
+            inventoryPdf: 'inventario-operativo.pdf',
+            loansCsv: 'prestamos.csv',
+          }
 
   const download = async (key: string, filename: string, action: () => Promise<Blob>) => {
     try {
@@ -77,13 +78,13 @@ export function ReportsPage() {
       {status && <Notice variant={status.kind}>{status.message}</Notice>}
       {!isGlobalAdmin && user?.assignedLocationName && <Notice>{t('reports.scopeNotice', { location: user.assignedLocationName })}</Notice>}
 
-      <Card>
-        <MobileDisclosure
-          defaultOpen={false}
-          description={t('reports.periodHelp')}
-          isMobile={isPhone}
-          title={t('items.filtersTitle')}
-        >
+      <Card className="space-y-4 bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,251,253,1)_100%)]">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-950">{t('reports.title')}</h2>
+          <p className="text-sm text-slate-600">{t('reports.periodHelp')}</p>
+        </div>
+
+        <MobileDisclosure defaultOpen={false} description={t('reports.periodHelp')} isMobile={isPhone} title={t('items.filtersTitle')}>
           <div className="grid gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap">
             <PresetButton label={t('reports.quickToday')} onClick={() => applyPreset('today', setFromDate, setToDate)} />
             <PresetButton label={t('reports.quickLast7')} onClick={() => applyPreset('last7', setFromDate, setToDate)} />
@@ -96,7 +97,11 @@ export function ReportsPage() {
                 <label className="text-sm font-medium">{t('items.location')}</label>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={locationId} onChange={(event) => setLocationId(event.target.value)}>
                   <option value="">{t('common.all')}</option>
-                  {locationsQuery.data?.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                  {locationsQuery.data?.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
@@ -109,11 +114,14 @@ export function ReportsPage() {
               <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
             </div>
             <div className="flex items-end">
-              <Button className="w-full bg-secondary text-secondary-foreground" onClick={() => {
-                setLocationId('')
-                setFromDate('')
-                setToDate('')
-              }}>
+              <Button
+                className="w-full bg-secondary text-secondary-foreground"
+                onClick={() => {
+                  setLocationId('')
+                  setFromDate('')
+                  setToDate('')
+                }}
+              >
                 {t('common.clear')}
               </Button>
             </div>
@@ -125,36 +133,36 @@ export function ReportsPage() {
         {isGlobalAdmin && (
           <>
             <ReportCard
-              title={t('reports.inventoryAdminCsv')}
-              help={t('reports.inventoryAdminHelp')}
               disabled={loadingKey === 'inventoryAdminCsv'}
+              help={t('reports.inventoryAdminHelp')}
               onDownload={() => download('inventoryAdminCsv', reportFileNames.inventoryAdminCsv, () => api.inventoryAdminCsv(reportFilters))}
+              title={t('reports.inventoryAdminCsv')}
             />
             <ReportCard
-              title={t('reports.inventoryAdminPdf')}
-              help={t('reports.inventoryAdminHelp')}
               disabled={loadingKey === 'inventoryAdminPdf'}
+              help={t('reports.inventoryAdminHelp')}
               onDownload={() => download('inventoryAdminPdf', reportFileNames.inventoryAdminPdf, () => api.inventoryAdminPdf(reportFilters))}
+              title={t('reports.inventoryAdminPdf')}
             />
           </>
         )}
         <ReportCard
-          title={t('reports.inventoryCsv')}
-          help={t('reports.inventoryOperationalHelp')}
           disabled={loadingKey === 'inventoryCsv'}
-          onDownload={() => download('inventoryCsv', reportFileNames.inventoryCsv, () => api.inventoryCsv(reportFilters))}
-        />
-        <ReportCard
-          title={t('reports.inventoryPdf')}
           help={t('reports.inventoryOperationalHelp')}
-          disabled={loadingKey === 'inventoryPdf'}
-          onDownload={() => download('inventoryPdf', reportFileNames.inventoryPdf, () => api.inventoryPdf(reportFilters))}
+          onDownload={() => download('inventoryCsv', reportFileNames.inventoryCsv, () => api.inventoryCsv(reportFilters))}
+          title={t('reports.inventoryCsv')}
         />
         <ReportCard
-          title={t('reports.loansCsv')}
-          help={t('reports.loansHelp')}
+          disabled={loadingKey === 'inventoryPdf'}
+          help={t('reports.inventoryOperationalHelp')}
+          onDownload={() => download('inventoryPdf', reportFileNames.inventoryPdf, () => api.inventoryPdf(reportFilters))}
+          title={t('reports.inventoryPdf')}
+        />
+        <ReportCard
           disabled={loadingKey === 'loansCsv'}
+          help={t('reports.loansHelp')}
           onDownload={() => download('loansCsv', reportFileNames.loansCsv, () => api.loansCsv(reportFilters))}
+          title={t('reports.loansCsv')}
         />
       </div>
     </div>
@@ -220,8 +228,11 @@ function ReportCard({
   const { t } = useI18n()
 
   return (
-    <Card className="space-y-4">
-      <h2 className="text-lg font-semibold">{title}</h2>
+    <Card className="space-y-4 bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,251,253,1)_100%)]">
+      <div>
+        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Documento</p>
+        <h2 className="mt-1 text-lg font-semibold text-slate-950">{title}</h2>
+      </div>
       <p className="text-sm text-slate-500">{help}</p>
       <Button className="w-full" disabled={disabled} onClick={onDownload}>
         {t('common.download')}

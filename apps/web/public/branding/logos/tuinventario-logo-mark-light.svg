@@ -1,0 +1,9 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>TuInventario light mark</title>
+  <rect x="24" y="24" width="208" height="208" rx="46" fill="white"/>
+  <rect x="70" y="78" width="68" height="14" rx="7" fill="#1D2735"/>
+  <rect x="70" y="121" width="68" height="14" rx="7" fill="#1D2735"/>
+  <rect x="70" y="164" width="52" height="14" rx="7" fill="#1D2735"/>
+  <path d="M172 70V186" stroke="#1B7DA7" stroke-width="18" stroke-linecap="round"/>
+  <path d="M132 160L154 182L190 146" stroke="#DFF1EA" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

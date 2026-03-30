@@ -3,6 +3,7 @@ package com.tuinventario.api.report;
 import com.lowagie.text.Document;
 import com.lowagie.text.Font;
 import com.lowagie.text.FontFactory;
+import com.lowagie.text.Image;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
@@ -20,6 +21,7 @@ import com.tuinventario.api.shared.service.CurrentContextService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -51,6 +54,11 @@ public class ReportController {
 
     private static final MediaType CSV_UTF8 = new MediaType("text", "csv", StandardCharsets.UTF_8);
     private static final int ITEM_BATCH_SIZE = 250;
+    private static final Color BRAND_PRIMARY = new Color(27, 125, 167);
+    private static final Color BRAND_SURFACE = new Color(237, 246, 249);
+    private static final Color BRAND_BORDER = new Color(198, 220, 228);
+    private static final Color BRAND_INK = new Color(15, 23, 42);
+    private static final Color BRAND_MUTED = new Color(86, 104, 121);
 
     private final CurrentContextService currentContextService;
     private final ItemRepository itemRepository;
@@ -117,8 +125,7 @@ public class ReportController {
                 effectiveLocationId == null ? texts.wholeOrganization() : resolveLocationName(effectiveLocationId, texts),
                 range.label(),
                 texts.loanHeaders(),
-                rows
-                ,
+                rows,
                 texts
         );
         return csvResponse(texts.loansCsvFile(), content);
@@ -211,51 +218,109 @@ public class ReportController {
             PdfWriter.getInstance(document, outputStream);
             document.open();
 
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-            Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
-            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
-            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 9);
+            Font brandFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BRAND_PRIMARY);
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BRAND_INK);
+            Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BRAND_MUTED);
+            Font metaLabelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, BRAND_MUTED);
+            Font metaValueFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BRAND_INK);
+            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
+            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 9, BRAND_INK);
+            Font metaTitleFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BRAND_MUTED);
 
-            document.add(new Paragraph(texts.inventoryTitle(adminView), titleFont));
-            document.add(new Paragraph(texts.scopeLabel() + ": " + (effectiveLocationId == null ? texts.wholeOrganization() : resolveLocationName(effectiveLocationId, texts)), subtitleFont));
-            document.add(new Paragraph(texts.periodLabel() + ": " + range.label(), subtitleFont));
-            document.add(new Paragraph(texts.generatedByLabel() + ": " + currentContextService.currentActorEntity().getFullName(), subtitleFont));
-            document.add(new Paragraph(texts.generatedAtLabel() + ": " + formatInstant(Instant.now(), texts), subtitleFont));
-            document.add(new Paragraph(" "));
+            Image reportLogo = loadReportLogo();
+            PdfPTable reportHeader = new PdfPTable(new float[]{2.2f, 1f});
+            reportHeader.setWidthPercentage(100f);
+            reportHeader.setSpacingAfter(12f);
+
+            PdfPCell brandCell = new PdfPCell();
+            brandCell.setBorder(PdfPCell.NO_BORDER);
+            brandCell.setPaddingBottom(8f);
+            if (reportLogo != null) {
+                brandCell.addElement(reportLogo);
+            } else {
+                Paragraph brand = new Paragraph("TuInventario", brandFont);
+                brand.setSpacingAfter(2f);
+                brandCell.addElement(brand);
+            }
+            reportHeader.addCell(brandCell);
+
+            PdfPCell reportMetaCell = new PdfPCell();
+            reportMetaCell.setBorder(PdfPCell.NO_BORDER);
+            reportMetaCell.setHorizontalAlignment(PdfPCell.ALIGN_RIGHT);
+            reportMetaCell.addElement(rightAlignedParagraph(texts.inventoryTitle(adminView), metaTitleFont));
+            reportMetaCell.addElement(rightAlignedParagraph(texts.generatedByLabel() + ": " + currentContextService.currentActorEntity().getFullName(), subtitleFont));
+            reportMetaCell.addElement(rightAlignedParagraph(texts.generatedAtLabel() + ": " + formatInstant(Instant.now(), texts), subtitleFont));
+            reportHeader.addCell(reportMetaCell);
+            document.add(reportHeader);
+
+            PdfPTable divider = new PdfPTable(1);
+            divider.setWidthPercentage(100f);
+            PdfPCell dividerCell = new PdfPCell(new Phrase(""));
+            dividerCell.setBorder(PdfPCell.BOTTOM);
+            dividerCell.setBorderColor(BRAND_BORDER);
+            dividerCell.setFixedHeight(4f);
+            dividerCell.setPadding(0f);
+            divider.addCell(dividerCell);
+            divider.setSpacingAfter(14f);
+            document.add(divider);
+
+            Paragraph title = new Paragraph(texts.inventoryTitle(adminView), titleFont);
+            title.setSpacingAfter(5f);
+            document.add(title);
+
+            Paragraph description = new Paragraph(
+                    texts.scopeLabel() + ": " + (effectiveLocationId == null ? texts.wholeOrganization() : resolveLocationName(effectiveLocationId, texts))
+                            + "  |  " + texts.periodLabel() + ": " + range.label(),
+                    subtitleFont
+            );
+            description.setSpacingAfter(10f);
+            document.add(description);
+
+            PdfPTable metadata = new PdfPTable(new float[]{1.2f, 2.8f});
+            metadata.setWidthPercentage(100f);
+            metadata.setSpacingAfter(14f);
+            metadata.addCell(metaLabelCell(texts.generatedByLabel(), metaLabelFont));
+            metadata.addCell(metaValueCell(currentContextService.currentActorEntity().getFullName(), metaValueFont));
+            metadata.addCell(metaLabelCell(texts.generatedAtLabel(), metaLabelFont));
+            metadata.addCell(metaValueCell(formatInstant(Instant.now(), texts), metaValueFont));
+            document.add(metadata);
 
             List<String> headers = texts.inventoryHeaders(adminView);
-
             PdfPTable table = new PdfPTable(headers.size());
             table.setWidthPercentage(100f);
+            table.setSpacingBefore(2f);
             for (String header : headers) {
                 table.addCell(headerCell(header, headerFont));
             }
 
+            int rowIndex = 0;
             for (ItemEntity item : items) {
+                boolean striped = rowIndex % 2 == 0;
                 if (adminView) {
-                    table.addCell(bodyCell(item.getPrimaryLocation().getName(), bodyFont));
-                    table.addCell(bodyCell(item.getName(), bodyFont));
-                    table.addCell(bodyCell(item.getSku(), bodyFont));
-                    table.addCell(bodyCell(item.getCategory().getName(), bodyFont));
-                    table.addCell(bodyCell(item.getUnit().getName(), bodyFont));
-                    table.addCell(bodyCell(texts.itemStatus(item.getStatus()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getTotalStock()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getReservedStock()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont));
-                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont));
+                    table.addCell(bodyCell(item.getPrimaryLocation().getName(), bodyFont, striped));
+                    table.addCell(bodyCell(item.getName(), bodyFont, striped));
+                    table.addCell(bodyCell(item.getSku(), bodyFont, striped));
+                    table.addCell(bodyCell(item.getCategory().getName(), bodyFont, striped));
+                    table.addCell(bodyCell(item.getUnit().getName(), bodyFont, striped));
+                    table.addCell(bodyCell(texts.itemStatus(item.getStatus()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getTotalStock()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getReservedStock()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont, striped));
+                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont, striped));
                 } else {
-                    table.addCell(bodyCell(item.getName(), bodyFont));
-                    table.addCell(bodyCell(item.getSku(), bodyFont));
-                    table.addCell(bodyCell(item.getCategory().getName(), bodyFont));
-                    table.addCell(bodyCell(texts.itemStatus(item.getStatus()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont));
-                    table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont));
-                    table.addCell(bodyCell(item.getPrimaryLocation().getName(), bodyFont));
-                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont));
+                    table.addCell(bodyCell(item.getName(), bodyFont, striped));
+                    table.addCell(bodyCell(item.getSku(), bodyFont, striped));
+                    table.addCell(bodyCell(item.getCategory().getName(), bodyFont, striped));
+                    table.addCell(bodyCell(texts.itemStatus(item.getStatus()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont, striped));
+                    table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont, striped));
+                    table.addCell(bodyCell(item.getPrimaryLocation().getName(), bodyFont, striped));
+                    table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont, striped));
                 }
+                rowIndex++;
             }
 
             document.add(table);
@@ -333,7 +398,7 @@ public class ReportController {
         StringBuilder builder = new StringBuilder();
         builder.append('\uFEFF');
         builder.append("sep=;\n");
-        builder.append(csvRow(List.of(texts.reportLabel(), title)));
+        builder.append(csvRow(List.of(texts.reportLabel(), "TuInventario - " + title)));
         builder.append(csvRow(List.of(texts.generatedByLabel(), currentContextService.currentActorEntity().getFullName())));
         builder.append(csvRow(List.of(texts.generatedAtLabel(), formatInstant(Instant.now(), texts))));
         builder.append(csvRow(List.of(texts.scopeLabel(), scopeLabel)));
@@ -357,14 +422,54 @@ public class ReportController {
 
     private PdfPCell headerCell(String value, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(value, font));
+        cell.setBackgroundColor(BRAND_PRIMARY);
+        cell.setBorderColor(BRAND_PRIMARY);
         cell.setPadding(6f);
         return cell;
     }
 
-    private PdfPCell bodyCell(String value, Font font) {
+    private PdfPCell bodyCell(String value, Font font, boolean striped) {
         PdfPCell cell = new PdfPCell(new Phrase(value == null ? "" : value, font));
         cell.setPadding(5f);
+        cell.setBorderColor(BRAND_BORDER);
+        cell.setBackgroundColor(striped ? BRAND_SURFACE : Color.WHITE);
         return cell;
+    }
+
+    private PdfPCell metaLabelCell(String value, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(value, font));
+        cell.setBorderColor(BRAND_BORDER);
+        cell.setBackgroundColor(BRAND_SURFACE);
+        cell.setPadding(6f);
+        return cell;
+    }
+
+    private PdfPCell metaValueCell(String value, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(value, font));
+        cell.setBorderColor(BRAND_BORDER);
+        cell.setPadding(6f);
+        return cell;
+    }
+
+    private Paragraph rightAlignedParagraph(String value, Font font) {
+        Paragraph paragraph = new Paragraph(value, font);
+        paragraph.setAlignment(Paragraph.ALIGN_RIGHT);
+        paragraph.setSpacingAfter(4f);
+        return paragraph;
+    }
+
+    private Image loadReportLogo() {
+        try {
+            ClassPathResource resource = new ClassPathResource("branding/tuinventario-logo-horizontal.png");
+            if (!resource.exists()) {
+                return null;
+            }
+            Image image = Image.getInstance(resource.getInputStream().readAllBytes());
+            image.scaleToFit(210f, 50f);
+            return image;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private String resolveLocationName(UUID locationId, ReportLocalization texts) {
