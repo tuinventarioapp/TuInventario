@@ -49,7 +49,6 @@ export function AppShell() {
     ['/app/dashboard', '/app/items', '/app/movements', '/app/loans'].includes(entry.to),
   )
 
-  const currentSection = navigation.find((entry) => location.pathname.startsWith(entry.to))?.label ?? t('app.name')
   const mobileMenuOpen = mobileMenuState.path === location.pathname && mobileMenuState.open
 
   useEffect(() => {
@@ -99,20 +98,9 @@ export function AppShell() {
       {isCompactNavigation && (
         <>
           <header className="sticky top-0 z-40 bg-transparent px-4 pb-2 pt-4 text-white">
-            <div className="rounded-[26px] border border-slate-900/75 bg-slate-950 px-4 py-4 shadow-[0_18px_40px_rgba(2,6,23,0.18)]">
+            <div className="rounded-[26px] border border-slate-900/75 bg-slate-950 px-4 py-3.5 shadow-[0_18px_40px_rgba(2,6,23,0.18)]">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-3">
-                    <BrandLogo className="h-10 w-10 shrink-0 select-none" variant="markLight" />
-                    <div className="min-w-0">
-                      <p className="truncate text-[0.98rem] font-semibold leading-none text-white">TuInventario</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 min-w-0 border-t border-white/8 pt-3">
-                    <p className="truncate text-sm font-semibold text-white">{currentSection}</p>
-                    <p className="truncate text-xs text-slate-300">{user?.assignedLocationName ?? t('shell.scopeOrganization')}</p>
-                  </div>
-                </div>
+                <BrandBlock compact subtitle={t('shell.subtitle')} />
                 <Button
                   aria-label={mobileMenuOpen ? t('common.close') : t('common.menu')}
                   className="h-11 w-11 shrink-0 rounded-2xl border border-white/10 bg-white/10 px-0 text-white shadow-none hover:bg-white/20"
