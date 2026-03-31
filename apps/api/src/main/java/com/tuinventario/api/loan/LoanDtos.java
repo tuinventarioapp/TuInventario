@@ -46,9 +46,7 @@ public final class LoanDtos {
     }
 
     public record ReturnLoanPayload(
-            @NotNull BigDecimal returnedGoodQuantity,
-            @NotNull BigDecimal returnedDamagedQuantity,
-            @NotNull BigDecimal lostQuantity,
+            BigDecimal returnedQuantity,
             String notes
     ) {
     }
@@ -82,9 +80,6 @@ public final class LoanDtos {
             BigDecimal quantity,
             BigDecimal returnedQuantity,
             BigDecimal outstandingQuantity,
-            BigDecimal returnedGoodQuantity,
-            BigDecimal returnedDamagedQuantity,
-            BigDecimal lostQuantity,
             String returnCondition,
             String status,
             Instant requestedAt,

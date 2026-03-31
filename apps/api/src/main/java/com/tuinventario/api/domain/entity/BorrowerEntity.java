@@ -10,6 +10,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
+
 @Getter
 @Setter
 @Entity
@@ -31,4 +33,6 @@ public class BorrowerEntity extends BaseEntity {
 
     @Column(length = 255)
     private String notes;
+
+    private Instant deletedAt;
 }

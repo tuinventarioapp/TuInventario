@@ -52,7 +52,6 @@ export function ItemDetailPage() {
             <p>{t('items.available')}: <strong>{stockWithUnit(item.availableStock, item.unit)}</strong></p>
             <p>{t('items.reserved')}: <strong>{stockWithUnit(item.reservedStock, item.unit)}</strong></p>
             <p>{t('items.loaned')}: <strong>{stockWithUnit(item.loanedStock, item.unit)}</strong></p>
-            <p>{t('items.damaged')}: <strong>{stockWithUnit(item.damagedStock, item.unit)}</strong></p>
             <p>{t('items.detail.total')}: <strong>{stockWithUnit(item.totalStock, item.unit)}</strong></p>
             <p>{t('items.minimumStock')}: <strong>{stockWithUnit(item.minimumStock, item.unit)}</strong></p>
           </div>

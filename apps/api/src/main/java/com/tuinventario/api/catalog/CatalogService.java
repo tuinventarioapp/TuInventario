@@ -7,6 +7,8 @@ import com.tuinventario.api.domain.entity.LocationCategoryEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.UnitEntity;
 import com.tuinventario.api.domain.enums.ItemStatus;
+import com.tuinventario.api.domain.enums.LoanRequestStatus;
+import com.tuinventario.api.domain.enums.LoanStatus;
 import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.repository.BorrowerRepository;
 import com.tuinventario.api.domain.repository.CategoryRepository;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -91,7 +94,7 @@ public class CatalogService {
     @Transactional
     public void deleteCategory(UUID categoryId) {
         currentContextService.requireAdmin();
-        if (itemRepository.existsByOrganizationIdAndCategoryId(currentContextService.currentUser().organizationId(), categoryId)) {
+        if (itemRepository.existsByOrganizationIdAndCategoryIdAndDeletedAtIsNull(currentContextService.currentUser().organizationId(), categoryId)) {
             throw new ApiException(HttpStatus.CONFLICT, "CATEGORY_IN_USE", "No puedes eliminar una categoria que ya esta en uso.");
         }
         CategoryEntity entity = categoryRepository.findByIdAndOrganizationId(categoryId, currentContextService.currentUser().organizationId())
@@ -142,7 +145,7 @@ public class CatalogService {
     @Transactional
     public void deleteUnit(UUID unitId) {
         currentContextService.requireAdmin();
-        if (itemRepository.existsByOrganizationIdAndUnitId(currentContextService.currentUser().organizationId(), unitId)) {
+        if (itemRepository.existsByOrganizationIdAndUnitIdAndDeletedAtIsNull(currentContextService.currentUser().organizationId(), unitId)) {
             throw new ApiException(HttpStatus.CONFLICT, "UNIT_IN_USE", "No puedes eliminar una unidad que ya esta en uso.");
         }
         UnitEntity entity = unitRepository.findByIdAndOrganizationId(unitId, currentContextService.currentUser().organizationId())
@@ -257,7 +260,7 @@ public class CatalogService {
     public void deleteLocation(UUID locationId) {
         currentContextService.requireAdmin();
         UUID organizationId = currentContextService.currentUser().organizationId();
-        boolean locationInUse = itemRepository.existsByOrganizationIdAndPrimaryLocationId(organizationId, locationId)
+        boolean locationInUse = itemRepository.existsByOrganizationIdAndPrimaryLocationIdAndDeletedAtIsNull(organizationId, locationId)
                 || membershipRepository.existsByOrganizationIdAndAssignedLocationId(organizationId, locationId)
                 || stockMovementRepository.existsByOrganizationIdAndSourceLocationId(organizationId, locationId)
                 || stockMovementRepository.existsByOrganizationIdAndTargetLocationId(organizationId, locationId);
@@ -270,8 +273,9 @@ public class CatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<CatalogDtos.BorrowerResponse> listBorrowers() {
-        return borrowerRepository.findByOrganizationIdOrderByNameAsc(currentContextService.currentUser().organizationId())
+    public List<CatalogDtos.BorrowerResponse> listBorrowers(String query) {
+        String safeQuery = query == null ? "" : query.trim();
+        return borrowerRepository.searchActiveByOrganizationIdAndName(currentContextService.currentUser().organizationId(), safeQuery)
                 .stream()
                 .map(this::mapBorrower)
                 .toList();
@@ -336,16 +340,25 @@ public class CatalogService {
         currentContextService.requireManagerOrAdmin();
         BorrowerEntity entity = findBorrower(borrowerId);
         UUID organizationId = currentContextService.currentUser().organizationId();
-        boolean hasHistory = loanRepository.existsByBorrowerIdAndOrganizationId(borrowerId, organizationId)
-                || loanRequestRepository.existsByBorrowerIdAndOrganizationId(borrowerId, organizationId);
-        if (hasHistory) {
-            throw new ApiException(HttpStatus.CONFLICT, "BORROWER_HAS_HISTORY", "No puedes eliminar un prestatario con prestamos o solicitudes registradas.");
+        boolean hasPendingRequests = loanRequestRepository.existsByBorrowerIdAndOrganizationIdAndStatus(
+                borrowerId,
+                organizationId,
+                LoanRequestStatus.PENDING
+        );
+        boolean hasActiveLoans = loanRepository.existsByBorrowerIdAndOrganizationIdAndStatusIn(
+                borrowerId,
+                organizationId,
+                List.of(LoanStatus.APPROVED, LoanStatus.DELIVERED, LoanStatus.OVERDUE)
+        );
+        if (hasPendingRequests || hasActiveLoans) {
+            throw new ApiException(HttpStatus.CONFLICT, "BORROWER_ACTIVE_LOANS", "No puedes eliminar un prestatario con solicitudes o prestamos activos.");
         }
-        borrowerRepository.delete(entity);
+        entity.setDeletedAt(Instant.now());
+        borrowerRepository.save(entity);
     }
 
     private BorrowerEntity findBorrower(UUID borrowerId) {
-        return borrowerRepository.findByIdAndOrganizationId(borrowerId, currentContextService.currentUser().organizationId())
+        return borrowerRepository.findByIdAndOrganizationIdAndDeletedAtIsNull(borrowerId, currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "BORROWER_NOT_FOUND", "Prestatario no encontrado."));
     }
 

@@ -57,7 +57,6 @@ export interface Item {
   availableStock: number
   reservedStock: number
   loanedStock: number
-  damagedStock: number
   minimumStock: number
   lastMovementAt?: string | null
 }
@@ -106,9 +105,6 @@ export interface Loan {
   quantity: number
   returnedQuantity: number
   outstandingQuantity: number
-  returnedGoodQuantity: number
-  returnedDamagedQuantity: number
-  lostQuantity: number
   returnCondition?: string | null
   status: string
   requestedAt?: string | null

@@ -144,14 +144,14 @@ final class ReportLocalization {
     List<String> inventoryHeaders(boolean adminView) {
         return switch (language) {
             case "en" -> adminView
-                    ? List.of("Location", "Item", "SKU", "Category", "Unit", "Status", "Total stock", "Available", "Reserved", "On loan", "Damaged", "Last movement")
-                    : List.of("Item", "SKU", "Category", "Status", "Available", "On loan", "Damaged", "Location", "Last movement");
+                    ? List.of("Location", "Item", "SKU", "Category", "Unit", "Status", "Total stock", "Available", "Reserved", "On loan", "Last movement")
+                    : List.of("Item", "SKU", "Category", "Status", "Available", "On loan", "Location", "Last movement");
             case "pt" -> adminView
-                    ? List.of("Localizacao", "Item", "SKU", "Categoria", "Unidade", "Status", "Estoque total", "Disponivel", "Reservado", "Emprestado", "Danificado", "Ultimo movimento")
-                    : List.of("Item", "SKU", "Categoria", "Status", "Disponivel", "Emprestado", "Danificado", "Localizacao", "Ultimo movimento");
+                    ? List.of("Localizacao", "Item", "SKU", "Categoria", "Unidade", "Status", "Estoque total", "Disponivel", "Reservado", "Emprestado", "Ultimo movimento")
+                    : List.of("Item", "SKU", "Categoria", "Status", "Disponivel", "Emprestado", "Localizacao", "Ultimo movimento");
             default -> adminView
-                    ? List.of("Sede", "Articulo", "SKU", "Categoria", "Unidad", "Estado", "Stock total", "Disponible", "Reservado", "Prestado", "Danado", "Ultimo movimiento")
-                    : List.of("Articulo", "SKU", "Categoria", "Estado", "Disponible", "Prestado", "Danado", "Sede", "Ultimo movimiento");
+                    ? List.of("Sede", "Articulo", "SKU", "Categoria", "Unidad", "Estado", "Stock total", "Disponible", "Reservado", "Prestado", "Ultimo movimiento")
+                    : List.of("Articulo", "SKU", "Categoria", "Estado", "Disponible", "Prestado", "Sede", "Ultimo movimiento");
         };
     }
 
@@ -170,7 +170,6 @@ final class ReportLocalization {
                 case RESERVED -> "Reserved";
                 case ON_LOAN -> "On loan";
                 case MAINTENANCE -> "Maintenance";
-                case DAMAGED -> "Damaged";
                 case LOST -> "Lost";
                 case ARCHIVED -> "Archived";
             };
@@ -179,7 +178,6 @@ final class ReportLocalization {
                 case RESERVED -> "Reservado";
                 case ON_LOAN -> "Emprestado";
                 case MAINTENANCE -> "Manutencao";
-                case DAMAGED -> "Danificado";
                 case LOST -> "Perdido";
                 case ARCHIVED -> "Arquivado";
             };
@@ -188,7 +186,6 @@ final class ReportLocalization {
                 case RESERVED -> "Reservado";
                 case ON_LOAN -> "En prestamo";
                 case MAINTENANCE -> "Mantenimiento";
-                case DAMAGED -> "Danado";
                 case LOST -> "Perdido";
                 case ARCHIVED -> "Archivado";
             };

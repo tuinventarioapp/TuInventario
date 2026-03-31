@@ -38,9 +38,6 @@ public class LoanItemEntity extends BaseEntity {
     @Column(name = "returned_good_quantity", nullable = false, precision = 19, scale = 2)
     private BigDecimal returnedGoodQuantity;
 
-    @Column(name = "returned_damaged_quantity", nullable = false, precision = 19, scale = 2)
-    private BigDecimal returnedDamagedQuantity;
-
     @Column(name = "lost_quantity", nullable = false, precision = 19, scale = 2)
     private BigDecimal lostQuantity;
 

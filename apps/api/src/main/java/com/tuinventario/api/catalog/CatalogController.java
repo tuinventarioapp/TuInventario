@@ -103,8 +103,8 @@ public class CatalogController {
     }
 
     @GetMapping("/borrowers")
-    public List<CatalogDtos.BorrowerResponse> borrowers() {
-        return catalogService.listBorrowers();
+    public List<CatalogDtos.BorrowerResponse> borrowers(@RequestParam(required = false) String query) {
+        return catalogService.listBorrowers(query);
     }
 
     @GetMapping("/public-items")

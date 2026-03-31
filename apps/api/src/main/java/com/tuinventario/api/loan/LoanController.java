@@ -41,6 +41,11 @@ public class LoanController {
         return loanService.approveLoanRequest(id, request == null ? new LoanDtos.LoanActionPayload(null) : request);
     }
 
+    @PostMapping("/loan-requests/{id}/reject")
+    public LoanDtos.LoanResponse rejectLoanRequest(@PathVariable UUID id, @RequestBody(required = false) LoanDtos.LoanActionPayload request) {
+        return loanService.rejectLoanRequest(id, request == null ? new LoanDtos.LoanActionPayload(null) : request);
+    }
+
     @GetMapping("/loans")
     public List<LoanDtos.LoanResponse> listLoans(@RequestParam(required = false) UUID locationId) {
         return loanService.listLoans(locationId);

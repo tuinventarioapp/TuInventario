@@ -30,6 +30,7 @@ export function BorrowersPage() {
   const user = useAuthStore((state) => state.user)
   const isPhone = useIsMobile()
   const [editingBorrower, setEditingBorrower] = useState<Borrower | null>(null)
+  const [borrowerSearch, setBorrowerSearch] = useState('')
   const schema = z.object({
     name: z.string().min(3, t('validation.name')),
     email: z.union([z.string().email(t('validation.email')), z.literal('')]),
@@ -55,7 +56,11 @@ export function BorrowersPage() {
     })
   }, [editingBorrower, form])
 
-  const borrowersQuery = useQuery({ queryKey: ['borrowers'], queryFn: api.borrowers, enabled: canManageBorrowers(user?.role) })
+  const borrowersQuery = useQuery({
+    queryKey: ['borrowers', borrowerSearch],
+    queryFn: () => api.borrowers(borrowerSearch),
+    enabled: canManageBorrowers(user?.role),
+  })
   const createMutation = useMutation({
     mutationFn: api.createBorrower,
     onSuccess: async () => {
@@ -96,7 +101,7 @@ export function BorrowersPage() {
       )}
       {createMutation.isSuccess && <Notice variant="success">{t('borrowers.success')}</Notice>}
       {updateMutation.isSuccess && <Notice variant="success">{t('borrowers.updated')}</Notice>}
-      {deleteMutation.isSuccess && <Notice variant="success">{t('borrowers.updated')}</Notice>}
+      {deleteMutation.isSuccess && <Notice variant="success">{t('borrowers.successDelete')}</Notice>}
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <Card>
@@ -140,6 +145,15 @@ export function BorrowersPage() {
         </Card>
         <Card>
           <div className="space-y-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('common.search')}</label>
+              <Input
+                placeholder={t('borrowers.searchPlaceholder')}
+                value={borrowerSearch}
+                onChange={(event) => setBorrowerSearch(event.target.value)}
+              />
+              <p className="text-xs text-slate-500">{t('borrowers.searchHelp')}</p>
+            </div>
             {borrowersQuery.data?.length ? borrowersQuery.data.map((borrower) => (
               <div key={borrower.id} className="rounded-2xl border border-border p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

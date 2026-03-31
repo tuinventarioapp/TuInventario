@@ -182,7 +182,7 @@ public class MovementService {
         syncItemStatus(sourceItem);
         ensureStockIntegrity(sourceItem);
 
-        ItemEntity targetItem = itemRepository.findByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCase(
+        ItemEntity targetItem = itemRepository.findByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCaseAndDeletedAtIsNull(
                         currentContextService.currentUser().organizationId(),
                         targetLocation.getId(),
                         sourceItem.getSku()
@@ -217,7 +217,6 @@ public class MovementService {
         targetItem.setAvailableStock(BigDecimal.ZERO);
         targetItem.setReservedStock(BigDecimal.ZERO);
         targetItem.setLoanedStock(BigDecimal.ZERO);
-        targetItem.setDamagedStock(BigDecimal.ZERO);
         targetItem.setMinimumStock(sourceItem.getMinimumStock());
         return targetItem;
     }
@@ -241,10 +240,6 @@ public class MovementService {
             item.setStatus(ItemStatus.AVAILABLE);
             return;
         }
-        if (item.getDamagedStock().compareTo(BigDecimal.ZERO) > 0) {
-            item.setStatus(ItemStatus.DAMAGED);
-            return;
-        }
         if (item.getTotalStock().compareTo(BigDecimal.ZERO) <= 0) {
             item.setStatus(ItemStatus.LOST);
             return;
@@ -256,8 +251,7 @@ public class MovementService {
         if (item.getTotalStock().compareTo(BigDecimal.ZERO) < 0
                 || item.getAvailableStock().compareTo(BigDecimal.ZERO) < 0
                 || item.getReservedStock().compareTo(BigDecimal.ZERO) < 0
-                || item.getLoanedStock().compareTo(BigDecimal.ZERO) < 0
-                || item.getDamagedStock().compareTo(BigDecimal.ZERO) < 0) {
+                || item.getLoanedStock().compareTo(BigDecimal.ZERO) < 0) {
             throw new ApiException(HttpStatus.CONFLICT, "STOCK_NEGATIVE", "La operacion deja el inventario en un estado invalido.");
         }
     }

@@ -5,7 +5,6 @@ public enum ItemStatus {
     RESERVED,
     ON_LOAN,
     MAINTENANCE,
-    DAMAGED,
     LOST,
     ARCHIVED
 }

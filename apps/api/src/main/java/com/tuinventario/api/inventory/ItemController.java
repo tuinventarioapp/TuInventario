@@ -5,6 +5,7 @@ import com.tuinventario.api.domain.enums.ItemType;
 import com.tuinventario.api.shared.model.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,5 +53,10 @@ public class ItemController {
     @PutMapping("/{id}")
     public ItemDtos.ItemResponse updateItem(@PathVariable UUID id, @Valid @RequestBody ItemDtos.UpdateItemRequest request) {
         return itemService.updateItem(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteItem(@PathVariable UUID id) {
+        itemService.deleteItem(id);
     }
 }

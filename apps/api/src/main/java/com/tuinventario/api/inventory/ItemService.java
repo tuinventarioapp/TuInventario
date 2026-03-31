@@ -10,6 +10,8 @@ import com.tuinventario.api.domain.enums.ItemType;
 import com.tuinventario.api.domain.enums.MovementType;
 import com.tuinventario.api.domain.repository.CategoryRepository;
 import com.tuinventario.api.domain.repository.ItemRepository;
+import com.tuinventario.api.domain.repository.LoanRepository;
+import com.tuinventario.api.domain.repository.LoanRequestRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.StockMovementRepository;
 import com.tuinventario.api.domain.repository.UnitRepository;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,6 +38,8 @@ import java.util.UUID;
 public class ItemService {
 
     private final ItemRepository itemRepository;
+    private final LoanRequestRepository loanRequestRepository;
+    private final LoanRepository loanRepository;
     private final CategoryRepository categoryRepository;
     private final UnitRepository unitRepository;
     private final LocationRepository locationRepository;
@@ -105,13 +110,11 @@ public class ItemService {
         item.setImageUrl(normalizeOptional(request.imageUrl()));
         item.setType(request.type());
         item.setStatus(ItemStatus.AVAILABLE);
-        item.setConsumable(request.type() == ItemType.CONSUMABLE || request.type() == ItemType.HYBRID);
-        item.setLendable(request.type() == ItemType.LENDABLE || request.type() == ItemType.HYBRID);
+        applyItemType(item, request.type());
         item.setTotalStock(BigDecimal.ZERO);
         item.setAvailableStock(BigDecimal.ZERO);
         item.setReservedStock(BigDecimal.ZERO);
         item.setLoanedStock(BigDecimal.ZERO);
-        item.setDamagedStock(BigDecimal.ZERO);
         item.setMinimumStock(normalizeMinimumStock(request.minimumStock()));
         itemRepository.save(item);
 
@@ -149,7 +152,9 @@ public class ItemService {
         item.setName(request.name().trim());
         item.setDescription(normalizeOptional(request.description()));
         item.setImageUrl(normalizeOptional(request.imageUrl()));
+        item.setType(request.type());
         item.setStatus(request.status());
+        applyItemType(item, request.type());
         item.setCategory(categoryRepository.findByIdAndOrganizationId(UUID.fromString(request.categoryId()), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "CATEGORY_NOT_FOUND", "Categoria no encontrada.")));
         item.setUnit(unitRepository.findByIdAndOrganizationId(UUID.fromString(request.unitId()), currentContextService.currentUser().organizationId())
@@ -170,8 +175,45 @@ public class ItemService {
         return mapItem(item);
     }
 
+    @Transactional
+    public void deleteItem(UUID id) {
+        currentContextService.requireManagerOrAdmin();
+        ItemEntity item = findItem(id);
+        UUID organizationId = currentContextService.currentUser().organizationId();
+        boolean hasPendingRequests = loanRequestRepository.existsByItemIdAndOrganizationIdAndStatus(id, organizationId, com.tuinventario.api.domain.enums.LoanRequestStatus.PENDING);
+        boolean hasActiveLoans = loanRepository.existsByLoanRequest_Item_IdAndOrganizationIdAndStatusIn(
+                id,
+                organizationId,
+                List.of(com.tuinventario.api.domain.enums.LoanStatus.APPROVED, com.tuinventario.api.domain.enums.LoanStatus.DELIVERED, com.tuinventario.api.domain.enums.LoanStatus.OVERDUE)
+        );
+
+        if (hasPendingRequests || hasActiveLoans || item.getReservedStock().compareTo(BigDecimal.ZERO) > 0 || item.getLoanedStock().compareTo(BigDecimal.ZERO) > 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "ITEM_ACTIVE_IN_OPERATIONS", "No puedes eliminar un articulo con solicitudes o prestamos activos.");
+        }
+
+        item.setDeletedAt(Instant.now());
+        item.setStatus(ItemStatus.ARCHIVED);
+        item.setTotalStock(BigDecimal.ZERO);
+        item.setAvailableStock(BigDecimal.ZERO);
+        item.setReservedStock(BigDecimal.ZERO);
+        item.setLoanedStock(BigDecimal.ZERO);
+        item.setMinimumStock(BigDecimal.ZERO);
+        item.setLastMovementAt(Instant.now());
+        itemRepository.save(item);
+
+        auditService.log(
+                currentContextService.currentOrganizationEntity(),
+                currentContextService.currentActorEntity(),
+                "ITEM",
+                item.getId(),
+                "ITEM_DELETED",
+                Map.of("sku", item.getSku())
+        );
+        realtimePublisher.publish(currentContextService.currentUser().organizationId(), "item.deleted", Map.of("itemId", item.getId().toString()));
+    }
+
     private ItemEntity findItem(UUID id) {
-        ItemEntity item = itemRepository.findByIdAndOrganizationId(id, currentContextService.currentUser().organizationId())
+        ItemEntity item = itemRepository.findByIdAndOrganizationIdAndDeletedAtIsNull(id, currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ITEM_NOT_FOUND", "Item no encontrado."));
         currentContextService.ensureAccessibleLocation(item.getPrimaryLocation().getId());
         return item;
@@ -193,7 +235,7 @@ public class ItemService {
 
     private void validateUniqueSku(String sku, UUID locationId, UUID currentItemId) {
         String normalizedSku = sku.trim().toUpperCase();
-        itemRepository.findByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCase(
+        itemRepository.findByOrganizationIdAndPrimaryLocationIdAndSkuIgnoreCaseAndDeletedAtIsNull(
                         currentContextService.currentUser().organizationId(),
                         locationId,
                         normalizedSku
@@ -221,6 +263,11 @@ public class ItemService {
         return value;
     }
 
+    private void applyItemType(ItemEntity item, ItemType type) {
+        item.setConsumable(type == ItemType.CONSUMABLE || type == ItemType.HYBRID);
+        item.setLendable(type == ItemType.LENDABLE || type == ItemType.HYBRID);
+    }
+
     private ItemDtos.ItemResponse mapItem(ItemEntity item) {
         return new ItemDtos.ItemResponse(
                 item.getId().toString(),
@@ -240,7 +287,6 @@ public class ItemService {
                 item.getAvailableStock(),
                 item.getReservedStock(),
                 item.getLoanedStock(),
-                item.getDamagedStock(),
                 item.getMinimumStock(),
                 item.getLastMovementAt()
         );

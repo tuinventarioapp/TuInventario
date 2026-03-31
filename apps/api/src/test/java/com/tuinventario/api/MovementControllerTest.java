@@ -137,7 +137,6 @@ class MovementControllerTest {
                     item.setMinimumStock(BigDecimal.ZERO);
                     item.setReservedStock(BigDecimal.ZERO);
                     item.setLoanedStock(BigDecimal.ZERO);
-                    item.setDamagedStock(BigDecimal.ZERO);
                     return itemRepository.save(item);
                 });
     }

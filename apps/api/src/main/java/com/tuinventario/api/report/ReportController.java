@@ -181,7 +181,6 @@ public class ReportController {
                         formatDecimal(item.getAvailableStock()),
                         formatDecimal(item.getReservedStock()),
                         formatDecimal(item.getLoanedStock()),
-                        formatDecimal(item.getDamagedStock()),
                         formatInstant(item.getLastMovementAt(), texts)
                 ));
             } else {
@@ -192,7 +191,6 @@ public class ReportController {
                         texts.itemStatus(item.getStatus()),
                         formatDecimal(item.getAvailableStock()),
                         formatDecimal(item.getLoanedStock()),
-                        formatDecimal(item.getDamagedStock()),
                         item.getPrimaryLocation().getName(),
                         formatInstant(item.getLastMovementAt(), texts)
                 ));
@@ -307,7 +305,6 @@ public class ReportController {
                     table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont, striped));
                     table.addCell(bodyCell(formatDecimal(item.getReservedStock()), bodyFont, striped));
                     table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont, striped));
-                    table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont, striped));
                     table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont, striped));
                 } else {
                     table.addCell(bodyCell(item.getName(), bodyFont, striped));
@@ -316,7 +313,6 @@ public class ReportController {
                     table.addCell(bodyCell(texts.itemStatus(item.getStatus()), bodyFont, striped));
                     table.addCell(bodyCell(formatDecimal(item.getAvailableStock()), bodyFont, striped));
                     table.addCell(bodyCell(formatDecimal(item.getLoanedStock()), bodyFont, striped));
-                    table.addCell(bodyCell(formatDecimal(item.getDamagedStock()), bodyFont, striped));
                     table.addCell(bodyCell(item.getPrimaryLocation().getName(), bodyFont, striped));
                     table.addCell(bodyCell(formatInstant(item.getLastMovementAt(), texts), bodyFont, striped));
                 }

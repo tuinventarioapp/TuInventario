@@ -31,6 +31,7 @@ public final class ItemDtos {
             @NotBlank String name,
             String description,
             String imageUrl,
+            @NotNull ItemType type,
             @NotNull ItemStatus status,
             String categoryId,
             String unitId,
@@ -57,7 +58,6 @@ public final class ItemDtos {
             BigDecimal availableStock,
             BigDecimal reservedStock,
             BigDecimal loanedStock,
-            BigDecimal damagedStock,
             BigDecimal minimumStock,
             Instant lastMovementAt
     ) {

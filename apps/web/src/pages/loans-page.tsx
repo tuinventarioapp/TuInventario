@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { queryClient } from '../app/query-client'
@@ -28,9 +28,7 @@ type FormValues = {
 }
 
 type ReturnDraft = {
-  returnedGoodQuantity: string
-  returnedDamagedQuantity: string
-  lostQuantity: string
+  returnedQuantity: string
   notes: string
 }
 
@@ -145,9 +143,7 @@ function LoanFiltersPanel({
 
 function buildDefaultReturnDraft(loan: Loan): ReturnDraft {
   return {
-    returnedGoodQuantity: String(loan.outstandingQuantity || 0),
-    returnedDamagedQuantity: '0',
-    lostQuantity: '0',
+    returnedQuantity: String(loan.outstandingQuantity || 0),
     notes: '',
   }
 }
@@ -176,7 +172,10 @@ export function LoansPage() {
   const canManageLoanLifecycle = isManagerOrAdmin(user?.role)
   const isGlobalAdmin = isAdmin(user?.role)
   const [locationFilterId, setLocationFilterId] = useState('')
+  const [borrowerSearch, setBorrowerSearch] = useState('')
   const [itemSearch, setItemSearch] = useState('')
+  const [rejectingRequest, setRejectingRequest] = useState<LoanRequestItem | null>(null)
+  const [rejectionReasonDraft, setRejectionReasonDraft] = useState('')
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
   const [returnDrafts, setReturnDrafts] = useState<Record<string, ReturnDraft>>({})
   const [editingLoanId, setEditingLoanId] = useState<string | null>(null)
@@ -193,14 +192,18 @@ export function LoansPage() {
     notes: z.string().optional(),
   }), [t])
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
+  const { control, register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { quantity: 1 },
   })
 
   const effectiveLocationFilter = isGlobalAdmin ? locationFilterId || undefined : user?.assignedLocationId ?? undefined
-  const borrowersQuery = useQuery({ queryKey: ['borrowers'], queryFn: api.borrowers })
+  const borrowersQuery = useQuery({
+    queryKey: ['borrowers', borrowerSearch],
+    queryFn: () => api.borrowers(borrowerSearch),
+  })
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: api.categories })
+  const unitsQuery = useQuery({ queryKey: ['units'], queryFn: api.units })
   const locationsQuery = useQuery({ queryKey: ['locations'], queryFn: api.locations })
   const itemsQuery = useQuery({
     queryKey: ['items', 'loan-form', effectiveLocationFilter, itemSearch],
@@ -210,6 +213,10 @@ export function LoansPage() {
   const loansQuery = useQuery({ queryKey: ['loans', effectiveLocationFilter], queryFn: () => api.loans(effectiveLocationFilter) })
 
   const availableItems = itemsQuery.data?.content.filter((item) => ['LENDABLE', 'HYBRID'].includes(item.type) && item.availableStock > 0) ?? []
+  const selectedItemId = useWatch({ control, name: 'itemId' })
+  const selectedRequestedItem = availableItems.find((item) => item.id === selectedItemId)
+  const selectedRequestedUnit = unitsQuery.data?.find((option) => option.id === selectedRequestedItem?.unitId)
+  const requestedQuantityStep = selectedRequestedUnit?.details === 'true' ? '0.01' : '1'
   const requestItems = useMemo(
     () => filterRequests((loanRequestsQuery.data ?? []).filter((request) => request.status === 'PENDING'), requestFilters),
     [loanRequestsQuery.data, requestFilters],
@@ -239,6 +246,7 @@ export function LoansPage() {
       }),
     onSuccess: async () => {
       reset({ borrowerId: '', itemId: '', quantity: 1, dueAt: '', notes: '' })
+      setBorrowerSearch('')
       setItemSearch('')
       await queryClient.invalidateQueries({ queryKey: ['loan-requests'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -255,6 +263,17 @@ export function LoansPage() {
     },
   })
 
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes: string }) => api.rejectLoanRequest(id, { notes }),
+    onSuccess: async () => {
+      setRejectingRequest(null)
+      setRejectionReasonDraft('')
+      await queryClient.invalidateQueries({ queryKey: ['loan-requests'] })
+      await queryClient.invalidateQueries({ queryKey: ['loans'] })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+
   const deliverMutation = useMutation({
     mutationFn: ({ id, notes }: { id: string; notes?: string }) => api.deliverLoan(id, { notes }),
     onSuccess: async (_, variables) => {
@@ -266,7 +285,7 @@ export function LoansPage() {
   })
 
   const returnMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: { returnedGoodQuantity: number; returnedDamagedQuantity: number; lostQuantity: number; notes?: string } }) =>
+    mutationFn: ({ id, payload }: { id: string; payload: { returnedQuantity: number; notes?: string } }) =>
       api.returnLoan(id, payload),
     onSuccess: async (_, variables) => {
       setReturnDrafts((current) => {
@@ -344,6 +363,17 @@ export function LoansPage() {
     return t('loans.workflowPending')
   }
 
+  const openRejectDialog = (request: LoanRequestItem) => {
+    setRejectingRequest(request)
+    setRejectionReasonDraft('')
+  }
+
+  const closeRejectDialog = () => {
+    if (rejectMutation.isPending) return
+    setRejectingRequest(null)
+    setRejectionReasonDraft('')
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title={t('loans.title')} description={t('loans.description')} />
@@ -352,6 +382,8 @@ export function LoansPage() {
       {createMutation.isSuccess && <Notice variant="success">{t('loans.successRequest')}</Notice>}
       {approveMutation.isError && <Notice variant="error">{approveMutation.error.message}</Notice>}
       {approveMutation.isSuccess && <Notice variant="success">{t('loans.successApproval')}</Notice>}
+      {rejectMutation.isError && <Notice variant="error">{rejectMutation.error.message}</Notice>}
+      {rejectMutation.isSuccess && <Notice variant="success">{t('loans.successRejection')}</Notice>}
       {deliverMutation.isError && <Notice variant="error">{deliverMutation.error.message}</Notice>}
       {deliverMutation.isSuccess && <Notice variant="success">{t('loans.successDelivery')}</Notice>}
       {returnMutation.isError && <Notice variant="error">{returnMutation.error.message}</Notice>}
@@ -383,6 +415,16 @@ export function LoansPage() {
               {!borrowersQuery.data?.length && <Notice variant="warning">{t('loans.emptyBorrowers')}</Notice>}
               {!availableItems.length && <Notice variant="warning">{t('loans.emptyItems')}</Notice>}
 
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('loans.borrowerSearch')}</label>
+                <Input
+                  value={borrowerSearch}
+                  placeholder={t('loans.borrowerSearchPlaceholder')}
+                  onChange={(event) => setBorrowerSearch(event.target.value)}
+                />
+                <p className="text-xs text-slate-500">{t('loans.borrowerSearchHelp')}</p>
+              </div>
+
               <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('borrowerId')}>
                 <option value="">{t('loans.selectBorrower')}</option>
                 {borrowersQuery.data?.map((borrower) => <option key={borrower.id} value={borrower.id}>{borrower.name}</option>)}
@@ -401,13 +443,26 @@ export function LoansPage() {
 
               <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...register('itemId')}>
                 <option value="">{t('loans.selectItem')}</option>
-                {availableItems.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.sku} - {item.primaryLocation}</option>)}
+                {availableItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} - {item.sku} - {quantityWithUnit(item.availableStock, item.unit)} - {item.primaryLocation}
+                  </option>
+                ))}
               </select>
               {errors.itemId && <p className="text-sm text-red-600">{errors.itemId.message}</p>}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('common.quantity')}</label>
-                <Input type="number" min="1" step="1" {...register('quantity')} />
+                <label className="text-sm font-medium">
+                  {selectedRequestedItem?.unit
+                    ? `${t('common.quantity')} (${selectedRequestedItem.unit})`
+                    : t('common.quantity')}
+                </label>
+                <Input type="number" min={requestedQuantityStep === '1' ? '1' : '0.01'} step={requestedQuantityStep} {...register('quantity')} />
+                <p className="text-xs text-slate-500">
+                  {selectedRequestedUnit
+                    ? t('loans.requestQuantityHelpWithUnit', { unit: selectedRequestedUnit.name, symbol: selectedRequestedItem?.unit ?? selectedRequestedUnit.extra })
+                    : t('loans.requestQuantityHelp')}
+                </p>
               </div>
               {errors.quantity && <p className="text-sm text-red-600">{errors.quantity.message}</p>}
 
@@ -465,9 +520,18 @@ export function LoansPage() {
                       {request.notes && <p className="mt-2 text-sm text-slate-600">{request.notes}</p>}
                     </div>
                     {canManageLoanLifecycle && (
-                      <Button className="w-full md:w-auto" disabled={approveMutation.isPending} onClick={() => approveMutation.mutate(request.id)}>
-                        {t('loans.approve')}
-                      </Button>
+                      <div className="grid w-full max-w-md gap-2 sm:grid-cols-2 md:w-auto">
+                          <Button className="w-full" disabled={approveMutation.isPending || rejectMutation.isPending} onClick={() => approveMutation.mutate(request.id)}>
+                            {t('loans.approve')}
+                          </Button>
+                          <Button
+                            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                            disabled={rejectMutation.isPending || approveMutation.isPending}
+                            onClick={() => openRejectDialog(request)}
+                          >
+                            {t('loans.reject')}
+                          </Button>
+                      </div>
                     )}
                   </div>
                   <p className="mt-2 text-xs text-slate-500">{enumLabel('loanRequestStatus', request.status)}</p>
@@ -614,47 +678,35 @@ export function LoansPage() {
 
                           {['DELIVERED', 'OVERDUE'].includes(loan.status) && (
                             <div className="w-full space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                              <p className="text-sm font-medium text-slate-900">{t('loans.partialReturnHelp')}</p>
-                              <div className="grid gap-2 sm:grid-cols-3">
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-900">
+                                  {loan.unitSymbol ? `${t('loans.returnedQuantity')} (${loan.unitSymbol})` : t('loans.returnedQuantity')}
+                                </label>
                                 <Input
                                   type="number"
                                   min="0"
-                                  step="1"
-                                  value={returnDraft.returnedGoodQuantity}
-                                  placeholder={t('loans.returnedGood')}
-                                  onChange={(event) => updateReturnDraft(loan, { returnedGoodQuantity: event.target.value })}
+                                  step="0.01"
+                                  value={returnDraft.returnedQuantity}
+                                  placeholder={t('loans.returnedQuantity')}
+                                  onChange={(event) => updateReturnDraft(loan, { returnedQuantity: event.target.value })}
                                 />
+                                <p className="text-xs text-slate-500">{t('loans.returnQuantityHelp')}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-900">{t('loans.returnNotes')}</label>
                                 <Input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={returnDraft.returnedDamagedQuantity}
-                                  placeholder={t('loans.returnedDamaged')}
-                                  onChange={(event) => updateReturnDraft(loan, { returnedDamagedQuantity: event.target.value })}
-                                />
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={returnDraft.lostQuantity}
-                                  placeholder={t('loans.lost')}
-                                  onChange={(event) => updateReturnDraft(loan, { lostQuantity: event.target.value })}
+                                  placeholder={t('loans.returnNotesPlaceholder')}
+                                  value={returnDraft.notes}
+                                  onChange={(event) => updateReturnDraft(loan, { notes: event.target.value })}
                                 />
                               </div>
-                              <Input
-                                placeholder={t('loans.returnNotes')}
-                                value={returnDraft.notes}
-                                onChange={(event) => updateReturnDraft(loan, { notes: event.target.value })}
-                              />
                               <Button
                                 className="w-full bg-secondary text-secondary-foreground"
                                 disabled={returnMutation.isPending}
                                 onClick={() => returnMutation.mutate({
                                   id: loan.id,
                                   payload: {
-                                    returnedGoodQuantity: Number(returnDraft.returnedGoodQuantity || 0),
-                                    returnedDamagedQuantity: Number(returnDraft.returnedDamagedQuantity || 0),
-                                    lostQuantity: Number(returnDraft.lostQuantity || 0),
+                                    returnedQuantity: Number(returnDraft.returnedQuantity || 0),
                                     notes: returnDraft.notes || undefined,
                                   },
                                 })}
@@ -670,16 +722,13 @@ export function LoansPage() {
                     <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
                       <p>{t('common.quantity')}: <strong className="text-slate-950">{quantityWithUnit(loan.quantity, loan.unitSymbol)}</strong></p>
                       <p>{t('loans.pendingReturn')}: <strong className="text-slate-950">{quantityWithUnit(loan.outstandingQuantity, loan.unitSymbol)}</strong></p>
-                      <p>{t('loans.returnedGood')}: <strong className="text-slate-950">{quantityWithUnit(loan.returnedGoodQuantity, loan.unitSymbol)}</strong></p>
-                      <p>{t('loans.returnedDamaged')}: <strong className="text-slate-950">{quantityWithUnit(loan.returnedDamagedQuantity, loan.unitSymbol)}</strong></p>
-                      <p>{t('loans.lost')}: <strong className="text-slate-950">{quantityWithUnit(loan.lostQuantity, loan.unitSymbol)}</strong></p>
+                      <p>{t('loans.returnedQuantity')}: <strong className="text-slate-950">{quantityWithUnit(loan.returnedQuantity, loan.unitSymbol)}</strong></p>
                       <p>{t('loans.requestedAt')}: <strong className="text-slate-950">{formatDate(loan.requestedAt)}</strong></p>
                       <p>{t('loans.approvedAt')}: <strong className="text-slate-950">{formatDate(loan.approvedAt)}</strong></p>
                       <p>{t('loans.deliveredAt')}: <strong className="text-slate-950">{formatDate(loan.loanedAt)}</strong></p>
                       <p>{t('loans.approvedBy')}: <strong className="text-slate-950">{loan.approvedBy ?? t('common.notAvailable')}</strong></p>
                       <p>{t('loans.deliveredBy')}: <strong className="text-slate-950">{loan.deliveredBy ?? t('common.notAvailable')}</strong></p>
                       <p>{t('loans.completeReturn')}: <strong className="text-slate-950">{formatDate(loan.returnedAt)}</strong></p>
-                      <p>{t('loans.returnSummary')}: <strong className="text-slate-950">{loan.returnCondition ? enumLabel('loanReturnCondition', loan.returnCondition) : t('common.notAvailable')}</strong></p>
                     </div>
 
                     {loan.returnNotes && (
@@ -780,11 +829,12 @@ export function LoansPage() {
                     </div>
 
                     <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
+                      <p>{t('common.quantity')}: <strong className="text-slate-950">{quantityWithUnit(loan.quantity, loan.unitSymbol)}</strong></p>
+                      <p>{t('loans.returnedQuantity')}: <strong className="text-slate-950">{quantityWithUnit(loan.returnedQuantity, loan.unitSymbol)}</strong></p>
                       <p>{t('loans.requestedAt')}: <strong className="text-slate-950">{formatDate(loan.requestedAt)}</strong></p>
                       <p>{t('loans.approvedAt')}: <strong className="text-slate-950">{formatDate(loan.approvedAt)}</strong></p>
                       <p>{t('loans.deliveredAt')}: <strong className="text-slate-950">{formatDate(loan.loanedAt)}</strong></p>
                       <p>{t('loans.completeReturn')}: <strong className="text-slate-950">{formatDate(loan.returnedAt)}</strong></p>
-                      <p>{t('loans.returnSummary')}: <strong className="text-slate-950">{loan.returnCondition ? enumLabel('loanReturnCondition', loan.returnCondition) : t('common.notAvailable')}</strong></p>
                     </div>
 
                     {loan.returnNotes && (
@@ -801,6 +851,44 @@ export function LoansPage() {
           )}
         </div>
       </div>
+
+      {rejectingRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6">
+          <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{t('loans.reject')}</p>
+              <h2 className="text-xl font-semibold text-slate-950">{rejectingRequest.itemName}</h2>
+              <p className="text-sm text-slate-500">
+                {rejectingRequest.borrowerName} - {quantityWithUnit(rejectingRequest.quantity, rejectingRequest.unitSymbol)}
+              </p>
+              <p className="text-sm text-slate-500">{t('loans.rejectionReasonHelp')}</p>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <label className="text-sm font-medium text-slate-800">{t('loans.rejectionReason')}</label>
+              <textarea
+                className="min-h-32 w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                placeholder={t('loans.rejectionReasonPlaceholder')}
+                value={rejectionReasonDraft}
+                onChange={(event) => setRejectionReasonDraft(event.target.value)}
+              />
+            </div>
+
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button className="bg-secondary text-secondary-foreground hover:bg-secondary/90 sm:w-auto" onClick={closeRejectDialog}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                className="sm:w-auto"
+                disabled={rejectMutation.isPending || !rejectionReasonDraft.trim()}
+                onClick={() => rejectMutation.mutate({ id: rejectingRequest.id, notes: rejectionReasonDraft.trim() })}
+              >
+                {t('loans.reject')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

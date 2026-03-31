@@ -14,4 +14,6 @@ public interface LoanRepository extends JpaRepository<LoanEntity, UUID> {
     Optional<LoanEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
     List<LoanEntity> findByStatusInAndDueAtBefore(List<LoanStatus> statuses, Instant dueAt);
     boolean existsByBorrowerIdAndOrganizationId(UUID borrowerId, UUID organizationId);
+    boolean existsByBorrowerIdAndOrganizationIdAndStatusIn(UUID borrowerId, UUID organizationId, List<LoanStatus> statuses);
+    boolean existsByLoanRequest_Item_IdAndOrganizationIdAndStatusIn(UUID itemId, UUID organizationId, List<LoanStatus> statuses);
 }

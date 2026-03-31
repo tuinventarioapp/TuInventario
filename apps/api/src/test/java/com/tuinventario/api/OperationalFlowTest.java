@@ -280,6 +280,58 @@ class OperationalFlowTest {
     }
 
     @Test
+    void shouldRequireReasonToRejectLoanRequest() throws Exception {
+        String borrowerId = createBorrower("Borrower Rechazo " + System.nanoTime());
+        String itemId = createItem("Item Rechazo " + System.nanoTime(), "REJ-" + System.nanoTime(), 2);
+        String loanRequestId = createLoanRequest(borrowerId, itemId, 1, Instant.now().plus(2, ChronoUnit.DAYS));
+
+        mockMvc.perform(post("/api/v1/loan-requests/{id}/reject", loanRequestId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("notes", ""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REJECTION_REASON_REQUIRED"));
+    }
+
+    @Test
+    void shouldRejectLoanRequestAndKeepItInClosedHistory() throws Exception {
+        String borrowerId = createBorrower("Borrower Rechazo Historial " + System.nanoTime());
+        String itemSku = "REJ-HIST-" + System.nanoTime();
+        String itemId = createItem("Item Rechazo Historial " + System.nanoTime(), itemSku, 3);
+        String loanRequestId = createLoanRequest(borrowerId, itemId, 1, Instant.now().plus(3, ChronoUnit.DAYS));
+        ItemEntity beforeReject = itemRepository.findById(UUID.fromString(itemId)).orElseThrow();
+
+        String rejectResponse = mockMvc.perform(post("/api/v1/loan-requests/{id}/reject", loanRequestId)
+                        .header("Authorization", "Bearer " + managerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("notes", "No se puede prestar hoy"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"))
+                .andExpect(jsonPath("$.notes", containsString("Motivo de rechazo")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String rejectedLoanId = objectMapper.readTree(rejectResponse).get("id").asText();
+
+        mockMvc.perform(get("/api/v1/loan-requests")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(loanRequestId)))
+                .andExpect(content().string(containsString("\"status\":\"REJECTED\"")));
+
+        mockMvc.perform(get("/api/v1/loans")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(rejectedLoanId)))
+                .andExpect(content().string(containsString("REJECTED")))
+                .andExpect(content().string(containsString("Motivo de rechazo: No se puede prestar hoy")));
+
+        ItemEntity afterReject = itemRepository.findById(UUID.fromString(itemId)).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(0, beforeReject.getAvailableStock().compareTo(afterReject.getAvailableStock()));
+    }
+
+    @Test
     void shouldCreateUsersOnlyForAdmins() throws Exception {
         String assignedLocationId = firstLocationId();
         mockMvc.perform(post("/api/v1/users")
@@ -322,7 +374,7 @@ class OperationalFlowTest {
     }
 
     @Test
-    void shouldFilterInventoryAndExposeDamagedStock() throws Exception {
+    void shouldFilterInventoryWithoutExposingRemovedDamagedStock() throws Exception {
         String itemId = createItem("Filtro Demo", "FILTRO-" + System.nanoTime(), 1);
 
         mockMvc.perform(get("/api/v1/items")
@@ -331,7 +383,7 @@ class OperationalFlowTest {
                         .param("query", "Filtro Demo"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(itemId))
-                .andExpect(jsonPath("$.content[0].damagedStock").value(0));
+                .andExpect(jsonPath("$.content[0].damagedStock").doesNotExist());
 
         mockMvc.perform(get("/api/v1/items")
                         .header("Authorization", "Bearer " + adminToken)
@@ -375,7 +427,7 @@ class OperationalFlowTest {
     }
 
     @Test
-    void shouldSupportPartialAndFinalLoanReturns() throws Exception {
+    void shouldCloseLoanUsingReturnedQuantityAndNotes() throws Exception {
         String borrowerId = createBorrower("Borrower Parcial " + System.nanoTime());
         String itemId = createItem("Item Parcial", "PART-" + System.nanoTime(), 5);
         Instant dueAt = Instant.now().plus(2, ChronoUnit.DAYS);
@@ -388,34 +440,56 @@ class OperationalFlowTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "returnedGoodQuantity", 1,
-                                "returnedDamagedQuantity", 1,
-                                "lostQuantity", 0,
-                                "notes", "Regresaron 2, una danada"
-                        ))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DELIVERED"))
-                .andExpect(jsonPath("$.outstandingQuantity").value(1))
-                .andExpect(jsonPath("$.returnedDamagedQuantity").value(1));
-
-        ItemEntity partialItem = itemRepository.findById(UUID.fromString(itemId)).orElseThrow();
-        org.junit.jupiter.api.Assertions.assertEquals(0, partialItem.getLoanedStock().compareTo(new java.math.BigDecimal("1.00")));
-        org.junit.jupiter.api.Assertions.assertEquals(0, partialItem.getDamagedStock().compareTo(new java.math.BigDecimal("1.00")));
-
-        mockMvc.perform(post("/api/v1/loans/{id}/return", loanId)
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "returnedGoodQuantity", 0,
-                                "returnedDamagedQuantity", 0,
-                                "lostQuantity", 1,
-                                "notes", "Falto una unidad"
+                                "returnedQuantity", 2,
+                                "notes", "Se consumo 1 kg durante la operacion"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RETURNED"))
                 .andExpect(jsonPath("$.outstandingQuantity").value(0))
-                .andExpect(jsonPath("$.lostQuantity").value(1))
-                .andExpect(jsonPath("$.returnCondition").value("LOST"));
+                .andExpect(jsonPath("$.returnedQuantity").value(2))
+                .andExpect(jsonPath("$.returnNotes", containsString("Se consumo 1 kg durante la operacion")));
+
+        ItemEntity partialItem = itemRepository.findById(UUID.fromString(itemId)).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(0, partialItem.getLoanedStock().compareTo(new java.math.BigDecimal("0.00")));
+        org.junit.jupiter.api.Assertions.assertEquals(0, partialItem.getAvailableStock().compareTo(new java.math.BigDecimal("4.00")));
+        org.junit.jupiter.api.Assertions.assertEquals(0, partialItem.getTotalStock().compareTo(new java.math.BigDecimal("4.00")));
+    }
+
+    @Test
+    void shouldAllowChangingItemTypeIncludingNonLendable() throws Exception {
+        String itemId = createItem("Item Tipo " + System.nanoTime(), "TYPE-" + System.nanoTime(), 2);
+        ItemEntity item = itemRepository.findById(UUID.fromString(itemId)).orElseThrow();
+        Map<String, Object> updatePayload = new java.util.HashMap<>();
+        updatePayload.put("name", item.getName());
+        updatePayload.put("description", item.getDescription());
+        updatePayload.put("imageUrl", item.getImageUrl());
+        updatePayload.put("type", "NON_LENDABLE");
+        updatePayload.put("status", item.getStatus().name());
+        updatePayload.put("categoryId", item.getCategory().getId().toString());
+        updatePayload.put("unitId", item.getUnit().getId().toString());
+        updatePayload.put("primaryLocationId", item.getPrimaryLocation().getId().toString());
+        updatePayload.put("minimumStock", item.getMinimumStock());
+
+        mockMvc.perform(put("/api/v1/items/{id}", itemId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updatePayload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("NON_LENDABLE"));
+
+        String borrowerId = createBorrower("Borrower Tipo " + System.nanoTime());
+        mockMvc.perform(post("/api/v1/loan-requests")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "borrowerId", borrowerId,
+                                "itemId", itemId,
+                                "quantity", 1,
+                                "dueAt", Instant.now().plus(1, ChronoUnit.DAYS).toString(),
+                                "notes", "No deberia prestarse"
+                        ))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ITEM_NOT_LENDABLE"));
     }
 
     @Test
@@ -553,31 +627,85 @@ class OperationalFlowTest {
     @Test
     void shouldUpdateAndDeleteBorrowersRespectingHistory() throws Exception {
         String borrowerId = createBorrower("Sin Historial " + System.nanoTime());
+        String borrowerName = "Sin Historial Editado";
 
         mockMvc.perform(put("/api/v1/borrowers/{id}", borrowerId)
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "Sin Historial Editado",
+                                "name", borrowerName,
                                 "email", "borrower@test.local",
                                 "phone", "3001112233",
                                 "notes", "Actualizado"
                         ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Sin Historial Editado"));
+                .andExpect(jsonPath("$.name").value(borrowerName));
 
         mockMvc.perform(delete("/api/v1/borrowers/{id}", borrowerId)
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
 
-        String borrowerWithHistoryId = createBorrower("Con Historial " + System.nanoTime());
+        mockMvc.perform(get("/api/v1/borrowers")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("query", borrowerName))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString(borrowerName))));
+
+        String borrowerWithHistoryName = "Con Historial " + System.nanoTime();
+        String borrowerWithHistoryId = createBorrower(borrowerWithHistoryName);
         String itemId = createItem("Item Historial", "HIST-" + System.nanoTime(), 2);
-        createLoanRequest(borrowerWithHistoryId, itemId, 1, Instant.now().plus(1, ChronoUnit.DAYS));
+        String pendingRequestId = createLoanRequest(borrowerWithHistoryId, itemId, 1, Instant.now().plus(1, ChronoUnit.DAYS));
 
         mockMvc.perform(delete("/api/v1/borrowers/{id}", borrowerWithHistoryId)
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("BORROWER_HAS_HISTORY"));
+                .andExpect(jsonPath("$.code").value("BORROWER_ACTIVE_LOANS"));
+
+        String loanId = approveLoanRequest(pendingRequestId);
+        deliverLoan(loanId, "Entrega de historial");
+
+        mockMvc.perform(post("/api/v1/loans/{id}/return", loanId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "returnedQuantity", 1,
+                                "notes", "Devolucion completa"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RETURNED"));
+
+        mockMvc.perform(delete("/api/v1/borrowers/{id}", borrowerWithHistoryId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/borrowers")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("query", borrowerWithHistoryName))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString(borrowerWithHistoryName))));
+
+        mockMvc.perform(get("/api/v1/loans")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(borrowerWithHistoryName)))
+                .andExpect(content().string(containsString("RETURNED")));
+    }
+
+    @Test
+    void shouldSoftDeleteItemsFromActiveInventory() throws Exception {
+        String itemName = "Item Eliminable " + System.nanoTime();
+        String sku = "DEL-" + System.nanoTime();
+        String itemId = createItem(itemName, sku, 5);
+
+        mockMvc.perform(delete("/api/v1/items/{id}", itemId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("query", itemName))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
@@ -880,7 +1008,6 @@ class OperationalFlowTest {
             item.setAvailableStock(BigDecimal.ONE);
             item.setReservedStock(BigDecimal.ZERO);
             item.setLoanedStock(BigDecimal.ZERO);
-            item.setDamagedStock(BigDecimal.ZERO);
             item.setMinimumStock(BigDecimal.ZERO);
             item.setLastMovementAt(Instant.now());
             items.add(item);

@@ -16,7 +16,7 @@ import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
 
-const stockFilterOptions = ['LOW_STOCK', 'OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED', 'DAMAGED'] as const
+const stockFilterOptions = ['LOW_STOCK', 'OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED'] as const
 
 function stockWithUnit(quantity: number, unitSymbol: string) {
   return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
@@ -168,7 +168,7 @@ export function ItemsPage() {
             <label className="text-sm font-medium">{t('common.status')}</label>
             <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={filters.status} onChange={(event) => updateFilters({ status: event.target.value })}>
               <option value="">{t('common.all')}</option>
-              {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'DAMAGED', 'LOST', 'ARCHIVED'].map((status) => (
+              {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'LOST', 'ARCHIVED'].map((status) => (
                 <option key={status} value={status}>{enumLabel('itemStatus', status)}</option>
               ))}
             </select>
@@ -242,7 +242,6 @@ export function ItemsPage() {
                   <p>{t('items.available')}: <strong className="text-slate-950">{stockWithUnit(item.availableStock, item.unit)}</strong></p>
                   <p>{t('items.reserved')}: <strong className="text-slate-950">{stockWithUnit(item.reservedStock, item.unit)}</strong></p>
                   <p>{t('items.loaned')}: <strong className="text-slate-950">{stockWithUnit(item.loanedStock, item.unit)}</strong></p>
-                  <p>{t('items.damaged')}: <strong className="text-slate-950">{stockWithUnit(item.damagedStock, item.unit)}</strong></p>
                   <p>{t('items.location')}: <strong className="text-slate-950">{item.primaryLocation}</strong></p>
                   <p>{t('items.detail.total')}: <strong className="text-slate-950">{stockWithUnit(item.totalStock, item.unit)}</strong></p>
                   <p>{t('items.minimumStock')}: <strong className="text-slate-950">{stockWithUnit(item.minimumStock, item.unit)}</strong></p>

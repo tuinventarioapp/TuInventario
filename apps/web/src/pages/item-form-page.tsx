@@ -21,7 +21,7 @@ type CreateValues = {
   sku: string
   description?: string
   imageUrl?: string
-  type: 'CONSUMABLE' | 'LENDABLE' | 'HYBRID'
+  type: 'CONSUMABLE' | 'LENDABLE' | 'HYBRID' | 'NON_LENDABLE'
   categoryId: string
   unitId: string
   primaryLocationId: string
@@ -33,6 +33,7 @@ type UpdateValues = {
   name: string
   description?: string
   imageUrl?: string
+  type: 'CONSUMABLE' | 'LENDABLE' | 'HYBRID' | 'NON_LENDABLE'
   status: string
   categoryId: string
   unitId: string
@@ -51,7 +52,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
     sku: z.string().min(2, t('validation.required')),
     description: z.string().optional(),
     imageUrl: z.string().optional(),
-    type: z.enum(['CONSUMABLE', 'LENDABLE', 'HYBRID']),
+    type: z.enum(['CONSUMABLE', 'LENDABLE', 'HYBRID', 'NON_LENDABLE']),
     categoryId: z.string().min(1, t('validation.required')),
     unitId: z.string().min(1, t('validation.required')),
     primaryLocationId: z.string().min(1, t('validation.required')),
@@ -63,6 +64,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
     name: z.string().min(3, t('validation.name')),
     description: z.string().optional(),
     imageUrl: z.string().optional(),
+    type: z.enum(['CONSUMABLE', 'LENDABLE', 'HYBRID', 'NON_LENDABLE']),
     status: z.string().min(1, t('validation.required')),
     categoryId: z.string().min(1, t('validation.required')),
     unitId: z.string().min(1, t('validation.required')),
@@ -98,6 +100,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
         name: itemQuery.data.name,
         description: itemQuery.data.description ?? '',
         imageUrl: itemQuery.data.imageUrl ?? '',
+        type: itemQuery.data.type as UpdateValues['type'],
         status: itemQuery.data.status,
         categoryId: itemQuery.data.categoryId,
         unitId: itemQuery.data.unitId,
@@ -129,6 +132,15 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: () => api.deleteItem(itemId!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['items'] })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      navigate('/app/items')
+    },
+  })
+
   const form = mode === 'create' ? createForm : updateForm
   const registerField = <T extends keyof CreateValues | keyof UpdateValues>(name: T) =>
     mode === 'create'
@@ -154,9 +166,10 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
         description={t('itemForm.description')}
       />
 
-      {(createMutation.isError || updateMutation.isError) && (
-        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message}</Notice>
+      {(createMutation.isError || updateMutation.isError || deleteMutation.isError) && (
+        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message ?? deleteMutation.error?.message}</Notice>
       )}
+      {deleteMutation.isSuccess && <Notice variant="success">{t('itemForm.successDelete')}</Notice>}
 
       <Card>
         <form
@@ -185,7 +198,7 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
               <div className="space-y-2">
                 <label className="text-sm font-medium">{t('items.type')}</label>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('type')}>
-                  {(['CONSUMABLE', 'LENDABLE', 'HYBRID'] as const).map((value) => (
+                  {(['CONSUMABLE', 'LENDABLE', 'HYBRID', 'NON_LENDABLE'] as const).map((value) => (
                     <option key={value} value={value}>{enumLabel('itemType', value)}</option>
                   ))}
                 </select>
@@ -213,9 +226,17 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
           {mode === 'edit' && (
             <>
               <div className="space-y-2">
+                <label className="text-sm font-medium">{t('items.type')}</label>
+                <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...updateForm.register('type')}>
+                  {(['CONSUMABLE', 'LENDABLE', 'HYBRID', 'NON_LENDABLE'] as const).map((value) => (
+                    <option key={value} value={value}>{enumLabel('itemType', value)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">{t('common.status')}</label>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...updateForm.register('status')}>
-                  {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'DAMAGED', 'LOST', 'ARCHIVED'].map((value) => (
+                  {['AVAILABLE', 'RESERVED', 'ON_LOAN', 'MAINTENANCE', 'LOST', 'ARCHIVED'].map((value) => (
                     <option key={value} value={value}>{enumLabel('itemStatus', value)}</option>
                   ))}
                 </select>
@@ -259,10 +280,24 @@ export function ItemFormPage({ mode }: { mode: 'create' | 'edit' }) {
             </select>
             <FieldError message={form.formState.errors.primaryLocationId?.message} />
           </div>
-          <div className="md:col-span-2">
-            <Button disabled={createMutation.isPending || updateMutation.isPending} type="submit">
+          <div className={`grid gap-2 md:col-span-2 ${mode === 'edit' ? 'md:grid-cols-[1fr_auto]' : ''}`}>
+            <Button disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending} type="submit">
               {mode === 'create' ? t('itemForm.submitCreate') : t('itemForm.submitEdit')}
             </Button>
+            {mode === 'edit' && (
+              <Button
+                className="bg-secondary text-secondary-foreground"
+                disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
+                type="button"
+                onClick={() => {
+                  if (window.confirm(t('itemForm.deleteConfirm'))) {
+                    deleteMutation.mutate()
+                  }
+                }}
+              >
+                {t('itemForm.delete')}
+              </Button>
+            )}
           </div>
         </form>
       </Card>
