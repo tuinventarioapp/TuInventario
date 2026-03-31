@@ -82,7 +82,7 @@ export function AppShell() {
       {!isCompactNavigation && (
         <aside className="border-r border-slate-900/80 bg-slate-950 px-4 py-5 text-white xl:px-5">
           <div className="mb-7">
-            <BrandBlock subtitle={t('shell.subtitle')} />
+            <BrandBlock organizationName={user?.organizationName ?? undefined} subtitle={t('shell.subtitle')} />
           </div>
           <NavigationList navigation={navigation} />
           <UserSummaryCard
@@ -100,7 +100,7 @@ export function AppShell() {
           <header className="sticky top-0 z-40 bg-transparent px-4 pb-2 pt-4 text-white">
             <div className="rounded-[26px] border border-slate-900/75 bg-slate-950 px-4 py-3.5 shadow-[0_18px_40px_rgba(2,6,23,0.18)]">
               <div className="flex items-start justify-between gap-3">
-                <BrandBlock compact subtitle={t('shell.subtitle')} />
+                <BrandBlock compact organizationName={user?.organizationName ?? undefined} subtitle={t('shell.subtitle')} />
                 <Button
                   aria-label={mobileMenuOpen ? t('common.close') : t('common.menu')}
                   className="h-11 w-11 shrink-0 rounded-2xl border border-white/10 bg-white/10 px-0 text-white shadow-none hover:bg-white/20"
@@ -129,7 +129,7 @@ export function AppShell() {
             )}
           >
             <div className="flex items-start justify-between gap-3">
-              <BrandBlock compact subtitle={t('shell.subtitle')} />
+              <BrandBlock compact organizationName={user?.organizationName ?? undefined} subtitle={t('shell.subtitle')} />
               <Button
                 aria-label={t('common.close')}
                 className="h-11 w-11 shrink-0 rounded-2xl bg-white/10 px-0 text-white hover:bg-white/20"
@@ -213,17 +213,38 @@ export function AppShell() {
 
 function BrandBlock({
   subtitle,
+  organizationName,
   compact = false,
 }: {
   subtitle: string
+  organizationName?: string
   compact?: boolean
 }) {
   return (
     <div className={cn('flex items-start gap-3', compact && 'gap-2.5')}>
       <BrandLogo className={cn('mt-0.5 h-10 w-10 shrink-0 select-none', compact && 'h-9 w-9')} variant="markLight" />
-      <div className={cn('min-w-0', compact ? 'max-w-[180px]' : 'max-w-[154px] xl:max-w-[160px]')}>
-        <p className={cn('text-[0.98rem] font-semibold leading-none text-white', compact && 'text-[0.95rem]')}>TuInventario</p>
-        <p className={cn('mt-2 text-[13px] leading-5 text-slate-300', compact && 'mt-1.5 text-[12px]')}>{subtitle}</p>
+      <div className={cn('min-w-0', compact ? 'max-w-[188px]' : 'max-w-[172px] xl:max-w-[184px]')}>
+        <p className={cn('text-[0.98rem] font-semibold leading-none text-white', compact && 'text-base')}>TuInventario</p>
+        {organizationName && (
+          <p
+            className={cn(
+              'mt-1 text-[12.5px] font-medium leading-[1.25] text-slate-200',
+              compact ? 'truncate text-xs leading-4' : 'max-w-full',
+            )}
+            title={organizationName}
+          >
+            {organizationName}
+          </p>
+        )}
+        <p
+          className={cn(
+            organizationName ? 'mt-1' : 'mt-1.5',
+            'text-[11.5px] leading-[1.3] text-slate-300',
+            compact && 'truncate text-[11px] text-slate-400',
+          )}
+        >
+          {subtitle}
+        </p>
       </div>
     </div>
   )
