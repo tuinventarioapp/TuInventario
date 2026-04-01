@@ -21,6 +21,17 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 management:
   endpoints:
@@ -40,6 +51,8 @@ app:
   jwt-refresh-secret: ${JWT_REFRESH_SECRET:tuinventario-refresh-secret-change-me}
   demo-seed-enabled: ${APP_DEMO_SEED_ENABLED:}
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  mail-from: ${MAIL_FROM:no-reply@tuinventario.local}
+  mail-from-name: ${MAIL_FROM_NAME:TuInventario}
 
 springdoc:
   swagger-ui:

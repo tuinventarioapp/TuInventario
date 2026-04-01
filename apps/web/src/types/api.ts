@@ -23,6 +23,18 @@ export interface AuthResponse {
   user: AuthUser
 }
 
+export interface RegistrationPendingResponse {
+  email: string
+  organizationName: string
+  expiresAt: string
+  canResendAt: string
+  message: string
+}
+
+export interface ActionMessageResponse {
+  message: string
+}
+
 export interface OptionItem {
   id: string
   name: string

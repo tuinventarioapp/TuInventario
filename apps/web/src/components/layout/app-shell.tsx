@@ -95,23 +95,18 @@ export function AppShell() {
         </aside>
       )}
 
-      {isCompactNavigation && (
-        <>
-          <header className="sticky top-0 z-40 bg-transparent px-4 pb-2 pt-4 text-white">
-            <div className="rounded-[26px] border border-slate-900/75 bg-slate-950 px-4 py-3.5 shadow-[0_18px_40px_rgba(2,6,23,0.18)]">
-              <div className="flex items-start justify-between gap-3">
-                <BrandBlock compact organizationName={user?.organizationName ?? undefined} subtitle={t('shell.subtitle')} />
-                <Button
-                  aria-label={mobileMenuOpen ? t('common.close') : t('common.menu')}
-                  className="h-11 w-11 shrink-0 rounded-2xl border border-white/10 bg-white/10 px-0 text-white shadow-none hover:bg-white/20"
-                  onClick={toggleMobileMenu}
-                  type="button"
-                >
-                  {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-                </Button>
-              </div>
-            </div>
-          </header>
+        {isCompactNavigation && (
+          <>
+            <header className="fixed right-4 top-2 z-40">
+              <Button
+                aria-label={mobileMenuOpen ? t('common.close') : t('common.menu')}
+                className="h-11 w-11 shrink-0 rounded-2xl border border-slate-900/80 bg-slate-950 px-0 text-white shadow-[0_14px_28px_rgba(2,6,23,0.18)] hover:bg-slate-900"
+                onClick={toggleMobileMenu}
+                type="button"
+              >
+                {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+              </Button>
+            </header>
 
           <div
             aria-hidden={!mobileMenuOpen}
@@ -153,7 +148,7 @@ export function AppShell() {
         </>
       )}
 
-      <main className="space-y-4 px-4 pb-28 pt-1 sm:space-y-6 sm:px-5 sm:pt-3 lg:space-y-4 lg:px-6 lg:py-4 lg:pb-6">
+        <main className="space-y-4 px-4 pb-28 pt-0 sm:space-y-6 sm:px-5 sm:pt-2 lg:space-y-4 lg:px-6 lg:py-4 lg:pb-6">
         {!isCompactNavigation && (
           <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 shadow-panel sm:px-5 lg:px-4 lg:py-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

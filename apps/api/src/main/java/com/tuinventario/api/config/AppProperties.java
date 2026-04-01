@@ -11,6 +11,8 @@ public record AppProperties(
         String jwtAccessSecret,
         String jwtRefreshSecret,
         Boolean demoSeedEnabled,
-        String frontendOrigin
+        String frontendOrigin,
+        String mailFrom,
+        String mailFromName
 ) {
 }

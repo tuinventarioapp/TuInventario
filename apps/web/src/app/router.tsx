@@ -7,8 +7,9 @@ import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
 import { DashboardPage } from '../pages/dashboard-page'
 import { LoginPage } from '../pages/login-page'
-import { PlaceholderPage } from '../pages/placeholder-page'
 import { RegisterPage } from '../pages/register-page'
+import { ForgotPasswordPage } from '../pages/forgot-password-page'
+import { ResetPasswordPage } from '../pages/reset-password-page'
 import { PublicLoanRequestPage } from '../pages/public-loan-request-page'
 import { ItemsPage } from '../pages/items-page'
 import { ItemFormPage } from '../pages/item-form-page'
@@ -56,14 +57,8 @@ const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
-  {
-    path: '/forgot-password',
-    element: <PlaceholderPage title="" description="" />,
-  },
-  {
-    path: '/reset-password',
-    element: <PlaceholderPage title="" description="" />,
-  },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   { path: '/public-loan-request', element: <PublicLoanRequestPage /> },
   {
     element: <RequireAuth />,

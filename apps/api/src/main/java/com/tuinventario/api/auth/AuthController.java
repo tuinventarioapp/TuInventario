@@ -16,8 +16,18 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public AuthDtos.AuthResponse register(@Valid @RequestBody AuthDtos.RegisterRequest request) {
+    public AuthDtos.RegistrationPendingResponse register(@Valid @RequestBody AuthDtos.RegisterRequest request) {
         return authService.register(request);
+    }
+
+    @PostMapping("/verify-email")
+    public AuthDtos.AuthResponse verifyEmail(@Valid @RequestBody AuthDtos.VerifyEmailRequest request) {
+        return authService.verifyEmail(request);
+    }
+
+    @PostMapping("/resend-verification")
+    public AuthDtos.RegistrationPendingResponse resendVerification(@Valid @RequestBody AuthDtos.ResendVerificationRequest request) {
+        return authService.resendVerification(request);
     }
 
     @PostMapping("/login")
@@ -28,6 +38,16 @@ public class AuthController {
     @PostMapping("/refresh")
     public AuthDtos.AuthResponse refresh(@Valid @RequestBody AuthDtos.RefreshTokenRequest request) {
         return authService.refresh(request);
+    }
+
+    @PostMapping("/forgot-password")
+    public AuthDtos.ActionMessageResponse forgotPassword(@Valid @RequestBody AuthDtos.ForgotPasswordRequest request) {
+        return authService.forgotPassword(request);
+    }
+
+    @PostMapping("/reset-password")
+    public AuthDtos.ActionMessageResponse resetPassword(@Valid @RequestBody AuthDtos.ResetPasswordRequest request) {
+        return authService.resetPassword(request);
     }
 
     @GetMapping("/me")

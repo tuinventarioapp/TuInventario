@@ -2,9 +2,13 @@
 
 ## Auth
 
-- `POST /auth/register` -> `RegisterRequest`, `AuthResponse`
+- `POST /auth/register` -> `RegisterRequest`, `RegistrationPendingResponse`
+- `POST /auth/verify-email` -> `VerifyEmailRequest`, `AuthResponse`
+- `POST /auth/resend-verification` -> `ResendVerificationRequest`, `RegistrationPendingResponse`
 - `POST /auth/login` -> `LoginRequest`, `AuthResponse`
 - `POST /auth/refresh` -> `RefreshTokenRequest`, `AuthResponse`
+- `POST /auth/forgot-password` -> `ForgotPasswordRequest`, `ActionMessageResponse`
+- `POST /auth/reset-password` -> `ResetPasswordRequest`, `ActionMessageResponse`
 - `GET /auth/me` -> `CurrentUserResponse`
 
 ## Items

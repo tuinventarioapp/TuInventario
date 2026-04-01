@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { BrandLogo } from '../components/branding/brand-logo'
@@ -12,92 +14,229 @@ import { useI18n } from '../i18n/use-i18n'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
 
-type FormValues = {
+const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/
+
+type RegisterFormValues = {
   fullName: string
   email: string
+  confirmEmail: string
   password: string
+  confirmPassword: string
   organizationName: string
-  timezone: string
+}
+
+type VerifyFormValues = {
+  code: string
 }
 
 export function RegisterPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const setSession = useAuthStore((state) => state.setSession)
-  const schema = z.object({
+  const pendingEmail = searchParams.get('email') ?? ''
+  const initialStep = searchParams.get('step') === 'verify' && pendingEmail ? 'verify' : 'form'
+  const [step, setStep] = useState<'form' | 'verify'>(initialStep)
+  const [deliveryMessage, setDeliveryMessage] = useState('')
+  const [canResendAt, setCanResendAt] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (step !== 'verify') return undefined
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [step])
+
+  const registerSchema = z.object({
     fullName: z.string().min(3, t('validation.name')),
     email: z.string().email(t('validation.email')),
-    password: z.string().min(8, t('validation.password')),
+    confirmEmail: z.string().email(t('validation.email')),
+    password: z.string().regex(strongPasswordRegex, t('validation.passwordStrong')),
+    confirmPassword: z.string(),
     organizationName: z.string().min(3, t('validation.name')),
-    timezone: z.string().min(3, t('validation.required')),
+  }).superRefine((values, context) => {
+    if (values.email !== values.confirmEmail) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmEmail'], message: t('auth.register.emailMismatch') })
+    }
+    if (values.password !== values.confirmPassword) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmPassword'], message: t('auth.register.passwordMismatch') })
+    }
   })
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { timezone: 'America/Bogota' },
+  const verifySchema = z.object({
+    code: z.string().regex(/^\d{6}$/, t('auth.verify.codeRule')),
   })
 
-  const mutation = useMutation({
+  const registerForm = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: '',
+      email: pendingEmail,
+      confirmEmail: pendingEmail,
+      password: '',
+      confirmPassword: '',
+      organizationName: '',
+    },
+  })
+
+  const verifyForm = useForm<VerifyFormValues>({
+    resolver: zodResolver(verifySchema),
+    defaultValues: { code: searchParams.get('code') ?? '' },
+  })
+
+  const registerMutation = useMutation({
     mutationFn: api.register,
+    onSuccess: (response) => {
+      setDeliveryMessage(response.message)
+      setCanResendAt(response.canResendAt)
+      setStep('verify')
+      setSearchParams({ step: 'verify', email: response.email })
+      verifyForm.reset({ code: '' })
+    },
+  })
+
+  const verifyMutation = useMutation({
+    mutationFn: (payload: { email: string; code: string }) => api.verifyEmail(payload),
     onSuccess: (response) => {
       setSession(response)
       navigate('/app/dashboard')
     },
   })
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(27,125,167,0.12),transparent_25%),radial-gradient(circle_at_bottom_right,rgba(223,241,234,0.9),transparent_32%),linear-gradient(180deg,#f8fbfd_0%,#eef5f7_100%)] px-4 py-10">
-      <Card className="w-full max-w-[900px] overflow-hidden border-slate-200 bg-white/95 p-0 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="border-b border-white/10 bg-slate-950 px-8 py-8 text-white">
-          <BrandLogo className="h-9 w-auto" variant="horizontal" />
-          <p className="mt-5 text-sm text-slate-200">{t('shell.subtitle')}</p>
-        </div>
+  const resendMutation = useMutation({
+    mutationFn: (email: string) => api.resendVerification({ email }),
+    onSuccess: (response) => {
+      setDeliveryMessage(response.message)
+      setCanResendAt(response.canResendAt)
+    },
+  })
 
-        <div className="space-y-6 px-8 py-8">
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.3em] text-sky-700">{t('auth.register.kicker')}</p>
-            <h1 className="text-[2.05rem] font-semibold leading-[1.02] tracking-[-0.04em] text-slate-950">{t('auth.register.title')}</h1>
-            <p className="max-w-[42ch] text-[15px] leading-6 text-slate-600">{t('shell.subtitle')}</p>
+  const resendDisabled = useMemo(() => {
+    if (!canResendAt) return false
+    return new Date(canResendAt).getTime() > now
+  }, [canResendAt, now])
+
+  const resendRemainingSeconds = useMemo(() => {
+    if (!canResendAt) return 0
+    return Math.max(0, Math.ceil((new Date(canResendAt).getTime() - now) / 1000))
+  }, [canResendAt, now])
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(27,125,167,0.12),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(223,241,234,0.88),transparent_28%),linear-gradient(180deg,#f7fbfd_0%,#eef5f7_100%)] px-4 py-10 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-[420px] rounded-[30px] border-[#d8e1e8] bg-white p-0 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:max-w-[460px] xl:max-w-[520px]">
+        <div className="space-y-6 px-7 py-7 xl:px-8 xl:py-8">
+          <div className="flex items-center gap-4">
+            <BrandLogo className="h-12 w-12 shrink-0" variant="mark" />
+            <div>
+              <p className="text-[1.06rem] font-semibold leading-none text-slate-950">{t('app.name')}</p>
+              <p className="mt-1 text-sm text-slate-500">{t('shell.subtitle')}</p>
+            </div>
           </div>
 
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">{t('common.name')}</label>
-              <Input autoComplete="name" className="h-12 rounded-2xl px-4" {...register('fullName')} />
-              {errors.fullName && <p className="text-sm text-red-600">{errors.fullName.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">{t('common.email')}</label>
-              <Input autoComplete="email" className="h-12 rounded-2xl px-4" {...register('email')} />
-              {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">{t('common.password')}</label>
-              <Input autoComplete="new-password" className="h-12 rounded-2xl px-4" type="password" {...register('password')} />
-              {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">{t('common.timezone')}</label>
-              <Input className="h-12 rounded-2xl px-4" {...register('timezone')} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-slate-700">{t('common.organization')}</label>
-              <Input className="h-12 rounded-2xl px-4" {...register('organizationName')} />
-              {errors.organizationName && <p className="text-sm text-red-600">{errors.organizationName.message}</p>}
-            </div>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">
+              {step === 'form' ? t('auth.register.kicker') : t('auth.verify.kicker')}
+            </p>
+            <h1 className="text-[2rem] font-semibold leading-[1.02] tracking-[-0.04em] text-slate-950 xl:text-[2.18rem]">
+              {step === 'form' ? t('auth.register.title') : t('auth.verify.title')}
+            </h1>
+            <p className="text-[15px] leading-7 text-slate-500">
+              {step === 'form' ? t('auth.register.subtitle') : t('auth.verify.subtitle')}
+            </p>
+          </div>
 
-            {mutation.isError && <p className="text-sm text-red-600 md:col-span-2">{mutation.error.message}</p>}
+          {step === 'form' ? (
+            <>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-sm font-semibold text-slate-900">{t('auth.register.passwordRulesTitle')}</p>
+                <ul className="mt-2 space-y-1 text-sm leading-6 text-slate-600">
+                  <li>{t('auth.register.passwordRuleLength')}</li>
+                  <li>{t('auth.register.passwordRuleCase')}</li>
+                  <li>{t('auth.register.passwordRuleNumber')}</li>
+                  <li>{t('auth.register.passwordRuleSpecial')}</li>
+                </ul>
+              </div>
 
-            <div className="md:col-span-2">
-              <Button className="h-12 w-full rounded-2xl text-sm font-semibold" disabled={mutation.isPending} type="submit">
-                {mutation.isPending ? t('auth.register.submitting') : t('auth.register.submit')}
-              </Button>
+              <form
+                className="space-y-4"
+                onSubmit={registerForm.handleSubmit((values) => registerMutation.mutate({
+                  fullName: values.fullName,
+                  email: values.email,
+                  password: values.password,
+                  organizationName: values.organizationName,
+                }))}
+              >
+                <Field label={t('common.name')} error={registerForm.formState.errors.fullName?.message}>
+                  <Input autoComplete="name" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" {...registerForm.register('fullName')} />
+                </Field>
+                <Field label={t('common.organization')} error={registerForm.formState.errors.organizationName?.message}>
+                  <Input className="h-12 rounded-[18px] border-[#d8e1e8] px-4" {...registerForm.register('organizationName')} />
+                </Field>
+                <Field label={t('common.email')} error={registerForm.formState.errors.email?.message}>
+                  <Input autoComplete="email" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" {...registerForm.register('email')} />
+                </Field>
+                <Field label={t('auth.register.confirmEmail')} error={registerForm.formState.errors.confirmEmail?.message}>
+                  <Input autoComplete="email" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" {...registerForm.register('confirmEmail')} />
+                </Field>
+                <Field label={t('common.password')} error={registerForm.formState.errors.password?.message}>
+                  <Input autoComplete="new-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" type="password" {...registerForm.register('password')} />
+                </Field>
+                <Field label={t('auth.register.confirmPassword')} error={registerForm.formState.errors.confirmPassword?.message}>
+                  <Input autoComplete="new-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" type="password" {...registerForm.register('confirmPassword')} />
+                </Field>
+
+                {registerMutation.isError && <p className="text-sm text-red-600">{registerMutation.error.message}</p>}
+
+                <Button className="h-12 w-full rounded-[16px] bg-[#2688b4] text-sm font-semibold shadow-none hover:bg-[#227ca4]" disabled={registerMutation.isPending} type="submit">
+                  {registerMutation.isPending ? t('auth.register.submitting') : t('auth.register.submit')}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <div className="space-y-5">
+              <div className="rounded-[18px] border border-sky-100 bg-sky-50 px-4 py-4 text-sm leading-6 text-slate-700">
+                <p className="font-semibold text-slate-900">{deliveryMessage || t('auth.verify.sentTitle')}</p>
+                <p className="mt-1">{t('auth.verify.sentHelp', { email: pendingEmail })}</p>
+              </div>
+
+              <form className="space-y-4" onSubmit={verifyForm.handleSubmit((values) => verifyMutation.mutate({ email: pendingEmail, code: values.code }))}>
+                <Field label={t('auth.verify.codeLabel')} error={verifyForm.formState.errors.code?.message}>
+                  <Input className="h-12 rounded-[18px] border-[#d8e1e8] px-4 text-center tracking-[0.35em]" inputMode="numeric" maxLength={6} {...verifyForm.register('code')} />
+                </Field>
+
+                {verifyMutation.isError && <p className="text-sm text-red-600">{verifyMutation.error.message}</p>}
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button className="h-12 flex-1 rounded-[16px] bg-[#2688b4] text-sm font-semibold shadow-none hover:bg-[#227ca4]" disabled={verifyMutation.isPending} type="submit">
+                    {verifyMutation.isPending ? t('auth.verify.submitting') : t('auth.verify.submit')}
+                  </Button>
+                  <Button
+                    className="h-12 rounded-[16px] bg-slate-100 px-5 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-200 sm:px-6"
+                    disabled={resendMutation.isPending || resendDisabled}
+                    onClick={() => resendMutation.mutate(pendingEmail)}
+                    type="button"
+                  >
+                    {resendMutation.isPending
+                      ? t('auth.verify.resending')
+                      : resendDisabled
+                        ? t('auth.verify.resendWait', { seconds: resendRemainingSeconds })
+                        : t('auth.verify.resend')}
+                  </Button>
+                </div>
+              </form>
+
+              <button
+                className="text-sm font-medium text-sky-700 hover:underline"
+                onClick={() => {
+                  setStep('form')
+                  setSearchParams({})
+                }}
+                type="button"
+              >
+                {t('auth.verify.backToRegister')}
+              </button>
             </div>
-          </form>
+          )}
 
           <p className="text-sm text-slate-600">
             {t('auth.register.haveAccess')}{' '}
@@ -107,6 +246,24 @@ export function RegisterPage() {
           </p>
         </div>
       </Card>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string
+  error?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-[15px] font-semibold text-slate-900">{label}</label>
+      {children}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   )
 }

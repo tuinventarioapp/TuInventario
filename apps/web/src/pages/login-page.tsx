@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 import { BrandLogo } from '../components/branding/brand-logo'
@@ -20,7 +20,9 @@ type FormValues = {
 export function LoginPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const location = useLocation()
   const setSession = useAuthStore((state) => state.setSession)
+  const successMessage = (location.state as { successMessage?: string } | null)?.successMessage
   const schema = z.object({
     email: z.string().email(t('validation.email')),
     password: z.string().min(8, t('validation.password')),
@@ -67,16 +69,22 @@ export function LoginPage() {
             <SoftAuthChip>{t('auth.login.chipTraceability')}</SoftAuthChip>
           </div>
 
+          {successMessage && (
+            <div className="rounded-[18px] border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-slate-700">
+              {successMessage}
+            </div>
+          )}
+
           <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
             <div className="space-y-2">
               <label className="text-[15px] font-semibold text-slate-900">{t('common.email')}</label>
-              <Input autoComplete="email" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" placeholder="admin@admin.com" {...register('email')} />
+              <Input autoComplete="email" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" placeholder={t('auth.login.emailPlaceholder')} {...register('email')} />
               {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-2">
               <label className="text-[15px] font-semibold text-slate-900">{t('common.password')}</label>
-              <Input autoComplete="current-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" placeholder="••••••••" type="password" {...register('password')} />
+              <Input autoComplete="current-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" placeholder={t('auth.login.passwordPlaceholder')} type="password" {...register('password')} />
               {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
             </div>
 

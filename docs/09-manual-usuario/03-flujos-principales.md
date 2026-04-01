@@ -66,7 +66,7 @@ Resultado esperado:
 4. Filtra por estado.
 5. Filtra por tipo.
 6. Filtra por sede si eres `Administrador`.
-7. Filtra por sin stock, con stock, con prestamos activos, con stock reservado, con stock danado o en stock minimo.
+7. Filtra por sin stock, con stock, con prestamos activos, con stock reservado o en stock minimo.
 8. Si quieres, limita por cantidad minima y maxima.
 9. Si el listado es muy grande, cambia a `Vista tabla`.
 10. Si hace falta, ordena por nombre, disponible, stock minimo o ultimo movimiento.
@@ -175,30 +175,55 @@ Resultado esperado:
 
 1. Busca un prestamo `ENTREGADO` o `VENCIDO`.
 2. Revisa la cantidad pendiente.
-3. Escribe cuanto volvio bien.
-4. Escribe cuanto volvio danado.
-5. Escribe cuanto se perdio.
-6. Agrega notas.
+3. Escribe la `Cantidad devuelta` usando la unidad del articulo.
+4. Agrega notas para explicar si algo se consumio, se boto o no regreso completo.
 
 Ejemplo:
 
 - prestaste 100 camisas;
-- volvieron 80 bien;
-- volvieron 4 malas;
-- faltaron 16.
+- devolvieron 80;
+- en la nota explicas por que faltaron 20.
 
-7. Pulsa `Registrar devolucion`.
+5. Pulsa `Registrar devolucion`.
 
 Resultado esperado:
 
-- lo bueno vuelve a stock disponible;
-- lo danado queda en stock danado;
-- lo perdido baja el stock total;
+- la cantidad devuelta vuelve a stock disponible;
 - las notas quedan guardadas en el prestamo;
-- si aun falta devolver, el prestamo sigue abierto;
-- si ya no falta nada, el prestamo queda cerrado.
+- el prestamo se cierra con el historial administrativo completo.
 
-## Flujo 12: registrar movimientos
+## Flujo 12: registrar una cuenta administradora
+
+1. Entra a `Crear cuenta`.
+2. Escribe nombre del administrador, correo, confirmacion de correo, contrasena, confirmacion de contrasena y nombre de la organizacion.
+3. Revisa que la contrasena cumpla las reglas visibles en pantalla.
+4. Pulsa `Crear cuenta`.
+5. Abre el correo y busca el codigo de 6 digitos que envio TuInventario.
+6. Escribe el codigo en la pantalla de verificacion.
+7. Si hace falta, usa `Reenviar codigo`.
+
+Resultado esperado:
+
+- la cuenta queda verificada;
+- la organizacion queda creada;
+- el administrador entra directamente al panel.
+
+## Flujo 13: recuperar contrasena de una cuenta administradora
+
+1. Entra a `Olvide mi contrasena`.
+2. Escribe el correo del administrador.
+3. Pulsa `Enviar codigo`.
+4. Revisa el correo y usa el enlace o el codigo recibido.
+5. Escribe la nueva contrasena y su confirmacion.
+6. Guarda.
+
+Resultado esperado:
+
+- la contrasena se actualiza;
+- los refresh tokens anteriores quedan invalidados;
+- el administrador puede volver a iniciar sesion con la nueva clave.
+
+## Flujo 14: registrar movimientos
 
 1. Entra a `Movimientos`.
 2. Busca el articulo por nombre o SKU.
@@ -226,7 +251,7 @@ Importante:
 
 - el traslado entre sedes es una accion de control global y debe revisarse con cuidado.
 
-## Flujo 13: revisar el historial de movimientos
+## Flujo 15: revisar el historial de movimientos
 
 1. Entra a `Movimientos`.
 2. Baja a la seccion `Historial`.
@@ -247,7 +272,7 @@ Ejemplos:
 - todas las salidas del ultimo mes;
 - todos los ajustes entre dos fechas.
 
-## Flujo 14: descargar reportes
+## Flujo 16: descargar reportes
 
 1. Entra a `Reportes`.
 2. Si eres `Administrador`, decide si quieres toda la empresa o una sede.
@@ -264,7 +289,7 @@ Resultado esperado:
 - el archivo se descarga con el alcance correcto;
 - el contenido del reporte respeta el idioma activo de la aplicacion.
 
-## Flujo 15: restablecer contrasena de un usuario
+## Flujo 17: restablecer contrasena de un usuario
 
 1. Inicia sesion como `Administrador`.
 2. Entra a `Usuarios`.
@@ -277,7 +302,7 @@ Resultado esperado:
 - la clave anterior deja de funcionar;
 - el usuario ya puede entrar con la nueva clave temporal.
 
-## Flujo 16: revisar auditoria
+## Flujo 18: revisar auditoria
 
 1. Entra a `Auditoria`.
 2. Lee primero la ayuda superior para entender que significa cada columna.

@@ -31,6 +31,10 @@ public class AppUserDetailsService implements UserDetailsService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "USER_BLOCKED", "El usuario no se encuentra activo.");
         }
 
+        if (!user.isEmailVerified()) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "EMAIL_NOT_VERIFIED", "Debes verificar tu correo antes de iniciar sesion.");
+        }
+
         return new AppUserDetails(
                 user.getId(),
                 membership.getOrganization().getId(),

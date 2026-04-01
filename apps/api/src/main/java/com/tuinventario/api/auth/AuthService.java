@@ -1,5 +1,7 @@
 package com.tuinventario.api.auth;
 
+import com.tuinventario.api.config.AppProperties;
+import com.tuinventario.api.domain.entity.AuthCodeEntity;
 import com.tuinventario.api.domain.entity.CategoryEntity;
 import com.tuinventario.api.domain.entity.LocationCategoryEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
@@ -9,9 +11,11 @@ import com.tuinventario.api.domain.entity.RefreshTokenEntity;
 import com.tuinventario.api.domain.entity.RoleEntity;
 import com.tuinventario.api.domain.entity.UnitEntity;
 import com.tuinventario.api.domain.entity.UserEntity;
+import com.tuinventario.api.domain.enums.AuthCodePurpose;
 import com.tuinventario.api.domain.enums.EntityStatus;
 import com.tuinventario.api.domain.enums.LocationType;
 import com.tuinventario.api.domain.enums.MembershipStatus;
+import com.tuinventario.api.domain.repository.AuthCodeRepository;
 import com.tuinventario.api.domain.repository.CategoryRepository;
 import com.tuinventario.api.domain.repository.LocationCategoryRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
@@ -21,7 +25,6 @@ import com.tuinventario.api.domain.repository.RefreshTokenRepository;
 import com.tuinventario.api.domain.repository.RoleRepository;
 import com.tuinventario.api.domain.repository.UnitRepository;
 import com.tuinventario.api.domain.repository.UserRepository;
-import com.tuinventario.api.security.AppUserDetails;
 import com.tuinventario.api.security.AuthenticatedUserService;
 import com.tuinventario.api.security.JwtService;
 import com.tuinventario.api.shared.exception.ApiException;
@@ -30,20 +33,29 @@ import com.tuinventario.api.shared.util.SlugUtils;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final int CODE_EXPIRATION_MINUTES = 15;
+    private static final int MAX_CODE_ATTEMPTS = 5;
+    private static final int MAX_CODE_SENDS = 5;
+    private static final int RESEND_COOLDOWN_SECONDS = 60;
+    private static final String DEFAULT_TIMEZONE = "America/Bogota";
+    private static final String PASSWORD_RULE_MESSAGE = "La contrasena debe tener al menos 8 caracteres, una mayuscula, una minuscula, un numero y un caracter especial.";
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
@@ -55,29 +67,40 @@ public class AuthService {
     private final LocationCategoryRepository locationCategoryRepository;
     private final LocationRepository locationRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AuthCodeRepository authCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticatedUserService authenticatedUserService;
+    private final AuthMailService authMailService;
+    private final AppProperties appProperties;
+
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
-    public AuthDtos.AuthResponse register(AuthDtos.RegisterRequest request) {
-        userRepository.findByEmailIgnoreCase(request.email()).ifPresent(user -> {
+    public AuthDtos.RegistrationPendingResponse register(AuthDtos.RegisterRequest request) {
+        String normalizedEmail = normalizeEmail(request.email());
+        validatePassword(request.password());
+
+        userRepository.findByEmailIgnoreCase(normalizedEmail).ifPresent(user -> {
+            if (!user.isEmailVerified() && isAdminUser(user)) {
+                throw new ApiException(HttpStatus.CONFLICT, "EMAIL_PENDING_VERIFICATION", "Esta cuenta administradora aun no ha sido verificada. Usa la opcion de reenviar codigo.");
+            }
             throw new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "Ya existe un usuario con ese email.");
         });
 
         OrganizationEntity organization = new OrganizationEntity();
-        organization.setName(request.organizationName());
+        organization.setName(request.organizationName().trim());
         organization.setSlug(uniqueSlug(request.organizationName()));
-        organization.setTimezone(request.timezone());
+        organization.setTimezone(DEFAULT_TIMEZONE);
         organization.setStatus(EntityStatus.ACTIVE);
         organizationRepository.save(organization);
 
         UserEntity user = new UserEntity();
-        user.setFullName(request.fullName());
-        user.setEmail(request.email().toLowerCase());
+        user.setFullName(request.fullName().trim());
+        user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setStatus(EntityStatus.ACTIVE);
-        user.setEmailVerified(true);
+        user.setEmailVerified(false);
         userRepository.save(user);
 
         RoleEntity adminRole = roleRepository.findByName("ADMIN")
@@ -93,7 +116,37 @@ public class AuthService {
 
         createDefaultsForOrganization(organization);
 
+        return issueVerificationChallenge(user, organization.getName());
+    }
+
+    @Transactional
+    public AuthDtos.AuthResponse verifyEmail(AuthDtos.VerifyEmailRequest request) {
+        UserEntity user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "VERIFICATION_CODE_INVALID", "El codigo de verificacion no es valido."));
+
+        MembershipEntity membership = requireAdminMembership(user);
+        if (user.isEmailVerified()) {
+            throw new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_VERIFIED", "Esta cuenta administradora ya fue verificada.");
+        }
+
+        validateCode(user, AuthCodePurpose.EMAIL_VERIFICATION, request.code());
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
         return issueTokens(user, membership);
+    }
+
+    @Transactional
+    public AuthDtos.RegistrationPendingResponse resendVerification(AuthDtos.ResendVerificationRequest request) {
+        UserEntity user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PENDING_ACCOUNT_NOT_FOUND", "No encontramos una cuenta administradora pendiente de verificacion con ese correo."));
+
+        MembershipEntity membership = requireAdminMembership(user);
+        if (user.isEmailVerified()) {
+            throw new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_VERIFIED", "Esta cuenta administradora ya fue verificada.");
+        }
+
+        return issueVerificationChallenge(user, membership.getOrganization().getName());
     }
 
     @Transactional(readOnly = true)
@@ -138,6 +191,39 @@ public class AuthService {
         return issueTokens(user, membership);
     }
 
+    @Transactional
+    public AuthDtos.ActionMessageResponse forgotPassword(AuthDtos.ForgotPasswordRequest request) {
+        String normalizedEmail = normalizeEmail(request.email());
+        UserEntity user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+        if (user == null || !user.isEmailVerified() || !isAdminUser(user)) {
+            return new AuthDtos.ActionMessageResponse("Si el correo pertenece a una cuenta administradora activa, enviaremos un codigo de recuperacion.");
+        }
+
+        String code = issueCode(user, AuthCodePurpose.PASSWORD_RESET);
+        String resetLink = resolvePrimaryFrontendOrigin() + "/reset-password?email=" + normalizedEmail + "&code=" + code;
+        sendPasswordResetEmail(user, code, resetLink);
+        return new AuthDtos.ActionMessageResponse("Si el correo pertenece a una cuenta administradora activa, enviaremos un codigo de recuperacion.");
+    }
+
+    @Transactional
+    public AuthDtos.ActionMessageResponse resetPassword(AuthDtos.ResetPasswordRequest request) {
+        UserEntity user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "RESET_CODE_INVALID", "El codigo o el correo no son validos."));
+
+        if (!isAdminUser(user)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "RESET_CODE_INVALID", "El codigo o el correo no son validos.");
+        }
+
+        validatePassword(request.newPassword());
+        validateCode(user, AuthCodePurpose.PASSWORD_RESET, request.code());
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        revokeRefreshTokens(user);
+
+        return new AuthDtos.ActionMessageResponse("La contrasena se actualizo correctamente. Ahora puedes iniciar sesion.");
+    }
+
     @Transactional(readOnly = true)
     public AuthDtos.AuthUserResponse me() {
         CurrentUser currentUser = authenticatedUserService.getCurrentUser();
@@ -165,7 +251,7 @@ public class AuthService {
         refreshTokenEntity.setUser(user);
         refreshTokenEntity.setOrganization(membership.getOrganization());
         refreshTokenEntity.setToken(refreshToken);
-        refreshTokenEntity.setExpiresAt(Instant.now().plus(14, ChronoUnit.DAYS));
+        refreshTokenEntity.setExpiresAt(Instant.now().plus(appProperties.refreshTokenDays(), ChronoUnit.DAYS));
         refreshTokenRepository.save(refreshTokenEntity);
 
         return new AuthDtos.AuthResponse(
@@ -182,6 +268,167 @@ public class AuthService {
                         membership.getOrganization().getName()
                 )
         );
+    }
+
+    private AuthDtos.RegistrationPendingResponse issueVerificationChallenge(UserEntity user, String organizationName) {
+        String code = issueCode(user, AuthCodePurpose.EMAIL_VERIFICATION);
+        sendVerificationEmail(user, code, organizationName);
+        Instant now = Instant.now();
+        return new AuthDtos.RegistrationPendingResponse(
+                user.getEmail(),
+                organizationName,
+                now.plus(CODE_EXPIRATION_MINUTES, ChronoUnit.MINUTES),
+                now.plus(RESEND_COOLDOWN_SECONDS, ChronoUnit.SECONDS),
+                "Te enviamos un codigo de verificacion a tu correo para activar la cuenta administradora."
+        );
+    }
+
+    private void validateCode(UserEntity user, AuthCodePurpose purpose, String rawCode) {
+        AuthCodeEntity codeEntity = authCodeRepository.findTopByUserIdAndPurposeOrderByCreatedAtDesc(user.getId(), purpose)
+                .filter(entry -> entry.getConsumedAt() == null)
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, invalidCodeErrorCode(purpose), invalidCodeMessage(purpose)));
+
+        Instant now = Instant.now();
+        if (codeEntity.getExpiresAt().isBefore(now)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, expiredCodeErrorCode(purpose), expiredCodeMessage(purpose));
+        }
+
+        if (codeEntity.getAttemptCount() >= MAX_CODE_ATTEMPTS) {
+            codeEntity.setConsumedAt(now);
+            authCodeRepository.save(codeEntity);
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "CODE_ATTEMPTS_EXCEEDED", "Se agotaron los intentos para este codigo. Solicita uno nuevo.");
+        }
+
+        if (!passwordEncoder.matches(rawCode, codeEntity.getCodeHash())) {
+            codeEntity.setAttemptCount(codeEntity.getAttemptCount() + 1);
+            if (codeEntity.getAttemptCount() >= MAX_CODE_ATTEMPTS) {
+                codeEntity.setConsumedAt(now);
+            }
+            authCodeRepository.save(codeEntity);
+            throw new ApiException(HttpStatus.BAD_REQUEST, invalidCodeErrorCode(purpose), invalidCodeMessage(purpose));
+        }
+
+        codeEntity.setConsumedAt(now);
+        authCodeRepository.save(codeEntity);
+    }
+
+    private String issueCode(UserEntity user, AuthCodePurpose purpose) {
+        Instant now = Instant.now();
+        AuthCodeEntity codeEntity = authCodeRepository.findTopByUserIdAndPurposeOrderByCreatedAtDesc(user.getId(), purpose)
+                .orElse(null);
+
+        if (codeEntity != null && codeEntity.getConsumedAt() == null && codeEntity.getExpiresAt().isAfter(now)) {
+            if (codeEntity.getLastSentAt().plus(RESEND_COOLDOWN_SECONDS, ChronoUnit.SECONDS).isAfter(now)) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "CODE_RESEND_COOLDOWN", "Espera un minuto antes de volver a pedir el codigo.");
+            }
+            if (codeEntity.getSendCount() >= MAX_CODE_SENDS) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "CODE_RESEND_LIMIT", "Ya alcanzaste el limite de reenvios para este codigo.");
+            }
+        } else if (codeEntity == null) {
+            codeEntity = new AuthCodeEntity();
+            codeEntity.setUser(user);
+            codeEntity.setPurpose(purpose);
+        } else {
+            codeEntity.setAttemptCount(0);
+            codeEntity.setSendCount(0);
+            codeEntity.setConsumedAt(null);
+        }
+
+        String code = generateCode();
+        codeEntity.setCodeHash(passwordEncoder.encode(code));
+        codeEntity.setExpiresAt(now.plus(CODE_EXPIRATION_MINUTES, ChronoUnit.MINUTES));
+        codeEntity.setConsumedAt(null);
+        codeEntity.setAttemptCount(0);
+        codeEntity.setSendCount(codeEntity.getSendCount() + 1);
+        codeEntity.setLastSentAt(now);
+        authCodeRepository.save(codeEntity);
+        return code;
+    }
+
+    private void sendVerificationEmail(UserEntity user, String code, String organizationName) {
+        try {
+            authMailService.sendRegistrationVerificationCode(user.getEmail(), user.getFullName(), code, organizationName);
+        } catch (IllegalStateException exception) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "EMAIL_DELIVERY_FAILED", "No fue posible enviar el correo de verificacion.");
+        }
+    }
+
+    private void sendPasswordResetEmail(UserEntity user, String code, String resetLink) {
+        try {
+            authMailService.sendPasswordResetCode(user.getEmail(), user.getFullName(), code, resetLink);
+        } catch (IllegalStateException exception) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "EMAIL_DELIVERY_FAILED", "No fue posible enviar el correo de recuperacion.");
+        }
+    }
+
+    private void revokeRefreshTokens(UserEntity user) {
+        List<RefreshTokenEntity> activeTokens = refreshTokenRepository.findByUserIdAndRevokedAtIsNull(user.getId());
+        Instant now = Instant.now();
+        activeTokens.forEach(token -> token.setRevokedAt(now));
+        refreshTokenRepository.saveAll(activeTokens);
+    }
+
+    private MembershipEntity requireAdminMembership(UserEntity user) {
+        MembershipEntity membership = membershipRepository.findFirstByUserIdOrderByCreatedAtAsc(user.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "MEMBERSHIP_NOT_FOUND", "No existe una membresia activa."));
+        if (!"ADMIN".equals(membership.getRole().getName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "ADMIN_ONLY_AUTH_FLOW", "Este flujo publico solo aplica para cuentas administradoras.");
+        }
+        return membership;
+    }
+
+    private boolean isAdminUser(UserEntity user) {
+        return membershipRepository.findFirstByUserIdOrderByCreatedAtAsc(user.getId())
+                .map(entry -> "ADMIN".equals(entry.getRole().getName()))
+                .orElse(false);
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase();
+    }
+
+    private void validatePassword(String password) {
+        boolean strongEnough = password != null
+                && password.length() >= 8
+                && password.chars().anyMatch(Character::isUpperCase)
+                && password.chars().anyMatch(Character::isLowerCase)
+                && password.chars().anyMatch(Character::isDigit)
+                && password.chars().anyMatch(character -> !Character.isLetterOrDigit(character));
+        if (!strongEnough) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "PASSWORD_TOO_WEAK", PASSWORD_RULE_MESSAGE);
+        }
+    }
+
+    private String generateCode() {
+        return String.valueOf(100000 + secureRandom.nextInt(900000));
+    }
+
+    private String resolvePrimaryFrontendOrigin() {
+        String origin = appProperties.frontendOrigin();
+        if (origin == null || origin.isBlank()) {
+            return "http://localhost:5173";
+        }
+        return origin.split(",")[0].trim();
+    }
+
+    private String invalidCodeErrorCode(AuthCodePurpose purpose) {
+        return purpose == AuthCodePurpose.EMAIL_VERIFICATION ? "VERIFICATION_CODE_INVALID" : "RESET_CODE_INVALID";
+    }
+
+    private String invalidCodeMessage(AuthCodePurpose purpose) {
+        return purpose == AuthCodePurpose.EMAIL_VERIFICATION
+                ? "El codigo de verificacion no es valido."
+                : "El codigo o el correo no son validos.";
+    }
+
+    private String expiredCodeErrorCode(AuthCodePurpose purpose) {
+        return purpose == AuthCodePurpose.EMAIL_VERIFICATION ? "VERIFICATION_CODE_EXPIRED" : "RESET_CODE_EXPIRED";
+    }
+
+    private String expiredCodeMessage(AuthCodePurpose purpose) {
+        return purpose == AuthCodePurpose.EMAIL_VERIFICATION
+                ? "El codigo de verificacion ya vencio. Solicita uno nuevo."
+                : "El codigo de recuperacion ya vencio. Solicita uno nuevo.";
     }
 
     private void createDefaultsForOrganization(OrganizationEntity organization) {

@@ -53,6 +53,8 @@ docker compose up --build
 ## Funcionalidades cubiertas
 
 - autenticacion y session JWT
+- registro publico de administradores con verificacion por correo
+- recuperacion de contrasena para administradores con codigo y enlace por email
 - organizacion inicial y onboarding basico
 - usuarios y roles
 - categorias, unidades, ubicaciones y prestatarios
@@ -98,6 +100,15 @@ cd apps/api
 cd apps/web
 npm test
 ```
+
+## Flujo de correo para administradores
+
+- `POST /api/v1/auth/register` crea una organizacion y una cuenta `ADMIN` pendiente de verificacion.
+- el sistema envia un codigo de 6 digitos al correo indicado usando Brevo SMTP.
+- `POST /api/v1/auth/verify-email` valida el codigo y crea la sesion del admin inmediatamente.
+- `POST /api/v1/auth/resend-verification` reenvia el codigo respetando expiracion, cooldown y limite de reintentos.
+- `POST /api/v1/auth/forgot-password` envia un codigo y un enlace al correo del admin.
+- `POST /api/v1/auth/reset-password` valida el codigo y actualiza la contrasena.
 
 ## Documentacion
 

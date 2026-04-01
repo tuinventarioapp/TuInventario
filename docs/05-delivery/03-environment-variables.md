@@ -17,6 +17,8 @@
 - `MAIL_PORT`
 - `MAIL_USER`
 - `MAIL_PASSWORD`
+- `MAIL_FROM`
+- `MAIL_FROM_NAME`
 - `STORAGE_PROVIDER`
 
 ## Frontend
@@ -32,4 +34,7 @@
 - separar `.env.local`, `.env.staging` y `.env.production`;
 - usar `APP_DEMO_SEED_ENABLED=false` en produccion para evitar usuarios demo;
 - `FRONTEND_ORIGIN` puede recibir uno o varios orígenes separados por coma, incluidos patrones si el hosting lo soporta;
+- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER` y `MAIL_PASSWORD` son obligatorias para verificacion de correo y recuperacion de contrasena de cuentas `ADMIN`;
+- `MAIL_FROM` y `MAIL_FROM_NAME` definen el remitente visible de los correos transaccionales;
+- `APP_BASE_URL` identifica la URL base del backend;
 - mantener un `.env.example` actualizado.

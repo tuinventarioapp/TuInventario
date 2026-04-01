@@ -1,6 +1,7 @@
 import { useAuthStore } from '../store/auth-store'
 import { useUiStore } from '../store/ui-store'
 import type {
+  ActionMessageResponse,
   AuditEntry,
   AuthResponse,
   Borrower,
@@ -13,6 +14,7 @@ import type {
   SettingsPayload,
   UserSummary,
   Movement,
+  RegistrationPendingResponse,
 } from '../types/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'
@@ -40,7 +42,15 @@ export class ApiError extends Error {
 let refreshPromise: Promise<AuthResponse | null> | null = null
 
 function shouldAttemptRefresh(path: string) {
-  return path !== '/auth/login' && path !== '/auth/register' && path !== '/auth/refresh'
+  return ![
+    '/auth/login',
+    '/auth/register',
+    '/auth/verify-email',
+    '/auth/resend-verification',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/refresh',
+  ].includes(path)
 }
 
 function buildHeaders(init: RequestInit | undefined, accessToken: string | null) {
@@ -196,8 +206,16 @@ function buildQuery(params: Record<string, string | number | undefined | null>) 
 export const api = {
   login: (payload: { email: string; password: string }) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
-  register: (payload: { fullName: string; email: string; password: string; organizationName: string; timezone: string }) =>
-    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+  register: (payload: { fullName: string; email: string; password: string; organizationName: string }) =>
+    request<RegistrationPendingResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+  verifyEmail: (payload: { email: string; code: string }) =>
+    request<AuthResponse>('/auth/verify-email', { method: 'POST', body: JSON.stringify(payload) }),
+  resendVerification: (payload: { email: string }) =>
+    request<RegistrationPendingResponse>('/auth/resend-verification', { method: 'POST', body: JSON.stringify(payload) }),
+  forgotPassword: (payload: { email: string }) =>
+    request<ActionMessageResponse>('/auth/forgot-password', { method: 'POST', body: JSON.stringify(payload) }),
+  resetPassword: (payload: { email: string; code: string; newPassword: string }) =>
+    request<ActionMessageResponse>('/auth/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
   me: () => request('/auth/me'),
   dashboard: (locationId?: string) => request<DashboardSummary>(`/dashboard${buildQuery({ locationId })}`),
   items: (filters: ItemFilters = {}) =>

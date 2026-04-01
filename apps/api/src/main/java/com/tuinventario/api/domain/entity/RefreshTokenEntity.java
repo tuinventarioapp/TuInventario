@@ -26,7 +26,7 @@ public class RefreshTokenEntity extends BaseEntity {
     @JoinColumn(name = "organization_id")
     private OrganizationEntity organization;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, unique = true, length = 1024)
     private String token;
 
     @Column(nullable = false)
