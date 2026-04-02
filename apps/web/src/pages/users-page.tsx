@@ -11,6 +11,7 @@ import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { PasswordInput } from '../components/ui/password-input'
 import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { canManageUsers } from '../lib/access'
@@ -228,8 +229,7 @@ export function UsersPage() {
                 <p className="text-sm font-medium text-slate-900">{t('users.passwordResetTitle')}</p>
                 <p className="mt-1 text-sm text-slate-500">{t('users.passwordResetHelp')}</p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    type="password"
+                  <PasswordInput
                     placeholder={t('users.newPassword')}
                     value={passwordDraft}
                     onChange={(event) => setPasswordDraft(event.target.value)}
@@ -258,7 +258,7 @@ export function UsersPage() {
                 <Input {...createForm.register('email')} />
               </Field>
               <Field label={t('common.password')} error={createForm.formState.errors.password?.message} hint={t('users.passwordHelp')}>
-                <Input type="password" {...createForm.register('password')} />
+                <PasswordInput {...createForm.register('password')} />
               </Field>
               <Field label={t('common.role')}>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('role')}>

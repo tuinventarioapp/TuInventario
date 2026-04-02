@@ -11,6 +11,7 @@ import { PageHeader } from '../components/shared/page-header'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { PasswordInput } from '../components/ui/password-input'
 import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
 import { canManageBorrowers, isAdmin } from '../lib/access'
@@ -195,7 +196,7 @@ export function BorrowersPage() {
                       <Input {...borrowerAccountForm.register('email')} />
                     </Field>
                     <Field label={t('common.password')} error={borrowerAccountForm.formState.errors.password?.message} hint={t('borrowers.accountPasswordHelp')}>
-                      <Input type="password" {...borrowerAccountForm.register('password')} />
+                      <PasswordInput {...borrowerAccountForm.register('password')} />
                     </Field>
                     <Field label={t('items.location')} error={borrowerAccountForm.formState.errors.assignedLocationId?.message} hint={t('borrowers.accountLocationHelp')}>
                       <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...borrowerAccountForm.register('assignedLocationId')}>

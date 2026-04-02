@@ -8,6 +8,7 @@ import { BrandLogo } from '../components/branding/brand-logo'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { PasswordInput } from '../components/ui/password-input'
 import { useI18n } from '../i18n/use-i18n'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
@@ -84,7 +85,7 @@ export function LoginPage() {
 
             <div className="space-y-2">
               <label className="text-[15px] font-semibold text-slate-900">{t('common.password')}</label>
-              <Input autoComplete="current-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" placeholder={t('auth.login.passwordPlaceholder')} type="password" {...register('password')} />
+              <PasswordInput autoComplete="current-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" placeholder={t('auth.login.passwordPlaceholder')} {...register('password')} />
               {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
             </div>
 

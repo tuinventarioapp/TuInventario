@@ -10,6 +10,7 @@ import { BrandLogo } from '../components/branding/brand-logo'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { PasswordInput } from '../components/ui/password-input'
 import { useI18n } from '../i18n/use-i18n'
 import { api } from '../lib/api'
 
@@ -106,11 +107,11 @@ export function ResetPasswordPage() {
             </Field>
 
             <Field label={t('auth.reset.newPassword')} error={form.formState.errors.newPassword?.message}>
-              <Input autoComplete="new-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" type="password" {...form.register('newPassword')} />
+              <PasswordInput autoComplete="new-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" {...form.register('newPassword')} />
             </Field>
 
             <Field label={t('auth.register.confirmPassword')} error={form.formState.errors.confirmPassword?.message}>
-              <Input autoComplete="new-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" type="password" {...form.register('confirmPassword')} />
+              <PasswordInput autoComplete="new-password" className="h-12 rounded-[18px] border-[#d8e1e8] px-4" {...form.register('confirmPassword')} />
             </Field>
 
             {mutation.isError && <p className="text-sm text-red-600">{mutation.error.message}</p>}
