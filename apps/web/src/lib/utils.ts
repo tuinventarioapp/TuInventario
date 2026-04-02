@@ -17,11 +17,27 @@ export function formatDate(value?: string | null) {
   }).format(new Date(value))
 }
 
+function triggerDownload(href: string, filename: string) {
+  const anchor = document.createElement('a')
+  anchor.href = href
+  anchor.download = filename
+  anchor.rel = 'noopener'
+  anchor.style.display = 'none'
+  document.body.append(anchor)
+  anchor.click()
+  window.setTimeout(() => {
+    anchor.remove()
+  }, 0)
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const objectUrl = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = objectUrl
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(objectUrl)
+  triggerDownload(objectUrl, filename)
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl)
+  }, 1_000)
+}
+
+export function downloadUrl(url: string, filename: string) {
+  triggerDownload(url, filename)
 }

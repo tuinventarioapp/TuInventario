@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '../../i18n/use-i18n'
 import { ApiError, api } from '../../lib/api'
-import { cn } from '../../lib/utils'
+import { cn, downloadBlob, downloadUrl } from '../../lib/utils'
 import type { ItemImportCommitResponse, ItemImportPreviewResponse, ItemImportPreviewRow } from '../../types/api'
 import { Notice } from '../shared/notice'
 import { Badge } from '../ui/badge'
@@ -18,6 +18,9 @@ type BulkImportDialogProps = {
   onOpenChange: (open: boolean) => void
   onImported?: () => void | Promise<void>
 }
+
+const TEMPLATE_FILENAME = 'plantilla-carga-masiva-articulos-v1.0.xlsx'
+const TEMPLATE_FALLBACK_PATH = `/templates/${TEMPLATE_FILENAME}`
 
 function metricTone(status: 'new' | 'match' | 'error') {
   if (status === 'new') return 'border-emerald-200 bg-emerald-50/70 text-emerald-950'
@@ -47,6 +50,7 @@ export function BulkImportDialog({ open, onOpenChange, onImported }: BulkImportD
   const [result, setResult] = useState<ItemImportCommitResponse | null>(null)
   const [selectedSkus, setSelectedSkus] = useState<string[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [warningMessage, setWarningMessage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
@@ -60,6 +64,7 @@ export function BulkImportDialog({ open, onOpenChange, onImported }: BulkImportD
       setResult(null)
       setSelectedSkus([])
       setErrorMessage(null)
+      setWarningMessage(null)
       setIsUploading(false)
       setIsApplying(false)
       setIsDownloadingTemplate(false)
@@ -88,18 +93,16 @@ export function BulkImportDialog({ open, onOpenChange, onImported }: BulkImportD
   const handleTemplateDownload = async () => {
     setIsDownloadingTemplate(true)
     setErrorMessage(null)
+    setWarningMessage(null)
     try {
       const blob = await api.downloadItemImportTemplate()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'plantilla-carga-masiva-articulos-v1.0.xlsx'
-      document.body.append(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+      downloadBlob(blob, TEMPLATE_FILENAME)
     } catch (error) {
-      handleApiError(error)
+      downloadUrl(TEMPLATE_FALLBACK_PATH, TEMPLATE_FILENAME)
+      setWarningMessage(t('bulkImport.downloadFallback'))
+      if (error instanceof ApiError && error.status < 500) {
+        setErrorMessage(error.message)
+      }
     } finally {
       setIsDownloadingTemplate(false)
     }
@@ -189,6 +192,7 @@ export function BulkImportDialog({ open, onOpenChange, onImported }: BulkImportD
           </div>
 
           <div className="overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+            {warningMessage ? <Notice variant="warning">{warningMessage}</Notice> : null}
             {errorMessage ? <Notice variant="error">{errorMessage}</Notice> : null}
 
             {stage === 'initial' ? (
