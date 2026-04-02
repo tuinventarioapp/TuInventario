@@ -1,6 +1,6 @@
 ---
 name: database-designer
-description: Diseñar, validar y evolucionar la base de datos PostgreSQL de TuInventario con migraciones, constraints, indices y soporte para MCP. Usar cuando la tarea afecte entidades, relaciones, seeds, rendimiento de consultas o consistencia de datos.
+description: Diseñar, validar y evolucionar PostgreSQL en TuInventario usando el esquema real, migraciones versionadas y restricciones alineadas con el dominio actual.
 ---
 
 # Database Designer
@@ -13,27 +13,23 @@ Leer:
 2. `../../04-database/01-data-model-overview.md`
 3. `../../04-database/03-relational-schema.md`
 4. `../../04-database/04-migrations-and-seeds.md`
-5. `../../04-database/07-db-mcp-guidelines.md`
-6. `references/patterns.md`
+5. `references/patterns.md`
 
 ## Implementar
 
-- modelar multi-organizacion desde la raiz;
-- proteger reglas con constraints cuando sea razonable;
-- crear migraciones versionadas;
-- mantener seeds controladas;
-- agregar indices solo con base en consultas reales.
+- modelar multi-organizacion desde la raiz
+- agregar migraciones versionadas
+- usar indices segun consultas reales
+- documentar legados y diferencias entre esquema y app
 
 ## Verificar
 
-- aplicar migraciones desde cero;
-- probar constraints;
-- revisar queries criticas;
-- comparar esquema real con documentacion.
+- aplicar migraciones desde cero
+- revisar constraints
+- comparar esquema real con entidades y documentacion
 
 ## Documentar
 
-- tablas nuevas o modificadas;
-- impacto en backend y frontend;
-- riesgos de datos;
-- pruebas de validacion.
+- tablas y columnas nuevas
+- impactos en backend y frontend
+- riesgos de compatibilidad

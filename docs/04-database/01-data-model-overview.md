@@ -1,38 +1,44 @@
-# Vision general del modelo de datos
+# Panorama del modelo de datos
 
-## Objetivo
+## Tablas reales
 
-Soportar inventario multi-organizacion, movimientos auditables y prestamos con trazabilidad completa.
+Tablas de negocio y soporte:
 
-## Principios
+- `organizations`
+- `roles`
+- `users`
+- `memberships`
+- `categories`
+- `units`
+- `locations`
+- `location_categories`
+- `items`
+- `item_images`
+- `stock_movements`
+- `stock_snapshots`
+- `borrowers`
+- `loan_requests`
+- `loans`
+- `loan_items`
+- `audit_logs`
+- `notifications`
+- `refresh_tokens`
+- `auth_codes`
 
-- aislar datos por organizacion;
-- evitar borrado fisico en entidades historicas;
-- permitir consumibles y activos prestables;
-- mantener historial de cambios criticos;
-- preparar la base para crecer a nube sin rehacer el modelo.
+Tabla tecnica:
 
-## Bloques del modelo
+- `flyway_schema_history`
 
-- identidad y acceso;
-- catalogos;
-- inventario;
-- movimientos;
-- prestamos;
-- auditoria;
-- notificaciones.
+## Modulos del modelo
 
-## Diagrama conceptual
+- identidad y acceso: `users`, `roles`, `memberships`, `refresh_tokens`, `auth_codes`
+- organizacion y catalogos: `organizations`, `categories`, `units`, `locations`, `location_categories`
+- inventario: `items`, `item_images`, `stock_movements`, `stock_snapshots`
+- prestamos: `borrowers`, `loan_requests`, `loans`, `loan_items`
+- soporte: `audit_logs`, `notifications`
 
-```mermaid
-erDiagram
-    organization ||--o{ membership : has
-    user ||--o{ membership : belongs
-    organization ||--o{ category : owns
-    organization ||--o{ location : owns
-    organization ||--o{ item : owns
-    item ||--o{ stock_movement : produces
-    borrower ||--o{ loan : receives
-    loan ||--o{ loan_item : contains
-    item ||--o{ loan_item : participates
-```
+## Observaciones importantes
+
+- `notifications` existe en base de datos, pero hoy no tiene flujo completo en backend y frontend
+- `item_images` y `stock_snapshots` existen en el esquema, pero no tienen protagonismo funcional en la app actual
+- el esquema todavia conserva columnas heredadas del concepto de dano, aunque el backend actual ya no las usa como parte central del dominio

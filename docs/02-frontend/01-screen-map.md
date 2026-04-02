@@ -1,6 +1,6 @@
 # Mapa de pantallas
 
-## Publicas
+## Rutas publicas reales
 
 - `/login`
 - `/register`
@@ -8,33 +8,41 @@
 - `/reset-password`
 - `/public-loan-request`
 
-## Privadas
+## Rutas privadas reales
 
 - `/app/dashboard`
 - `/app/items`
 - `/app/items/new`
 - `/app/items/:itemId`
 - `/app/items/:itemId/edit`
+- `/app/catalogs`
 - `/app/movements`
 - `/app/loans`
-- `/app/loans/:loanId`
 - `/app/borrowers`
 - `/app/reports`
 - `/app/users`
 - `/app/settings`
 - `/app/audit`
 
-## Estructura de navegacion
+## Navegacion actual
 
-- barra lateral para modulos principales;
-- top bar con organizacion activa, buscador y usuario;
-- breadcrumbs en pantallas profundas;
-- accesos rapidos a crear item, registrar movimiento y crear prestamo.
+- sidebar principal
+- top area con nombre de organizacion y usuario
+- menu movil tipo drawer
+- accesos contextuales dentro de cada vista
+
+## Diferencias detectadas frente a docs antiguas
+
+- no existe ruta `/app/loans/:loanId`
+- no hay breadcrumbs globales
+- no hay buscador global persistente en la top bar
 
 ## Pantallas criticas
 
-- lista de articulos;
-- detalle de articulo;
-- registro de movimiento;
-- tablero de prestamos;
-- dashboard operativo.
+- login
+- registro y verificacion
+- inventario
+- formulario de articulo
+- movimientos
+- prestamos
+- reportes

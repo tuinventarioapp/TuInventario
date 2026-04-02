@@ -1,42 +1,45 @@
-# Alcance del MVP
+# Alcance real del MVP
 
-## Incluido en MVP
+## Incluido hoy
 
-- autenticacion por email y contrasena;
-- verificacion por correo y recuperacion de contrasena;
-- organizaciones y miembros;
-- roles y permisos;
-- categorias, unidades y ubicaciones;
-- articulos y fotos opcionales;
-- stock inicial;
-- entradas, salidas, ajustes y traslados;
-- historial y auditoria;
-- prestamos, devoluciones y vencimientos;
-- dashboard operativo;
-- reportes basicos en CSV y PDF;
-- notificaciones internas;
-- actualizacion en tiempo real;
-- despliegue inicial en nube.
+- autenticacion por email y contrasena
+- registro publico de administrador con creacion de organizacion
+- verificacion por correo para cuentas `ADMIN`
+- recuperacion de contrasena por correo para cuentas `ADMIN`
+- multi-organizacion con aislamiento por `organizationId`
+- membresias por usuario, rol y sede asignada
+- catalogos: categorias, unidades, categorias de ubicacion y ubicaciones
+- articulos con stock agregado, stock minimo y carga inicial
+- importacion masiva de articulos con plantilla y preview
+- movimientos de inventario con entradas, salidas, ajustes y traslados
+- prestatarios internos y solicitud publica de prestamos por enlace
+- solicitudes, aprobacion, rechazo, entrega y devolucion de prestamos
+- dashboard operativo
+- reportes CSV y PDF
+- auditoria funcional
+- sincronizacion basica en tiempo real por WebSocket
+- interfaz multidioma `es`, `en`, `pt`
+- despliegue local reproducible con Docker Compose
 
-## No incluido en MVP
+## Incluido de forma parcial
 
-- app movil nativa;
-- pagos;
-- ERP o contabilidad;
-- analitica avanzada;
-- modo offline;
-- lector QR o codigo de barras;
-- integraciones complejas con WhatsApp o calendario;
-- multilenguaje.
+- realtime: existe, pero hoy invalida cache; no hay panel completo de notificaciones
+- branding de reportes: existe logo en PDF si el recurso esta disponible
+- despliegue cloud: hay guias y archivos puntuales, pero no pipeline completo ni IaC
+
+## No incluido hoy
+
+- app movil nativa
+- modo offline
+- pagos
+- ERP o contabilidad
+- integraciones empresariales complejas
+- lector de codigo de barras o QR
+- centro de notificaciones en UI
+- breadcrumbs y buscador global
+- CI/CD real dentro del repo
+- rate limiting y bloqueo por intentos fallidos
 
 ## Definicion de MVP correcto
 
-El MVP esta bien construido si un equipo pequeno puede dejar de usar Excel para registrar inventario y prestamos sin perder trazabilidad, sin permitir stock inconsistente y sin depender de procesos manuales informales.
-
-## Limites de simplificacion permitidos
-
-- branding simple;
-- reportes limitados a los operativos;
-- automatizaciones basicas;
-- experiencia visual limpia, no lujosa;
-- permisos iniciales por rol y recurso sin matriz excesivamente compleja.
+El MVP esta correctamente implementado si una organizacion puede crear su cuenta administradora, configurar sedes y catalogos, administrar stock, atender prestamos y descargar reportes sin depender de hojas de calculo ni perder trazabilidad operativa.

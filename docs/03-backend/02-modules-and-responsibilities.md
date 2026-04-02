@@ -1,74 +1,82 @@
 # Modulos y responsabilidades
 
-## auth
+## `auth`
 
-- registro;
-- login;
-- refresh token;
-- me;
-- verificacion email;
-- recuperacion de contrasena.
+- registro publico de administradores
+- verificacion de email por codigo
+- login, refresh y `me`
+- recuperacion de contrasena para admins
+- emision y validacion de `auth_codes`
+- envio de correo por SMTP
 
-## organizations
+## `users`
 
-- organizacion;
-- configuracion base;
-- slug;
-- preferencias;
-- timezone.
+- CRUD de usuarios internos
+- reasignacion de rol y sede
+- reset interno de contrasena por admin
+- borrado logico de usuarios
 
-## users-and-access
+## `catalog`
 
-- usuarios;
-- roles;
-- memberships;
-- permisos por recurso;
-- bloqueo y soft delete.
+- categorias
+- unidades
+- categorias de ubicacion
+- ubicaciones
+- prestatarios
+- catalogo publico de items prestables
 
-## catalog
+## `inventory`
 
-- categorias;
-- unidades;
-- ubicaciones;
-- estados base.
+- CRUD de items
+- filtros
+- importacion masiva con preview y commit
+- plantilla de carga
 
-## inventory
+## `movement`
 
-- items;
-- imagenes;
-- stock actual;
-- snapshots si se requieren;
-- reglas por tipo de item.
+- listado paginado de movimientos
+- registro de entradas, salidas, ajustes y traslados
 
-## movements
+## `loan`
 
-- entradas;
-- salidas;
-- ajustes;
-- traslados;
-- motivos;
-- auditoria operativa.
+- solicitudes internas y publicas
+- grupos de solicitudes para prestatarios con cuenta
+- aprobacion o rechazo
+- entrega
+- devolucion total o parcial
+- marcado de vencidos
 
-## loans
+## `dashboard`
 
-- prestatarios;
-- solicitud;
-- aprobacion;
-- entrega;
-- devolucion;
-- vencimiento;
-- dano o perdida.
+- metricas operativas principales
+- alertas de stock minimo
 
-## reporting
+## `report`
 
-- dashboard;
-- reportes CSV y PDF;
-- agregados por periodo y por ubicacion.
+- inventario operativo y administrativo en CSV/PDF
+- reportes de prestamos
+- localizacion por idioma
 
-## platform
+## `audit`
 
-- archivos;
-- notificaciones;
-- auditoria;
-- eventos;
-- jobs programados.
+- consulta paginada y filtrable del historial auditado
+
+## `settings`
+
+- datos de organizacion, rol y sede visible para el usuario actual
+
+## `bootstrap`
+
+- seed demo opcional
+
+## `config`, `security`, `shared`
+
+- configuracion general
+- CORS y seguridad
+- excepciones
+- contexto actual
+- tiempo real y utilidades comunes
+
+## Diferencia importante
+
+Existe tabla `notifications` en base de datos, pero hoy no hay modulo funcional completo de notificaciones en backend ni UI asociada.

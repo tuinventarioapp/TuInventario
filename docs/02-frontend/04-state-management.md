@@ -1,36 +1,28 @@
 # Manejo de estado
 
-## Regla base
+## Estado del servidor
 
-Separar estado del servidor de estado de interfaz.
+TanStack Query se usa para:
 
-## TanStack Query
+- listas y detalles
+- mutaciones y revalidacion
+- invalidacion despues de acciones
+- refresco despues de eventos WebSocket
 
-Usar para:
+## Estado cliente
 
-- consultas de listas y detalles;
-- cache y revalidacion;
-- mutaciones de CRUD;
-- invalidacion por dominio;
-- sincronizacion con tiempo real.
+Zustand se usa hoy principalmente para:
 
-## Zustand
-
-Usar para:
-
-- UI global;
-- filtros persistentes;
-- drawer o modales globales;
-- preferencias de vista;
-- estado ligero de sesion cliente.
+- sesion autenticada
+- tokens
+- usuario actual
 
 ## Formularios
 
-- React Hook Form para formularios;
-- Zod para validaciones de cliente;
-- validaciones de backend como autoridad final;
-- mapear errores de API al formulario.
+- React Hook Form para captura
+- Zod para validacion del lado cliente
+- el backend sigue siendo autoridad final
 
-## Regla anti-caos
+## Observacion actual
 
-No duplicar en Zustand datos que ya viven correctamente en TanStack Query, salvo que exista una razon concreta y documentada.
+No hay una capa compleja de estado global de UI. La mayor parte del comportamiento sigue concentrada en las paginas y hooks por modulo.

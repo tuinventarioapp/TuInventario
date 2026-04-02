@@ -1,59 +1,72 @@
 # Autenticacion y autorizacion
 
-## Autenticacion
+## Endpoints reales
 
-- email y contrasena en MVP;
-- verificacion por email;
-- recuperacion de contrasena;
-- JWT corto para acceso;
-- refresh token seguro;
-- cierre de sesion con invalidacion de refresh cuando aplique.
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/verify-email`
+- `POST /api/v1/auth/resend-verification`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
+- `GET /api/v1/auth/me`
 
-## Autorizacion
+## Flujo actual para `ADMIN`
 
-- por rol;
-- por organizacion;
-- por recurso;
-- por estado del usuario.
+### Registro
 
-## Reglas claves
+1. `register` crea usuario, organizacion y membership `ADMIN`
+2. la cuenta queda con `emailVerified=false`
+3. se generan datos iniciales de organizacion: categoria, unidad, ubicacion principal y categorias de ubicacion
+4. se emite un codigo de 6 digitos por correo
+5. `verify-email` valida el codigo y devuelve `accessToken`, `refreshToken` y `user`
 
-- usuario bloqueado no autentica;
-- usuario soft deleted no opera;
-- toda consulta y comando deben validar `organizationId`;
-- admin tiene acceso completo dentro de su organizacion, no fuera de ella.
+### Recuperacion de contrasena
 
-## Endpoints criticos
+1. `forgot-password` acepta email
+2. si el usuario es admin verificado, genera codigo y enlace de reset
+3. `reset-password` valida email, codigo y password fuerte
+4. el backend revoca los refresh tokens activos del usuario
 
-- `POST /auth/register`
-- `POST /auth/verify-email`
-- `POST /auth/resend-verification`
-- `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/forgot-password`
-- `POST /auth/reset-password`
-- `GET /auth/me`
+## Restricciones reales
 
-## Flujo publico para cuentas ADMIN
+- `register`, `verify-email`, `resend-verification`, `forgot-password` y `reset-password` solo cubren el flujo publico de administradores
+- usuarios internos no admin se gestionan desde el panel
+- `AppUserDetailsService` impide autenticar usuarios no verificados, bloqueados o eliminados logicamente
+- no existe endpoint publico de logout
 
-- el registro publico solo crea cuentas con rol `ADMIN`;
-- una cuenta `ADMIN` nueva queda con `emailVerified=false` hasta validar el codigo recibido por correo;
-- el codigo de verificacion expira y tiene cooldown de reenvio para evitar abuso;
-- al validar el codigo correctamente, la API devuelve `accessToken`, `refreshToken` y el usuario autenticado;
-- el flujo de `forgot-password` y `reset-password` aplica solo a cuentas `ADMIN` verificadas;
-- los usuarios internos no admin siguen usando el flujo interno actual administrado por la aplicacion.
+## Tokens
 
-## Entrega de correo
+- access token con expiracion corta
+- refresh token persistido en tabla `refresh_tokens`
+- el refresh invalida el token anterior y emite uno nuevo
 
-- SMTP configurado con Brevo (`smtp-relay.brevo.com`);
-- las credenciales se leen desde variables de entorno;
-- no se usa la contrasena de Gmail ni un proveedor acoplado a la UI;
-- el enlace de recuperacion usa `FRONTEND_ORIGIN` para abrir la pagina publica de reset.
+## Codigos de autenticacion
 
-## Medidas de seguridad
+- se almacenan en `auth_codes`
+- el valor real del codigo se guarda hasheado
+- expiran a los 15 minutos
+- maximo 5 intentos
+- maximo 5 envios por codigo
+- cooldown de reenvio: 60 segundos
 
-- rate limiting;
-- control de intentos fallidos;
-- expiracion razonable de tokens;
-- rotacion de secretos por entorno;
-- no exponer detalles sensibles en errores.
+## Roles y alcance
+
+- `ADMIN`: acceso completo en su organizacion
+- `MANAGER`: operacion diaria, normalmente restringido a sede
+- `COLLABORATOR`: operacion limitada, normalmente restringido a sede
+- `BORROWER`: rol soportado por base y backend para cuentas prestatario
+
+## Seguridad implementada hoy
+
+- BCrypt para contrasenas
+- JWT
+- validacion de organizacion y permisos en servicios
+- CORS configurable
+
+## Seguridad pendiente
+
+- rate limiting
+- bloqueo por intentos fallidos
+- logout con endpoint propio
+- autenticacion de WebSocket

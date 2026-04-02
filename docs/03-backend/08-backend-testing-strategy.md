@@ -1,34 +1,29 @@
-# Estrategia de testing backend
+# Estrategia real de pruebas backend
 
-## Piramide recomendada
+## Suite actual
 
-- unit tests para reglas y servicios;
-- integration tests para API, JPA y PostgreSQL;
-- pruebas E2E para flujos principales.
+Archivos presentes:
 
-## Herramientas sugeridas
+- `AuthControllerTest`
+- `MailConfigTest`
+- `MovementControllerTest`
+- `OperationalFlowTest`
 
-- JUnit 5;
-- Mockito;
-- Testcontainers;
-- Spring Boot Test;
-- Rest Assured o MockMvc;
-- cobertura con JaCoCo.
+## Cobertura observable
 
-## Flujos obligatorios
+- autenticacion y flujo publico de admins
+- configuracion de mail
+- operaciones de movimientos
+- flujo operativo integrado de inventario y prestamos
 
-- login y refresh;
-- permisos;
-- crear item;
-- entrada;
-- salida;
-- traslado;
-- prestamo;
-- devolucion;
-- job de vencimientos;
-- exportacion de reportes.
+## Comando
 
-## Cobertura
+```powershell
+.\mvnw.cmd test
+```
 
-- meta minima backend: 70 por ciento;
-- priorizar calidad de escenarios criticos por encima del numero bruto.
+## Estado real
+
+- las pruebas backend actuales pasan
+- hay mezcla de pruebas de controlador e integracion
+- no toda regla de negocio tiene cobertura aislada

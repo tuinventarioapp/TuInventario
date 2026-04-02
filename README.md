@@ -1,13 +1,23 @@
 # TuInventario
 
-TuInventario es un MVP funcional para gestionar inventario, movimientos, ubicaciones y prestamos desde una sola aplicacion.
+TuInventario es una aplicacion web para gestionar inventario, movimientos y prestamos en organizaciones con multiples sedes. El proyecto actual vive en un monorepo con frontend React, backend Spring Boot y PostgreSQL.
 
-## Stack
+## Estado actual
 
-- Frontend: React + TypeScript + Vite + React Router + Tailwind + Zustand + TanStack Query
-- Backend: Spring Boot + Java 21 + JPA/Hibernate + Flyway + JWT + OpenAPI + WebSocket
-- Base de datos: PostgreSQL
-- Infra local: Docker Compose
+- el sistema es multi-organizacion
+- soporta roles `ADMIN`, `MANAGER`, `COLLABORATOR` y `BORROWER`
+- incluye registro publico de administrador con verificacion por correo
+- incluye recuperacion de contrasena por correo para administradores
+- maneja catalogos, ubicaciones, articulos, stock minimo, movimientos, prestatarios y prestamos
+- exporta reportes CSV y PDF
+- tiene sincronizacion basica por WebSocket para invalidar cache del frontend
+
+## Stack real
+
+- frontend: React 19, TypeScript, Vite, React Router, TanStack Query, Zustand, Tailwind CSS
+- backend: Spring Boot 3.4.5, Java 21, Spring Security, JPA/Hibernate, Flyway, WebSocket STOMP, JavaMail
+- base de datos: PostgreSQL 16
+- entorno local: Docker Compose
 
 ## Estructura
 
@@ -17,64 +27,61 @@ TuInventario-app/
     api/
     web/
   docs/
-  infra/
-  scripts/
   docker-compose.yml
   .env.example
 ```
 
-## Arranque rapido
+## Arranque local con Docker
 
-1. Copia `.env.example` a `.env` si quieres personalizar valores.
+1. Copia `.env.example` a `.env` si quieres personalizar secretos o correo.
 2. Ejecuta:
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
 ```
 
 3. Abre:
 
-- Frontend: [http://localhost:5173](http://localhost:5173)
-- Backend: [http://localhost:8080](http://localhost:8080)
-- Swagger: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- frontend: [http://localhost:5173](http://localhost:5173)
+- backend: [http://localhost:8080](http://localhost:8080)
+- swagger: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-## Usuarios iniciales
+## Base de datos local
 
-- Administrador
-  - email: `admin@admin.com`
-  - password: `admin123`
-- Colaborador
-  - email: `colaborador@colaborador.com`
-  - password: `colaborador123`
-- Trabajador
-  - email: `trabajador@trabajador.com`
-  - password: `trabajador123`
+- host externo: `127.0.0.1`
+- puerto externo: `55432`
+- base: `tuinventario`
+- usuario: `tuinventario`
+- password por defecto: `tuinventario`
 
-## Funcionalidades cubiertas
+## Usuarios demo
 
-- autenticacion y session JWT
-- registro publico de administradores con verificacion por correo
-- recuperacion de contrasena para administradores con codigo y enlace por email
-- organizacion inicial y onboarding basico
-- usuarios y roles
-- categorias, unidades, ubicaciones y prestatarios
-- catalogos administrables desde el frontend
-- items con stock inicial
-- movimientos de inventario
-- solicitudes, aprobacion, entrega y devolucion de prestamos
-- dashboard
-- auditoria
-- reportes CSV y PDF
-- interfaz multidioma (es, en, pt)
-- sincronizacion por WebSocket para invalidar datos en tiempo real
+Si `APP_DEMO_SEED_ENABLED=true`, el backend crea una organizacion demo y estos usuarios:
 
-## Desarrollo local sin Docker
+- `admin@admin.com` / `admin123`
+- `colaborador@colaborador.com` / `colaborador123`
+- `trabajador@trabajador.com` / `trabajador123`
+
+Nota:
+- el usuario `trabajador@trabajador.com` hoy se siembra con rol `MANAGER`
+- estos usuarios no se crean cuando el seed demo esta deshabilitado
+
+## Flujo de administradores por correo
+
+- `POST /api/v1/auth/register` crea una organizacion nueva y un `ADMIN` con `emailVerified=false`
+- el backend envia un codigo de 6 digitos por SMTP
+- `POST /api/v1/auth/verify-email` valida el codigo y devuelve sesion
+- `POST /api/v1/auth/resend-verification` reenvia el codigo
+- `POST /api/v1/auth/forgot-password` envia codigo y enlace de recuperacion para admins
+- `POST /api/v1/auth/reset-password` actualiza la contrasena
+
+## Desarrollo sin Docker
 
 ### Backend
 
 ```powershell
 cd apps/api
-./mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run
 ```
 
 ### Frontend
@@ -91,29 +98,21 @@ npm run dev
 
 ```powershell
 cd apps/api
-./mvnw.cmd test
+.\mvnw.cmd test
 ```
 
 ### Frontend
 
 ```powershell
 cd apps/web
-npm test
+npm install
+npm run test -- --run
+npm run lint
 ```
-
-## Flujo de correo para administradores
-
-- `POST /api/v1/auth/register` crea una organizacion y una cuenta `ADMIN` pendiente de verificacion.
-- el sistema envia un codigo de 6 digitos al correo indicado usando Brevo SMTP.
-- `POST /api/v1/auth/verify-email` valida el codigo y crea la sesion del admin inmediatamente.
-- `POST /api/v1/auth/resend-verification` reenvia el codigo respetando expiracion, cooldown y limite de reintentos.
-- `POST /api/v1/auth/forgot-password` envia un codigo y un enlace al correo del admin.
-- `POST /api/v1/auth/reset-password` valida el codigo y actualiza la contrasena.
 
 ## Documentacion
 
-La documentacion del proyecto usada como fuente de verdad vive en `docs/`.
+La fuente de verdad documental del estado actual vive en:
 
-## Manual de uso
-
-Consulta el manual funcional en `docs/09-manual-usuario/`.
+- `docs/README.md`
+- `docs/09-manual-usuario/README.md`

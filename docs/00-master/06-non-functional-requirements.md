@@ -1,40 +1,39 @@
 # Requisitos no funcionales
 
-## Rendimiento
+## Rendimiento objetivo
 
-- respuestas CRUD comunes debajo de 500 ms en escenarios normales;
-- busquedas y tablas con paginacion server-side;
-- dashboard inicial debajo de 2 segundos con datos moderados;
-- actualizaciones en tiempo real sin duplicar eventos visibles.
+- CRUD comunes por debajo de ~500 ms en entornos pequenos o medianos
+- dashboard inicial por debajo de ~2 s con datos moderados
+- tablas paginadas en inventario, movimientos y auditoria
+- exports CSV y PDF generados dentro de tiempos operativos razonables
 
-## Integridad
+## Integridad y consistencia
 
-- no permitir stock negativo;
-- toda operacion critica debe ser transaccional;
-- auditoria obligatoria en eventos sensibles;
-- estados invalidos deben rechazarse con errores claros.
+- no permitir stock negativo
+- aplicar transacciones en movimientos y prestamos
+- auditar acciones sensibles
+- aislar datos por organizacion
+- respetar alcance por sede para usuarios no admin
 
-## Seguridad
+## Seguridad implementada hoy
 
-- contrasenas con hashing fuerte;
-- JWT corto y refresh token seguro;
-- rate limiting;
-- bloqueo por intentos fallidos;
-- aislamiento por organizacion;
-- autorizacion por rol y recurso.
+- hashing de contrasena con BCrypt
+- JWT de acceso y refresh token persistido
+- bloqueo de login para usuarios no verificados, bloqueados o eliminados logicamente
+- CORS configurable por `FRONTEND_ORIGIN`
+- permisos por rol y contexto de organizacion
+
+## Seguridad pendiente
+
+- rate limiting
+- bloqueo por intentos fallidos
+- trazabilidad con `traceId`
+- autenticacion del WebSocket
 
 ## Mantenibilidad
 
-- arquitectura por modulos;
-- DTOs separados;
-- pruebas en flujos criticos;
-- convenciones de nombres consistentes;
-- documentacion sincronizada con cambios importantes.
-
-## Operacion
-
-- desarrollo local con un comando;
-- Docker desde el inicio;
-- variables de entorno documentadas;
-- logs estructurados;
-- readiness de despliegue en staging y produccion.
+- backend modular por dominio
+- DTOs separados de entidades
+- migraciones versionadas con Flyway
+- documentacion y manual en el mismo repo
+- pruebas automticas parciales en frontend y backend

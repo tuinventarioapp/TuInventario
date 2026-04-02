@@ -1,6 +1,6 @@
 ---
 name: testing-guardian
-description: Revisar calidad, pruebas, regresiones y riesgos operativos de TuInventario. Usar cuando la tarea requiera validar codigo, ampliar cobertura, ejecutar QA funcional o revisar readiness antes de fusionar o desplegar.
+description: Revisar calidad, regresiones y riesgos de TuInventario comparando el comportamiento real, las pruebas existentes y la documentacion actualizada.
 ---
 
 # Testing Guardian
@@ -17,17 +17,17 @@ Leer:
 
 ## Evaluar
 
-- reglas de negocio;
-- permisos;
-- integridad de stock;
-- flujo de prestamos;
-- documentacion actualizada;
-- riesgos de release.
+- reglas de negocio
+- permisos
+- auth y correo para admins
+- integridad de stock
+- flujo de prestamos
+- documentacion alineada
 
 ## Entregar
 
-- hallazgos priorizados;
-- pruebas ejecutadas;
-- huecos de cobertura;
-- riesgos residuales;
-- recomendacion clara.
+- hallazgos priorizados
+- pruebas ejecutadas
+- huecos de cobertura
+- riesgos residuales
+- recomendacion clara

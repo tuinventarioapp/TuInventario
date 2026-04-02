@@ -1,22 +1,21 @@
 # Observabilidad y soporte
 
-## Minimo esperado
+## Disponible hoy
 
-- endpoint de health;
-- logs estructurados;
-- captura de errores no controlados;
-- seguimiento de jobs;
-- trazabilidad por `traceId`.
+- `/actuator/health`
+- logs basicos de Spring Boot
+- auditoria funcional consultable
 
-## Soporte operativo
+## No disponible hoy
 
-- admin del espacio de trabajo como primer nivel funcional;
-- equipo tecnico como segundo nivel;
-- procedimiento simple para revisar incidentes de stock y prestamos.
+- trazas distribuidas
+- `traceId`
+- dashboards de metricas
+- alertas operativas automatizadas
 
-## Preguntas que el sistema debe poder ayudar a responder
+## Soporte recomendado
 
-- quien hizo un movimiento;
-- por que bajo el stock;
-- que prestamos estan vencidos;
-- si una migracion o despliegue rompio la operacion.
+- conservar logs de despliegue
+- revisar `audit_logs` para acciones operativas
+- revisar reportes y estados de prestamos vencidos
+- complementar con monitoreo del proveedor cloud cuando se despliegue

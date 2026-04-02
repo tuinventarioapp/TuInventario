@@ -1,32 +1,28 @@
-# Estructura recomendada del monorepo
-
-## Objetivo
-
-Mantener frontend, backend, infraestructura y documentacion en un solo repositorio sin mezclar responsabilidades.
-
-## Estructura sugerida
+# Estructura real del monorepo
 
 ```text
-tuinventario/
+TuInventario-app/
   apps/
-    web/
     api/
-  infra/
-    docker/
-    db/
+    web/
   docs/
-  scripts/
-  .github/
+    00-master/
+    01-business/
+    02-frontend/
+    03-backend/
+    04-database/
+    05-delivery/
+    06-prompts/
+    07-skills/
+    08-templates/
+    09-manual-usuario/
+  docker-compose.yml
+  .env.example
+  README.md
 ```
 
-## Regla
+## Observaciones
 
-- `apps/web` para React;
-- `apps/api` para Spring Boot;
-- `infra/db` para migraciones y seeds si se centralizan;
-- `scripts` para automatizaciones de desarrollo y release;
-- `docs` para la documentacion viva del proyecto.
-
-## Nota
-
-Si se copia esta carpeta documental dentro del repo final, ubicarla en `docs/` respetando la estructura.
+- hoy no existe carpeta `infra/` activa en el repo
+- hoy no existe `.github/workflows` con CI/CD real
+- el despliegue local se apoya en Dockerfiles dentro de `apps/api` y `apps/web`

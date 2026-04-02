@@ -2,84 +2,54 @@
 
 ## Administrador
 
-Piensalo como el gerente general o el CEO de toda la empresa.
-
 Puede:
 
-- ver todas las sedes;
-- filtrar por sede o ver el total de la empresa;
-- crear, editar y bloquear usuarios internos;
-- restablecer contrasenas de usuarios internos;
-- asignar o cambiar la sede de gestores y colaboradores;
-- crear, editar y eliminar prestatarios;
-- crear, editar y eliminar catalogos globales;
-- crear y editar articulos;
-- registrar movimientos;
-- aprobar, entregar y cerrar prestamos;
-- descargar reportes globales o por sede;
-- revisar auditoria.
-
-No debe:
-
-- borrar sedes, catalogos o prestatarios que ya tengan uso operativo.
+- ver toda la organizacion
+- crear, editar y bloquear usuarios internos
+- restablecer contrasenas de usuarios internos
+- administrar catalogos globales
+- crear y editar articulos
+- registrar movimientos
+- aprobar, rechazar, entregar y cerrar prestamos
+- descargar reportes globales o por sede
+- revisar auditoria
 
 ## Gestor
 
-Piensalo como el responsable operativo de una sede.
-
 Puede:
 
-- ver inventario de su sede;
-- crear y editar articulos de su sede;
-- registrar movimientos de su sede;
-- ver solicitudes y prestamos de su sede;
-- aprobar prestamos de su sede;
-- entregar prestamos de su sede;
-- registrar devoluciones de su sede;
-- crear, editar y eliminar prestatarios;
-- descargar reportes de su sede;
-- revisar auditoria operativa de lo que puede consultar.
+- operar en su sede asignada
+- crear y editar articulos de su sede
+- registrar movimientos
+- revisar y atender prestamos de su sede
+- descargar reportes de su sede
 
 No puede:
 
-- ver toda la empresa;
-- administrar usuarios internos;
-- administrar catalogos globales;
-- cambiar su sede por si mismo.
+- administrar usuarios internos
+- ver toda la empresa
 
 ## Colaborador
 
-Piensalo como una persona que trabaja en una sede puntual.
-
 Puede:
 
-- ver inventario de su sede;
-- ver movimientos de su sede;
-- crear solicitudes de prestamo para su sede;
-- ver prestamos de su sede;
-- descargar reportes de su sede si su rol tiene acceso.
+- consultar inventario y movimientos de su sede
+- crear solicitudes de prestamo dentro de su alcance
+- revisar informacion operativa permitida
 
 No puede:
 
-- crear usuarios internos;
-- administrar catalogos;
-- aprobar prestamos;
-- entregar prestamos;
-- cerrar devoluciones;
-- operar sobre sedes distintas a la suya.
+- administrar catalogos
+- aprobar o cerrar prestamos
+- administrar usuarios
 
-## Prestatario externo
+## Prestatario
 
-No entra al panel interno como usuario.
+El proyecto soporta dos escenarios:
 
-Se gestiona desde `Prestatarios` o desde el formulario publico.
+- persona externa usando el enlace publico de solicitud
+- prestatario con cuenta y rol `BORROWER` soportado por backend
 
-Puede:
+Observacion:
 
-- aparecer en solicitudes y prestamos;
-- usar el enlace publico cuando se comparte la URL correcta.
-
-No puede:
-
-- administrar inventario;
-- entrar al panel interno.
+- la experiencia principal visible hoy para prestatarios sigue siendo el flujo publico de solicitud; no existe una interfaz independiente completa documentada para un portal externo dedicado.

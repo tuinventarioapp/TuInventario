@@ -1,28 +1,36 @@
-# Estrategia de testing frontend
+# Estrategia real de pruebas frontend
 
-## Herramientas recomendadas
+## Suite actual
 
-- Vitest;
-- React Testing Library;
-- Playwright para E2E.
+Archivos presentes:
 
-## Cobertura objetivo
+- `src/pages/login-page.test.tsx`
+- `src/lib/api.test.ts`
 
-- componentes y hooks criticos;
-- formularios de item, movimiento y prestamo;
-- rutas protegidas;
-- estados vacios, errores y loading;
-- flujo E2E de login y operaciones principales.
+Cobertura validada hoy:
 
-## Casos prioritarios
+- render y flujo principal de login
+- comportamiento base del cliente API
 
-- login correcto e incorrecto;
-- creacion de item;
-- validacion de movimiento invalido;
-- flujo de prestamo y devolucion;
-- permisos visibles en UI;
-- actualizacion de estado tras evento en tiempo real.
+## Comandos
 
-## Regla
+```powershell
+npm run test -- --run
+npm run lint
+```
 
-No buscar cobertura extrema de componentes triviales. Invertir primero en flujos que puedan romper operacion o confianza del usuario.
+## Estado real
+
+- las pruebas frontend existen, pero su cobertura aun es limitada
+- no hay Playwright ni otra suite E2E en el repo
+- lint pasa con warnings conocidos de hooks
+
+## Prioridad recomendada
+
+Ampliar cobertura sobre:
+
+- registro y verificacion de admin
+- forgot-password y reset-password
+- flujos de inventario
+- prestamos
+- responsive de pantallas principales

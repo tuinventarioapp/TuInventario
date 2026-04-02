@@ -2,46 +2,38 @@
 
 ## Uso
 
-Usar cuando la IA vaya a construir o ampliar la aplicacion React.
+Usar cuando la IA vaya a modificar o ampliar el frontend existente.
 
 ## Prompt sugerido
 
 ```text
-Implementa el frontend de TuInventario siguiendo la documentacion del proyecto.
+Analiza primero el frontend actual de TuInventario y luego implementa los cambios necesarios sin romper la app.
 
 Lee:
 - 00-master/09-ai-execution-rules.md
 - 02-frontend/01-screen-map.md
 - 02-frontend/02-frontend-architecture.md
-- 02-frontend/03-ui-ux-guidelines.md
 - 02-frontend/04-state-management.md
+- 02-frontend/05-realtime-and-notifications.md
 - 02-frontend/07-forms-and-validation-rules.md
 
-Stack obligatorio:
-- React + TypeScript + Vite;
-- React Router;
-- Tailwind + shadcn/ui;
-- TanStack Query;
-- Zustand.
+Stack real:
+- React + TypeScript + Vite
+- React Router
+- Tailwind CSS
+- TanStack Query
+- Zustand
+- React Hook Form + Zod
 
 Haz:
-- estructura de rutas;
-- layouts;
-- features por dominio;
-- formularios;
-- tablas;
-- manejo de estados loading, error y vacio;
-- consumo consistente de API;
-- pruebas relevantes.
+- respetar rutas y pantallas reales
+- consumir `src/lib/api.ts` de forma consistente
+- mantener responsive y accesibilidad base
+- conservar desktop mientras mejoras mobile
+- documentar pantallas, contratos y pruebas impactadas
 
 No hagas:
-- logica de negocio pesada en componentes;
-- estilos improvisados sin seguir las guias;
-- soluciones que ignoren responsive o accesibilidad.
-
-Documenta:
-- pantallas construidas;
-- contratos consumidos;
-- decisiones de UX;
-- pruebas ejecutadas.
+- introducir librerias UI no presentes sin justificacion
+- documentar pantallas que no existan
+- mover logica de negocio compleja a componentes
 ```

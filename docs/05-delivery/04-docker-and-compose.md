@@ -1,23 +1,24 @@
 # Docker y Compose
 
-## Objetivo
+## Servicios reales
 
-Garantizar entorno reproducible para desarrollo, testing y despliegue inicial.
+- `db`: `postgres:16-alpine`
+- `api`: build desde `apps/api/Dockerfile`
+- `web`: build desde `apps/web/Dockerfile`
 
-## Servicios minimos
+## Puertos
 
-- `web`
-- `api`
-- `db`
+- `db`: `55432:5432`
+- `api`: `8080:8080`
+- `web`: `5173:80`
 
-## Reglas
+## Particularidades
 
-- usar imagen oficial de PostgreSQL;
-- exponer puertos de desarrollo razonables;
-- montar volumen persistente para datos locales;
-- separar build de desarrollo y produccion cuando convenga;
-- esperar salud de base antes de arrancar API.
+- `api` depende del healthcheck de `db`
+- `web` recibe variables Vite como `build args`
+- `db` usa volumen `postgres-data`
+- `api` recibe variables de mail, JWT y CORS desde compose
 
-## Resultado esperado
+## Resultado real esperado
 
-Una IA debe dejar `docker-compose.yml` y Dockerfiles listos para levantar frontend, backend y base con una sola orden.
+Con una sola orden se levantan frontend, backend y PostgreSQL local.

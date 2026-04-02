@@ -1,27 +1,22 @@
-# CI/CD
+# Estado de CI/CD
 
-## Pipeline minimo
+## Realidad actual
 
-1. instalar dependencias;
-2. ejecutar lint;
-3. ejecutar tests;
-4. validar build;
-5. desplegar solo desde ramas o tags autorizados.
+- no existe pipeline CI/CD versionado dentro del repo
+- no hay workflows en `.github/workflows`
+- no hay `render.yaml` ni `railway.toml`
 
-## Checks recomendados
+## Lo que si existe
 
-- frontend lint y test;
-- backend lint o quality gates equivalentes;
-- tests unitarios e integracion;
-- verificacion de migraciones;
-- artefactos de build.
+- comandos reproducibles de build y test
+- Dockerfiles para backend y frontend
+- `vercel.json` para SPA routing del frontend
 
-## Entornos
+## Recomendacion
 
-- `local`
-- `staging`
-- `production`
+Cuando se implemente CI/CD real, la documentacion debe actualizarse con:
 
-## Regla
-
-No desplegar a produccion si fallan pruebas criticas, migraciones o checklist de release.
+- validacion de backend
+- validacion de frontend
+- build de imagenes
+- despliegue por entorno

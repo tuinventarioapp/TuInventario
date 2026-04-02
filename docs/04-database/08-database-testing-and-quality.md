@@ -2,22 +2,20 @@
 
 ## Validaciones minimas
 
-- constraints de unicidad funcionando;
-- foreign keys correctas;
-- migraciones aplican desde cero;
-- seeds base se cargan sin errores;
-- queries principales responden con rendimiento razonable.
+- migraciones aplican desde cero
+- esquema queda alineado con entidades JPA usadas
+- constraints de unicidad funcionan
+- claves foraneas evitan referencias invalidas
+- seeds base cargan sin error
 
-## Casos de prueba
+## Riesgos actuales a vigilar
 
-- impedir SKU duplicado dentro de una organizacion;
-- permitir mismo SKU en organizaciones distintas solo si la politica final lo admite;
-- impedir movimiento con item inexistente;
-- impedir prestamo con cantidades negativas;
-- verificar que soft delete no elimine historial.
+- columnas heredadas que siguen en la base aunque ya no se usen desde el backend
+- tablas reales sin modulo funcional completo, como `notifications`
+- divergencia entre lo que usa la app y lo que conserva el esquema por compatibilidad
 
-## Herramientas recomendadas
+## Herramientas usadas hoy
 
-- Testcontainers con PostgreSQL real;
-- pruebas de repositorio e integracion;
-- scripts de smoke test para migraciones.
+- Flyway
+- H2 y Testcontainers en backend
+- pruebas integradas que ejercitan flujos reales

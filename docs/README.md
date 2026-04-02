@@ -1,54 +1,40 @@
-# TuInventario - Documentacion Maestra para IA
+# TuInventario - Documentacion del estado actual
 
-Este directorio contiene la documentacion base para que una IA construya `TuInventario` desde cero, con el menor nivel posible de ambiguedad y con una trazabilidad clara entre negocio, arquitectura, reglas, prompts y skills.
+Este directorio documenta el estado real de TuInventario. La fuente principal de verdad es el codigo del repo; estos documentos deben mantenerse alineados con lo que hoy existe en frontend, backend, base de datos, pruebas y despliegue.
 
 ## Objetivo
 
-- Documentar el producto, el negocio y las restricciones del MVP.
-- Definir una ruta de implementacion para frontend, backend, base de datos, testing y despliegue.
-- Entregar prompts y skills reutilizables para Codex, Cursor, Claude u otra IA equivalente.
-- Reducir retrabajo, contradicciones y sobre-diseno durante la construccion.
+- describir la arquitectura y los flujos reales del sistema
+- dejar claras las funcionalidades implementadas y las pendientes
+- evitar contradicciones entre documentos y codigo
+- servir como base de mantenimiento, QA, despliegue y handover
 
 ## Estructura
 
-- `00-master`: documentos rectores del proyecto.
-- `01-business`: vision, reglas de negocio, historias y backlog.
-- `02-frontend`: arquitectura, pantallas, UX y testing del frontend.
-- `03-backend`: arquitectura, modulos, API, seguridad y testing del backend.
-- `04-database`: modelo relacional, migraciones, indices y uso por MCP.
-- `05-delivery`: monorepo, Docker, variables, CI/CD y despliegue.
-- `06-prompts`: prompts secuenciales para construir, revisar y liberar el sistema.
-- `07-skills`: skills reutilizables por area para otra IA.
-- `08-templates`: plantillas para nuevas historias, endpoints, entidades y escenarios QA.
+- `00-master`: contexto, alcance, arquitectura y criterios globales
+- `01-business`: negocio, roles, reglas y flujos operativos
+- `02-frontend`: rutas, arquitectura de UI, estado, tiempo real y testing
+- `03-backend`: arquitectura Spring Boot, seguridad, modulos, endpoints y pruebas
+- `04-database`: modelo real de datos, migraciones e indices
+- `05-delivery`: desarrollo local, variables, Docker, despliegue y readiness
+- `06-prompts`: prompts de trabajo alineados con el estado actual del producto
+- `07-skills`: skills operativas para trabajar sobre el proyecto real
+- `08-templates`: plantillas reutilizables
+- `09-manual-usuario`: manual funcional orientado a operacion
 
-## Como usar esta documentacion
+## Como leerla
 
-1. Leer `00-master/00-reading-order.md`.
-2. Usar `00-master/09-ai-execution-rules.md` como reglas globales no negociables.
-3. Cargar contexto de negocio antes de escribir codigo.
-4. Ejecutar los prompts de `06-prompts` en el orden sugerido.
-5. Usar las skills de `07-skills` por area de trabajo.
-6. Mantener la documentacion sincronizada con cada cambio importante.
+1. `00-master/00-reading-order.md`
+2. `00-master/02-mvp-scope.md`
+3. `00-master/04-architecture-overview.md`
+4. `01-business/03-domain-rules.md`
+5. `03-backend/09-endpoints-and-dtos-overview.md`
+6. `04-database/03-relational-schema.md`
+7. `05-delivery/02-local-development.md`
 
-## Resultado esperado
+## Reglas de mantenimiento
 
-Una IA debe poder:
-
-- crear el monorepo completo;
-- levantar frontend, backend y PostgreSQL local con Docker;
-- modelar y migrar la base de datos;
-- implementar flujos criticos del MVP;
-- cubrirlos con pruebas;
-- documentar lo construido y dejarlo listo para despliegue.
-
-## Ejemplo de uso
-
-Una IA orquestadora puede leer este directorio y ejecutar la secuencia:
-
-1. analizar huecos;
-2. validar reglas de negocio;
-3. construir base tecnica;
-4. implementar modulos por prioridad;
-5. probar;
-6. documentar;
-7. preparar release.
+- si una funcionalidad no existe, debe documentarse como pendiente o no implementada
+- si una funcionalidad existe solo en backend o solo en base de datos, debe explicarse asi
+- no usar esta carpeta para prometer features que el producto todavia no entrega
+- cuando cambie codigo, migraciones, variables o despliegue, actualizar los documentos impactados

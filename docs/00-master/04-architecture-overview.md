@@ -1,46 +1,48 @@
 # Vision general de arquitectura
 
-## Stack objetivo
+## Stack real
 
-- Frontend: React + TypeScript + Vite + React Router + Tailwind + shadcn/ui + TanStack Query + Zustand.
-- Backend: Spring Boot + Java 21 + JPA/Hibernate + MapStruct + Lombok + OpenAPI.
-- Base de datos: PostgreSQL + migraciones desde el inicio.
-- Tiempo real: WebSockets.
-- Infraestructura: monorepo con Docker, frontend en Vercel, backend en Render, datos en Supabase PostgreSQL a futuro.
+- frontend: React 19, TypeScript, Vite, React Router, Tailwind CSS, React Hook Form, Zod, TanStack Query, Zustand, STOMP
+- backend: Spring Boot 3.4.5, Java 21, Spring Security, Spring Data JPA, Flyway, Spring Mail, WebSocket STOMP, OpenAPI, OpenPDF, Apache POI
+- base de datos: PostgreSQL
+- entorno local: Docker Compose
 
 ## Enfoque arquitectonico
 
-- monorepo;
-- modular monolith por dominios;
-- API REST versionada en `/api/v1`;
-- auditoria obligatoria;
-- separacion clara entre reglas de negocio, transporte y persistencia;
-- soporte multi-organizacion desde el diseño inicial.
+- monorepo con `apps/web` y `apps/api`
+- backend organizado por modulos de negocio dentro de un modular monolith
+- API REST versionada en `/api/v1`
+- autenticacion stateless con JWT de acceso y refresh token persistido
+- multitenancy logico por `organizationId`
+- auditoria a nivel de backend
+- realtime sencillo para refrescar datos conectados
 
 ## Diagrama de alto nivel
 
 ```mermaid
 flowchart LR
-    U["Usuario Web"] --> FE["Frontend React"]
-    FE --> API["Spring Boot API /api/v1"]
-    FE --> WS["WebSocket Gateway"]
-    API --> DB["PostgreSQL"]
-    API --> FILES["Storage de archivos"]
-    API --> MAIL["Servicio de email"]
-    API --> AUDIT["Auditoria y logs"]
-    WS --> FE
+    U["Usuario"] --> FE["React + Vite"]
+    FE --> API["Spring Boot /api/v1"]
+    FE --> WS["/ws STOMP"]
+    API --> DB["PostgreSQL + Flyway"]
+    API --> MAIL["SMTP (Brevo u otro compatible)"]
+    API --> AUDIT["audit_logs"]
     API --> WS
 ```
 
-## Flujo operacional base
+## Flujo base
 
-1. el usuario autentica;
-2. el frontend consume REST y escucha eventos en tiempo real;
-3. el backend valida rol, organizacion y reglas de dominio;
-4. se persiste el cambio en PostgreSQL;
-5. se registra auditoria;
-6. se emite evento a clientes conectados si aplica.
+1. el usuario entra por frontend
+2. el frontend autentica contra `/api/v1/auth/*`
+3. el backend resuelve usuario, organizacion, rol y sede efectiva
+4. la operacion persiste cambios en PostgreSQL
+5. si aplica, el backend registra auditoria
+6. si aplica, el backend publica un evento a `/topic/organizations/{organizationId}`
+7. el frontend invalida queries y vuelve a consultar
 
-## Ejemplo
+## Limitaciones actuales
 
-Un traslado de stock debe actualizar el saldo por ubicacion, crear movimientos relacionados, registrar auditoria y reflejar el nuevo balance en pantalla sin recargar.
+- no hay autenticacion especifica del canal WebSocket
+- no existe centro de notificaciones en UI
+- no existe pipeline de CI/CD real en el repo
+- no hay capa dedicada de storage de archivos mas alla de `image_url`

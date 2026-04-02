@@ -1,35 +1,51 @@
 # Arquitectura backend
 
-## Objetivo
+## Stack real
 
-Construir un backend consistente, auditable y orientado al dominio para operaciones de inventario y prestamos.
+- Spring Boot 3.4.5
+- Java 21
+- Spring Security
+- Spring Data JPA / Hibernate
+- Flyway
+- Spring Mail
+- WebSocket STOMP
+- springdoc OpenAPI
+- OpenPDF y Apache POI para reportes
+- H2 y Testcontainers en pruebas
 
-## Stack recomendado
+## Estructura real de paquetes
 
-- Spring Boot 3.x;
-- Java 21;
-- Spring Security;
-- Spring Data JPA;
-- Hibernate;
-- Flyway;
-- MapStruct;
-- Lombok;
-- OpenAPI;
-- WebSocket STOMP o equivalente;
-- Testcontainers para integracion.
+```text
+com.tuinventario.api
+  audit/
+  auth/
+  bootstrap/
+  catalog/
+  config/
+  dashboard/
+  domain/
+  inventory/
+  loan/
+  movement/
+  report/
+  security/
+  settings/
+  shared/
+  users/
+```
 
-## Capas sugeridas
+## Rasgos actuales
 
-- `api`: controllers, request/response DTOs;
-- `application`: casos de uso y orquestacion;
-- `domain`: entidades, reglas y servicios de dominio;
-- `infrastructure`: persistencia, mensajeria, email, storage;
-- `shared`: errores, utilidades, seguridad y observabilidad.
+- controllers relativamente delgados
+- reglas operativas concentradas en servicios por modulo
+- entidades JPA en `domain/entity`
+- repositorios Spring Data en `domain/repository`
+- configuracion transversal en `config/`
+- autenticacion JWT y contexto actual del usuario en `security/` y `shared/`
 
-## Reglas
+## Lo que no forma parte de la arquitectura actual
 
-- mantener controllers delgados;
-- ubicar la logica de negocio en application y domain;
-- no exponer entidades JPA directamente;
-- encapsular transacciones en servicios claros;
-- modelar multi-organizacion desde la raiz.
+- no hay `application/` separado
+- no se usa MapStruct
+- no hay microservicios
+- no hay cola de eventos externa ni bus dedicado

@@ -2,44 +2,43 @@
 
 ## Reglas troncales
 
-- `BR-001`: el historial nunca se elimina fisicamente.
-- `BR-002`: el stock no puede quedar negativo.
-- `BR-003`: ninguna accion critica puede ejecutarse sin usuario responsable.
-- `BR-004`: toda accion sensible debe quedar auditada.
-- `BR-005`: una solicitud de prestamo no equivale a una entrega real.
-- `BR-006`: una devolucion valida debe devolver disponibilidad al inventario.
-- `BR-007`: un articulo en prestamo no puede figurar simultaneamente como disponible para la misma unidad comprometida.
-- `BR-008`: toda operacion debe estar aislada por organizacion.
+- `BR-001`: el sistema trabaja aislado por `organizationId`
+- `BR-002`: ningun cambio operativo debe dejar stock negativo
+- `BR-003`: las acciones criticas deben quedar auditadas en backend
+- `BR-004`: una solicitud de prestamo no equivale a una entrega real
+- `BR-005`: una devolucion correcta debe devolver disponibilidad al inventario
+- `BR-006`: usuarios bloqueados, no verificados o eliminados logicamente no pueden autenticar
 
-## Reglas por tipo de item
+## Reglas de catalogos y ubicaciones
 
-- `BR-009`: un consumible puede tener movimientos de consumo sin ciclo de devolucion.
-- `BR-010`: un activo prestable requiere trazabilidad por prestamo, estado y responsable.
-- `BR-011`: un item puede definirse como consumible, prestable o mixto solo si las reglas derivadas quedan explicitas.
-- `BR-012`: unidades como `kg` o `litros` deben soportar cantidades decimales; unidades discretas deben usar cantidades enteras.
+- `BR-007`: categorias, unidades, categorias de ubicacion y ubicaciones pertenecen a una sola organizacion
+- `BR-008`: un `ITEM` pertenece a una ubicacion principal concreta
+- `BR-009`: el SKU del item es unico por organizacion y ubicacion principal
+- `BR-010`: un usuario `MANAGER` o `COLLABORATOR` puede quedar restringido a una sola sede mediante `assignedLocationId`
 
-## Reglas de movimientos
+## Reglas de inventario
 
-- `BR-013`: toda entrada suma stock disponible en la ubicacion destino.
-- `BR-014`: toda salida resta stock de la ubicacion origen.
-- `BR-015`: un traslado debe generar salida del origen y entrada en el destino como parte de una sola operacion logica.
-- `BR-016`: un ajuste debe exigir motivo y responsable.
-- `BR-017`: no se permite registrar cantidades menores o iguales a cero.
+- `BR-011`: `ENTRY` suma stock disponible
+- `BR-012`: `EXIT` descuenta stock disponible
+- `BR-013`: `ADJUSTMENT` exige motivo y responsable
+- `BR-014`: `TRANSFER` mueve stock entre sedes como una sola operacion logica
+- `BR-015`: el stock minimo es una alerta operativa, no una reserva automatica
+- `BR-016`: el estado del item se deriva de la operacion y del stock agregado
 
 ## Reglas de prestamos
 
-- `BR-018`: no se puede prestar mas de lo disponible.
-- `BR-019`: la fecha comprometida de devolucion debe ser igual o posterior a la fecha de entrega.
-- `BR-020`: solo roles autorizados pueden aprobar o cerrar prestamos manualmente.
-- `BR-021`: un prestamo vencido debe marcarse automaticamente si no hubo devolucion a tiempo.
-- `BR-022`: devolver un item danado o perdido no equivale a dejarlo disponible; debe cambiar a su estado real.
+- `BR-017`: no se puede aprobar ni entregar mas cantidad que la disponible
+- `BR-018`: una solicitud puede ser aprobada o rechazada
+- `BR-019`: un prestamo aprobado consume stock reservado
+- `BR-020`: un prestamo entregado consume stock prestado
+- `BR-021`: una devolucion parcial o total devuelve stock disponible
+- `BR-022`: el flujo actual solo reconoce `GOOD` y `LOST` como condicion de devolucion
+- `BR-023`: prestamos vencidos se marcan automaticamente por job backend
 
-## Reglas de seguridad y permisos
+## Reglas de acceso
 
-- `BR-023`: el usuario solo puede ver datos de su organizacion.
-- `BR-024`: un permiso de rol no invalida las restricciones por recurso.
-- `BR-025`: usuarios bloqueados o eliminados logicamente no pueden operar.
-
-## Ejemplo operativo
-
-Si una herramienta esta `entregada` en un prestamo, el sistema no debe permitir otro prestamo efectivo sobre la misma disponibilidad hasta que exista devolucion, perdida o mantenimiento.
+- `BR-024`: el registro publico crea solo cuentas `ADMIN`
+- `BR-025`: una cuenta `ADMIN` nueva debe verificar su correo antes de operar
+- `BR-026`: `forgot-password` y `reset-password` publicos aplican solo a administradores
+- `BR-027`: usuarios internos no admin se gestionan desde el panel por un administrador
+- `BR-028`: los enlaces publicos de solicitud de prestamo requieren `organizationId`

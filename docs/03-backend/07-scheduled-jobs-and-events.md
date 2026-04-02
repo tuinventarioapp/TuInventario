@@ -1,29 +1,22 @@
 # Jobs programados y eventos
 
-## Jobs del MVP
+## Jobs reales
 
-- marcar prestamos vencidos;
-- enviar recordatorios de devolucion;
-- generar reportes periodicos si se habilita por configuracion;
-- tareas de limpieza tecnica seguras.
+- job para marcar prestamos vencidos
 
-## Eventos funcionales sugeridos
+## Eventos reales
 
-- `item.created`
-- `stock.changed`
-- `loan.requested`
-- `loan.approved`
-- `loan.delivered`
-- `loan.returned`
-- `loan.overdue`
+- el backend publica eventos STOMP por organizacion cuando cambian datos operativos
+- el frontend no interpreta eventos ricos; solo invalida cache
 
-## Reglas
+## Reglas actuales
 
-- los jobs deben ser idempotentes;
-- no emitir eventos duplicados sin control;
-- registrar resultado y errores de cada job;
-- evitar que un job cambie datos de otra organizacion por error.
+- el job de vencidos debe ser idempotente
+- los eventos no se almacenan como historial funcional
+- no existe mensajeria externa ni cola dedicada
 
-## Ejemplo
+## Pendientes
 
-El job de vencimientos debe recalcular solo prestamos activos o entregados con fecha comprometida expirada y sin devolucion final.
+- recordatorios por correo o notificacion
+- eventos mas granulares para UI
+- monitoreo del job mas detallado

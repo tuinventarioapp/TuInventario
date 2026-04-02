@@ -2,21 +2,20 @@
 
 ## Uso
 
-Usar despues de implementar una fase o modulo.
+Usar despues de una implementacion o auditoria.
 
 ## Prompt sugerido
 
 ```text
-Actualiza la documentacion de TuInventario despues de los cambios realizados.
-
-Tu tarea no es programar nueva funcionalidad salvo ajustes menores necesarios para alinear documentacion y codigo.
+Actualiza la documentacion de TuInventario para que quede alineada con el codigo real.
 
 Haz:
-- identificar documentos impactados;
-- actualizar reglas, contratos, pantallas o despliegue;
-- resumir cambios;
-- listar pruebas ejecutadas;
-- dejar siguientes pasos.
+- identificar documentos impactados en docs/ y otros README del repo
+- marcar diferencias entre funcionalidad real y funcionalidad pendiente
+- actualizar prompts y skills si quedaron desalineados
+- resumir cambios
+- listar pruebas ejecutadas
+- dejar gaps conocidos y siguiente paso
 
-No cierres la tarea hasta confirmar que la documentacion y el codigo cuentan la misma historia.
+No cierres la tarea hasta confirmar que documentacion y codigo cuentan la misma historia.
 ```

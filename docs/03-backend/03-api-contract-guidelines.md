@@ -1,44 +1,32 @@
-# API contract guidelines
+# Lineamientos reales de contratos API
 
-## Convenciones
+## Convenciones vigentes
 
-- prefijo obligatorio `/api/v1`;
-- JSON como formato principal;
-- recursos nombrados en plural;
-- filtros por query params;
-- paginacion estandar;
-- respuestas de error uniformes.
+- base path: `/api/v1`
+- requests y responses separados por modulo
+- ids serializados como `String` en DTOs
+- cantidades modeladas con `BigDecimal`
+- fechas serializadas como `Instant`
+- validacion de entrada con Bean Validation
 
-## Ejemplo de rutas
+## Respuesta de error
 
-- `POST /api/v1/auth/login`
-- `GET /api/v1/items`
-- `POST /api/v1/movements`
-- `POST /api/v1/loans/{loanId}/deliver`
-- `POST /api/v1/loans/{loanId}/return`
+La API lanza errores tipados con `ApiException` y `GlobalExceptionHandler`.
 
-## Formato sugerido de error
+Lo que si existe:
 
-```json
-{
-  "code": "STOCK_INSUFFICIENT",
-  "message": "No hay stock disponible suficiente para completar la operacion.",
-  "details": {
-    "itemId": "item_123",
-    "requested": 5,
-    "available": 2
-  },
-  "traceId": "req_abc"
-}
-```
+- `status`
+- `code`
+- `message`
 
-## Paginacion sugerida
+Lo que no debe documentarse como implementado:
 
-- `page`
-- `size`
-- `sort`
-- `direction`
+- `traceId`
+- payload estandar enriquecido de observabilidad
 
-## Regla
+## Criterios
 
-Si cambia un contrato publico, actualizar este directorio, OpenAPI y los consumidores del frontend dentro de la misma tarea.
+- no exponer entidades JPA directamente
+- no mezclar DTOs de frontend con entidades persistidas
+- preferir respuestas explicitamente adaptadas a la UI
+- mantener filtros y paginacion en query params

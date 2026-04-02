@@ -1,54 +1,34 @@
-# Backlog priorizado
+# Backlog priorizado desde el estado actual
 
-## Epic 1 - Fundacion y seguridad
+## Ya implementado
 
-- autenticacion;
-- verificacion por correo;
-- recuperacion de contrasena;
-- organizacion;
-- membresias;
-- roles y permisos.
+- autenticacion JWT
+- registro admin con verificacion por correo
+- recuperacion de contrasena para admins
+- multiorganizacion
+- roles y alcance por sede
+- catalogos operativos
+- inventario y movimientos
+- dashboard
+- prestamos y devoluciones
+- auditoria
+- reportes CSV y PDF
+- importacion masiva de articulos
+- realtime basico
 
-## Epic 2 - Catalogos e inventario base
+## Pendiente de alto valor
 
-- categorias;
-- unidades;
-- ubicaciones;
-- articulos;
-- fotos opcionales;
-- stock inicial.
+- centro de notificaciones en UI
+- autenticacion o endurecimiento del WebSocket
+- breadcrumbs y buscador global
+- cobertura de pruebas frontend mas amplia
+- CI/CD en el repo
+- rate limiting y protecciones anti abuso
+- despliegue productivo totalmente documentado con secretos reales
 
-## Epic 3 - Movimientos y trazabilidad
+## Pendiente exploratorio
 
-- entradas;
-- salidas;
-- ajustes;
-- traslados;
-- historial;
-- auditoria.
-
-## Epic 4 - Prestamos
-
-- prestatarios;
-- solicitud;
-- aprobacion;
-- entrega;
-- devolucion;
-- vencimientos.
-
-## Epic 5 - Visibilidad operativa
-
-- dashboard;
-- filtros;
-- tablas;
-- exportacion CSV y PDF;
-- notificaciones;
-- tiempo real.
-
-## Orden recomendado
-
-P0 primero: Epic 1, 2 y 3.
-
-P1 despues: Epic 4.
-
-P2 al cierre del MVP: Epic 5.
+- dominio propio y despliegue comercial
+- app movil nativa
+- integraciones externas
+- mejor analitica y tableros ejecutivos

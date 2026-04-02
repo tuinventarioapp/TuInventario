@@ -1,30 +1,20 @@
 # Manejo de errores y observabilidad
 
-## Errores de dominio prioritarios
+## Lo que existe hoy
 
-- stock insuficiente;
-- transicion de estado invalida;
-- recurso no encontrado;
-- acceso denegado;
-- duplicado unico;
-- conflicto de concurrencia.
+- `ApiException` para errores de negocio y autorizacion
+- `GlobalExceptionHandler` para convertir excepciones a respuestas HTTP
+- actuator con `health` e `info`
+- logs del proceso Spring Boot
 
-## Estrategia
+## Lo que no esta implementado hoy
 
-- excepciones de dominio tipadas;
-- mapper central a respuestas HTTP;
-- mensajes utiles para frontend;
-- `traceId` en logs y respuestas cuando aplique;
-- logs estructurados por request.
+- `traceId` en respuestas
+- logging estructurado con MDC
+- dashboards de observabilidad
+- trazas distribuidas
+- metricas personalizadas por dominio
 
-## Observabilidad minima
+## Recomendacion documental
 
-- logs de aplicacion;
-- logs de negocio;
-- health checks;
-- metricas basicas de error y latencia;
-- trazabilidad de jobs programados.
-
-## Ejemplo
-
-Una devolucion duplicada no debe terminar en error generico 500; debe responder como conflicto o transicion invalida con causa entendible.
+Cuando se describa observabilidad del proyecto, debe hablarse de un nivel basico de health checks y logs de aplicacion, no de una plataforma completa de monitoreo.

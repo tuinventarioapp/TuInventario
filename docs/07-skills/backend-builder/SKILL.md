@@ -1,6 +1,6 @@
 ---
 name: backend-builder
-description: Implementar o refactorizar el backend Spring Boot de TuInventario con modulos por dominio, reglas de negocio claras, seguridad por organizacion y auditoria. Usar cuando la tarea afecte endpoints, servicios, reglas, seguridad, jobs, eventos o integracion con PostgreSQL.
+description: Implementar o refactorizar el backend Spring Boot de TuInventario respetando el codigo existente, el esquema real y la documentacion actualizada.
 ---
 
 # Backend Builder
@@ -11,30 +11,28 @@ Leer:
 
 1. `../../00-master/09-ai-execution-rules.md`
 2. `../../03-backend/01-backend-architecture.md`
-3. `../../03-backend/02-modules-and-responsibilities.md`
-4. `../../03-backend/03-api-contract-guidelines.md`
+3. `../../03-backend/04-auth-and-authorization.md`
+4. `../../03-backend/09-endpoints-and-dtos-overview.md`
 5. `../../04-database/03-relational-schema.md`
 6. `references/patterns.md`
 
 ## Implementar
 
-- mantener controllers delgados;
-- encapsular reglas en servicios de aplicacion y dominio;
-- validar organizacion y permisos en cada operacion;
-- usar transacciones en movimientos y prestamos;
-- emitir errores tipados y entendibles;
-- registrar auditoria en acciones criticas.
+- controllers delgados
+- reglas en servicios reales por modulo
+- validacion de organizacion, rol y sede
+- transacciones en movimientos y prestamos
+- auditoria y realtime cuando aplique
 
 ## Verificar
 
-- ejecutar pruebas unitarias e integracion;
-- validar contratos API;
-- revisar impacto en migraciones y seeds;
-- confirmar que no se rompe historial.
+- pruebas backend
+- impacto en migraciones
+- impacto en documentacion y delivery
 
 ## Documentar
 
-- endpoints nuevos o modificados;
-- reglas implementadas;
-- pruebas ejecutadas;
-- documentos sincronizados.
+- endpoints nuevos o modificados
+- reglas implementadas
+- pruebas ejecutadas
+- documentos sincronizados

@@ -1,32 +1,21 @@
-# Checklist de produccion
+# Checklist de readiness para produccion
 
-## Seguridad
+## Listo hoy
 
-- secretos configurados por entorno;
-- `APP_DEMO_SEED_ENABLED=false` en produccion;
-- HTTPS activo;
-- rate limiting activo;
-- politicas de CORS revisadas;
-- logs sin datos sensibles.
+- build local de frontend y backend
+- migraciones versionadas
+- variables de entorno documentadas
+- SMTP configurable
+- endpoints de health y swagger
 
-## Producto
+## Pendiente antes de produccion seria
 
-- flujos criticos probados;
-- mensajes de error comprensibles;
-- permisos validados;
-- reportes basicos funcionando;
-- notificaciones de vencimiento verificadas.
-
-## Datos
-
-- migraciones limpias desde cero;
-- backup inicial definido;
-- seeds de produccion revisadas;
-- auditoria activa.
-
-## Operacion
-
-- health checks disponibles;
-- pipeline estable;
-- manual de despliegue probado;
-- responsables y soporte definidos.
+- secretos reales por entorno
+- `APP_DEMO_SEED_ENABLED=false`
+- dominio y HTTPS finales
+- politica de backups de base de datos
+- CORS ajustado al dominio real
+- CI/CD
+- monitoreo y logs centralizados
+- rate limiting
+- endurecimiento de WebSocket

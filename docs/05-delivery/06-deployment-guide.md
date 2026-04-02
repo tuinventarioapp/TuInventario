@@ -1,33 +1,26 @@
 # Guia de despliegue
 
-## Frontend
+## Estado del repo
 
-- proveedor objetivo: Vercel;
-- build desde `apps/web`;
-- variables apuntando a backend de staging o produccion;
-- revisar CORS y URL de WebSocket;
-- usar `https://` para API y `wss://` para WebSocket en internet.
+El repo esta preparado para:
 
-## Backend
+- desplegar frontend estatico en Vercel
+- desplegar backend Java en una plataforma que acepte Docker o buildpacks
+- conectarse a PostgreSQL administrado
 
-- proveedor objetivo: Render;
-- build de Spring Boot;
-- migraciones al inicio del arranque o como job controlado;
-- variables seguras por entorno;
-- definir `APP_ENV=production`;
-- definir `APP_DEMO_SEED_ENABLED=false`;
-- configurar `FRONTEND_ORIGIN` con el dominio final del frontend o una lista separada por comas.
+## Archivos utiles ya presentes
 
-## Base de datos
+- `apps/api/Dockerfile`
+- `apps/web/Dockerfile`
+- `apps/web/vercel.json`
 
-- local con Docker;
-- futura nube en Supabase PostgreSQL;
-- backups y restauracion deben documentarse al llegar a produccion real.
+## Flujo recomendado
 
-## Paso a paso resumido
+1. crear base PostgreSQL administrada
+2. desplegar backend y configurar variables
+3. desplegar frontend apuntando al backend publico
+4. actualizar `FRONTEND_ORIGIN` del backend con la URL final del frontend
 
-1. desplegar base y configurar credenciales;
-2. desplegar backend con variables y migraciones;
-3. desplegar frontend con URLs finales;
-4. probar login, CRUD base y WebSocket;
-5. revisar logs y health checks.
+## Nota
+
+La documentacion de despliegue debe tratar Render, Railway, Neon o Vercel como opciones compatibles, pero no como infraestructura ya automatizada dentro del repo.

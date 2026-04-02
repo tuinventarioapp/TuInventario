@@ -1,4 +1,4 @@
-# Variables de entorno
+# Variables de entorno reales
 
 ## Backend
 
@@ -19,7 +19,6 @@
 - `MAIL_PASSWORD`
 - `MAIL_FROM`
 - `MAIL_FROM_NAME`
-- `STORAGE_PROVIDER`
 
 ## Frontend
 
@@ -27,14 +26,17 @@
 - `VITE_WS_URL`
 - `VITE_APP_NAME`
 
-## Reglas
+## Defaults del repo
 
-- documentar default y obligatoriedad;
-- nunca hardcodear secretos;
-- separar `.env.local`, `.env.staging` y `.env.production`;
-- usar `APP_DEMO_SEED_ENABLED=false` en produccion para evitar usuarios demo;
-- `FRONTEND_ORIGIN` puede recibir uno o varios orígenes separados por coma, incluidos patrones si el hosting lo soporta;
-- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER` y `MAIL_PASSWORD` son obligatorias para verificacion de correo y recuperacion de contrasena de cuentas `ADMIN`;
-- `MAIL_FROM` y `MAIL_FROM_NAME` definen el remitente visible de los correos transaccionales;
-- `APP_BASE_URL` identifica la URL base del backend;
-- mantener un `.env.example` actualizado.
+Ver `.env.example`.
+
+Puntos clave:
+
+- el backend usa `DB_PORT=5432` dentro de Docker
+- la base se expone al host en `55432`
+- el correo esta preparado para SMTP compatible con Brevo
+- `APP_DEMO_SEED_ENABLED=true` crea data demo si el entorno no es produccion
+
+## Variables no activas
+
+No existe hoy en `.env.example` una variable real como `STORAGE_PROVIDER`. No debe documentarse como obligatoria.

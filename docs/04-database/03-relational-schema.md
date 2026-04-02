@@ -1,56 +1,54 @@
-# Esquema relacional inicial
+# Esquema relacional real
 
-## Tablas principales
+## Relacion principal
 
-- `organizations`
-- `users`
-- `roles`
-- `memberships`
-- `categories`
-- `units`
-- `locations`
-- `items`
-- `item_images`
-- `stock_movements`
-- `stock_snapshots`
-- `borrowers`
-- `loan_requests`
-- `loans`
-- `loan_items`
-- `audit_logs`
-- `notifications`
-- `refresh_tokens`
+- `organizations` 1:N `memberships`
+- `users` 1:N `memberships`
+- `roles` 1:N `memberships`
+- `locations` 1:N `memberships` por `assigned_location_id`
 
-## Restricciones unicas
+## Catalogos e inventario
+
+- `organizations` 1:N `categories`
+- `organizations` 1:N `units`
+- `organizations` 1:N `location_categories`
+- `organizations` 1:N `locations`
+- `location_categories` 1:N `locations`
+- `organizations` 1:N `items`
+- `categories` 1:N `items`
+- `units` 1:N `items`
+- `locations` 1:N `items`
+- `items` 1:N `item_images`
+- `items` 1:N `stock_movements`
+- `items` 1:N `stock_snapshots`
+
+## Prestamos
+
+- `organizations` 1:N `borrowers`
+- `users` 1:1 `borrowers` por `borrowers.user_id` cuando el prestatario tambien tiene cuenta
+- `borrowers` 1:N `loan_requests`
+- `items` 1:N `loan_requests`
+- `users` 1:N `loan_requests` por `requested_by_user_id`
+- `borrowers` 1:N `loans`
+- `loan_requests` 1:N `loans` en el flujo clasico
+- `loans` 1:N `loan_items`
+- `items` 1:N `loan_items`
+
+## Unicidades reales
 
 - `organizations.slug`
 - `users.email`
-- `(organization_id, sku)` en `items`
-- `(organization_id, name)` en `categories`
-- reglas de unicidad equivalentes para ubicaciones segun estrategia final de jerarquia
+- `roles.name`
+- `memberships (organization_id, user_id)`
+- `categories (organization_id, name)`
+- `units (organization_id, name)`
+- `location_categories (organization_id, name)`
+- `locations (organization_id, name)`
+- `items (organization_id, primary_location_id, sku)`
+- `borrowers.user_id`
+- `refresh_tokens.token`
 
-## Foreign keys esenciales
+## Notas
 
-- `memberships.organization_id -> organizations.id`
-- `memberships.user_id -> users.id`
-- `items.organization_id -> organizations.id`
-- `items.category_id -> categories.id`
-- `items.unit_id -> units.id`
-- `items.primary_location_id -> locations.id`
-- `stock_movements.item_id -> items.id`
-- `loans.borrower_id -> borrowers.id`
-- `loan_items.loan_id -> loans.id`
-- `loan_items.item_id -> items.id`
-
-## Soft delete
-
-Usar columnas como:
-
-- `deleted_at`
-- `deleted_by`
-
-en entidades que deban ocultarse sin perder historial.
-
-## Nota
-
-`stock_snapshots` es opcional al inicio, pero recomendable si los reportes historicos requieren acelerar calculos.
+- `notifications` esta relacionada con `organizations` y `users`, pero hoy no hay un flujo funcional completo consumiendola
+- `loan_requests.request_group_id` y `loans.request_group_id` soportan agrupacion de solicitudes/prestamos de prestatarios con cuenta

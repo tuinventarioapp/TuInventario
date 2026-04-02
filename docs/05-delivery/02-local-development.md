@@ -1,30 +1,37 @@
 # Desarrollo local
 
-## Requisito
+## Opcion recomendada: Docker Compose
 
-El proyecto debe iniciar con un solo comando.
-
-## Propuesta
-
-- Docker Compose para PostgreSQL y servicios auxiliares;
-- script de bootstrap para instalar dependencias y levantar entorno;
-- perfiles separados para desarrollo y testing.
-
-## Flujo esperado
-
-1. clonar repositorio;
-2. copiar variables de entorno;
-3. ejecutar comando unico;
-4. abrir frontend y backend ya conectados.
-
-## Ejemplo de comando objetivo
-
-```bash
-docker compose up --build
+```powershell
+docker compose up -d --build
 ```
 
-o un wrapper equivalente:
+Servicios expuestos:
 
-```bash
-./scripts/dev-up.sh
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:8080`
+- base externa: `127.0.0.1:55432`
+
+## Desarrollo sin Docker
+
+### Backend
+
+```powershell
+cd apps/api
+.\mvnw.cmd spring-boot:run
+```
+
+### Frontend
+
+```powershell
+cd apps/web
+npm install
+npm run dev
+```
+
+## Parada
+
+```powershell
+docker compose stop
+docker compose down
 ```

@@ -1,32 +1,26 @@
-# Servicios de dominio y casos de uso
+# Servicios y casos de uso reales
 
-## Casos de uso esenciales
+## Casos de uso backend visibles hoy
 
-- crear organizacion e inicializar datos semilla;
-- crear item;
-- registrar stock inicial;
-- registrar movimiento;
-- aprobar solicitud de prestamo;
-- entregar prestamo;
-- registrar devolucion;
-- cerrar o marcar vencimiento;
-- exportar reporte.
+- crear organizacion y cuenta admin
+- verificar email y emitir sesion
+- recuperar contrasena de admin
+- crear usuarios internos
+- crear y actualizar catalogos
+- crear items y ajustar stock inicial
+- importar items desde archivo
+- registrar movimientos
+- crear solicitudes y grupos de prestamos
+- aprobar, rechazar, entregar y devolver
+- generar dashboard y reportes
+- consultar auditoria
 
-## Reglas de modelado
+## Rasgos de implementacion
 
-- encapsular cambios de estado en metodos con intencion;
-- no permitir que el controller cambie estados directamente;
-- centralizar validaciones de negocio repetibles;
-- publicar eventos de dominio solo despues de cambios exitosos.
+- la mayor parte de la logica vive en servicios por modulo
+- movimientos y prestamos son transaccionales
+- el backend publica auditoria y eventos realtime despues de cambios relevantes
 
-## Ejemplo de servicios
+## Nota
 
-- `InventoryCommandService`
-- `MovementApplicationService`
-- `LoanLifecycleService`
-- `AccessControlService`
-- `ReportGenerationService`
-
-## Regla de transaccion
-
-Movimientos, prestamos y devoluciones deben ser transaccionales. Si falla una parte, la operacion completa debe revertirse.
+La arquitectura real no usa nombres como `InventoryCommandService` o `LoanLifecycleService`; la documentacion debe referirse a los servicios reales del codigo y no a servicios hipoteticos.

@@ -1,38 +1,20 @@
-# Tiempo real y notificaciones
+# Realtime y notificaciones
 
-## Objetivo
+## Lo que existe hoy
 
-Reflejar cambios relevantes de inventario y prestamos sin recargar manualmente.
+- el backend expone WebSocket STOMP en `/ws`
+- el broker simple publica en `/topic/organizations/{organizationId}`
+- el frontend se suscribe por organizacion
+- al llegar un evento, el frontend invalida queries de TanStack Query
 
-## Casos prioritarios
+## Lo que no existe hoy
 
-- cambios de stock visibles en listas y detalle;
-- cambios de estado de prestamos;
-- alertas de vencimiento;
-- confirmaciones operativas.
+- autenticacion dedicada del WebSocket
+- payloads ricos por evento en UI
+- centro de notificaciones
+- tabla o inbox visible de notificaciones
+- toasts persistentes derivados de la tabla `notifications`
 
-## Estrategia
+## Implicacion practica
 
-- autenticacion del canal WebSocket;
-- canales por organizacion;
-- eventos tipados;
-- invalidacion o parche ligero de cache en frontend;
-- toasts para eventos inmediatos y panel de notificaciones para eventos consultables.
-
-## Reglas
-
-- no usar tiempo real para evitar refetch obligatorio en eventos complejos si eso puede dejar datos inconsistentes;
-- preferir evento + refetch en operaciones sensibles;
-- deduplicar eventos por id;
-- degradar de forma elegante si el socket falla.
-
-## Ejemplo de evento
-
-```json
-{
-  "type": "loan.overdue",
-  "organizationId": "org_123",
-  "loanId": "loan_456",
-  "occurredAt": "2026-03-21T10:00:00Z"
-}
-```
+El realtime actual sirve para refrescar datos abiertos por otros usuarios de la misma organizacion, pero no debe documentarse como un sistema completo de notificaciones en tiempo real.
