@@ -73,6 +73,46 @@ export interface Item {
   lastMovementAt?: string | null
 }
 
+export interface ItemImportSummary {
+  newItems: number
+  matches: number
+  errors: number
+  totalRows: number
+  created: number
+  updated: number
+  omitted: number
+}
+
+export interface ItemImportPreviewRow {
+  rowNumber: number
+  sku: string
+  itemName: string
+  existingItemName?: string | null
+  status: string
+  suggestedAction: string
+  canUpdate: boolean
+  errors: string[]
+}
+
+export interface ItemImportPreviewResponse {
+  fileName: string
+  summary: ItemImportSummary
+  rows: ItemImportPreviewRow[]
+}
+
+export interface ItemImportResultRow {
+  rowNumber: number
+  sku: string
+  itemName: string
+  outcome: string
+  messages: string[]
+}
+
+export interface ItemImportCommitResponse {
+  summary: ItemImportSummary
+  rows: ItemImportResultRow[]
+}
+
 export interface Movement {
   id: string
   movementType: string

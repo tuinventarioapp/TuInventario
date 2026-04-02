@@ -10,12 +10,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface ItemRepository extends JpaRepository<ItemEntity, UUID> {
     Optional<ItemEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
     Optional<ItemEntity> findByIdAndOrganizationIdAndDeletedAtIsNull(UUID id, UUID organizationId);
+    List<ItemEntity> findByOrganizationIdAndDeletedAtIsNull(UUID organizationId);
     boolean existsByOrganizationIdAndCategoryIdAndDeletedAtIsNull(UUID organizationId, UUID categoryId);
     boolean existsByOrganizationIdAndUnitIdAndDeletedAtIsNull(UUID organizationId, UUID unitId);
     boolean existsByOrganizationIdAndPrimaryLocationIdAndDeletedAtIsNull(UUID organizationId, UUID primaryLocationId);

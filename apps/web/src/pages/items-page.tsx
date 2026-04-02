@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 
+import { BulkImportDialog } from '../components/items/bulk-import-dialog'
 import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
 import { PageHeader } from '../components/shared/page-header'
@@ -35,6 +36,7 @@ export function ItemsPage() {
     source: searchParams.get('query') ?? '',
     value: searchParams.get('query') ?? '',
   }))
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [sortBy, setSortBy] = useState<'name' | 'available' | 'minimumStock' | 'lastMovement'>('name')
 
@@ -102,8 +104,27 @@ export function ItemsPage() {
       <PageHeader
         title={t('items.title')}
         description={t('items.description')}
-        action={canEditInventory ? <Link to="/app/items/new"><Button>{t('items.new')}</Button></Link> : undefined}
+        action={canEditInventory ? (
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full bg-secondary text-secondary-foreground sm:w-auto" onClick={() => setBulkImportOpen(true)}>
+              {t('bulkImport.cta')}
+            </Button>
+            <Link to="/app/items/new">
+              <Button className="w-full sm:w-auto">{t('items.new')}</Button>
+            </Link>
+          </div>
+        ) : undefined}
       />
+
+      {canEditInventory ? (
+        <BulkImportDialog
+          open={bulkImportOpen}
+          onImported={async () => {
+            await itemsQuery.refetch()
+          }}
+          onOpenChange={setBulkImportOpen}
+        />
+      ) : null}
 
       {!isGlobalAdmin && user?.assignedLocationName && (
         <Notice>{t('items.scopeNotice', { location: user.assignedLocationName })}</Notice>

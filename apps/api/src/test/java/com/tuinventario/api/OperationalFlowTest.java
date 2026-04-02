@@ -17,13 +17,19 @@ import com.tuinventario.api.domain.repository.OrganizationRepository;
 import com.tuinventario.api.domain.repository.UnitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,6 +43,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -227,6 +234,175 @@ class OperationalFlowTest {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(markerName)));
+    }
+
+    @Test
+    void shouldPreviewAndCommitBulkItemImport() throws Exception {
+        UUID organizationId = organizationId();
+        CategoryEntity category = ensureCategory(organizationId);
+        UnitEntity unit = ensureUnit(organizationId);
+        String locationId = firstLocationId();
+        String existingSku = "BULK-MATCH-" + System.nanoTime();
+        String existingItemId = createItem("Item existente", existingSku, 3, locationId, 1);
+
+        MockMultipartFile previewFile = new MockMultipartFile(
+                "file",
+                "plantilla-carga-masiva-articulos-v1.0.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        buildImportWorkbook(List.of(
+                                List.of("BULK-NEW-" + System.nanoTime(), "Guantes nitrilo", "CONSUMABLE", category.getName(), unit.getName(), locationRepository.findById(UUID.fromString(locationId)).orElseThrow().getName(), "25", "5", "AVAILABLE", "Caja de guantes"),
+                                List.of(existingSku, "Item existente actualizado", "LENDABLE", category.getName(), unit.getName(), locationRepository.findById(UUID.fromString(locationId)).orElseThrow().getName(), "8", "2", "AVAILABLE", "Actualizado desde Excel"),
+                                List.of("BULK-ERR-" + System.nanoTime(), "Fila invalida", "LENDABLE", category.getName(), unit.getName(), locationRepository.findById(UUID.fromString(locationId)).orElseThrow().getName(), "-1", "0", "AVAILABLE", "")
+                        ))
+        );
+
+        mockMvc.perform(multipart("/api/v1/items/import/preview")
+                        .file(previewFile)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.newItems").value(1))
+                .andExpect(jsonPath("$.summary.matches").value(1))
+                .andExpect(jsonPath("$.summary.errors").value(1))
+                .andExpect(jsonPath("$.rows[1].suggestedAction").value("UPDATE_EXISTING"));
+
+        MockMultipartFile commitFile = new MockMultipartFile(
+                "file",
+                "plantilla-carga-masiva-articulos-v1.0.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                previewFile.getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/v1/items/import/commit")
+                        .file(commitFile)
+                        .param("updateSkus", existingSku)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.created").value(1))
+                .andExpect(jsonPath("$.summary.updated").value(1))
+                .andExpect(jsonPath("$.summary.errors").value(1))
+                .andExpect(jsonPath("$.rows[0].outcome").value("CREATED"))
+                .andExpect(jsonPath("$.rows[1].outcome").value("UPDATED"))
+                .andExpect(jsonPath("$.rows[2].outcome").value("ERROR"));
+
+        List<ItemEntity> items = itemRepository.findByOrganizationIdAndDeletedAtIsNull(organizationId);
+        org.junit.jupiter.api.Assertions.assertTrue(items.stream().anyMatch(item -> item.getSku().startsWith("BULK-NEW-")));
+        ItemEntity updated = itemRepository.findById(UUID.fromString(existingItemId)).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals("Item existente actualizado", updated.getName());
+        org.junit.jupiter.api.Assertions.assertEquals(0, updated.getTotalStock().compareTo(BigDecimal.valueOf(8)));
+        org.junit.jupiter.api.Assertions.assertEquals(0, updated.getMinimumStock().compareTo(BigDecimal.valueOf(2)));
+    }
+
+    @Test
+    void shouldFlagDuplicateSkusAndUnknownCatalogReferencesDuringBulkPreview() throws Exception {
+        UUID organizationId = organizationId();
+        CategoryEntity category = ensureCategory(organizationId);
+        UnitEntity unit = ensureUnit(organizationId);
+        String locationName = locationRepository.findByOrganizationIdOrderByNameAsc(organizationId).getFirst().getName();
+        String duplicatedSku = "BULK-DUP-" + System.nanoTime();
+
+        MockMultipartFile previewFile = new MockMultipartFile(
+                "file",
+                "plantilla-carga-masiva-articulos-v1.0.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        buildImportWorkbook(List.of(
+                                List.of(duplicatedSku, "Fila uno", "CONSUMABLE", category.getName(), unit.getName(), locationName, "5", "1", "AVAILABLE", ""),
+                                List.of(duplicatedSku, "Fila dos", "CONSUMABLE", "Categoria inexistente", unit.getName(), locationName, "4", "1", "AVAILABLE", "")
+                        ))
+        );
+
+        String response = mockMvc.perform(multipart("/api/v1/items/import/preview")
+                        .file(previewFile)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.errors").value(2))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(response.contains("duplicado dentro del mismo archivo"));
+        org.junit.jupiter.api.Assertions.assertTrue(response.contains("no existe en el sistema"));
+    }
+
+    @Test
+    void shouldDownloadLocalizedTemplateAndAllowManagerLocationAutofill() throws Exception {
+        UUID organizationId = organizationId();
+        CategoryEntity category = ensureCategory(organizationId);
+        UnitEntity unit = ensureUnit(organizationId);
+
+        byte[] templateBytes = mockMvc.perform(get("/api/v1/items/import/template")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Accept-Language", "es"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(templateBytes))) {
+            var articlesSheet = workbook.getSheet("Articulos");
+            var instructionsSheet = workbook.getSheet("Instrucciones");
+            var listsSheet = workbook.getSheet("Listas");
+
+            org.junit.jupiter.api.Assertions.assertEquals("descripcion", articlesSheet.getRow(0).getCell(9).getStringCellValue());
+            org.junit.jupiter.api.Assertions.assertTrue(articlesSheet.isColumnHidden(10));
+            org.junit.jupiter.api.Assertions.assertEquals("Consumible, Prestable, Hibrido", instructionsSheet.getRow(12).getCell(1).getStringCellValue());
+            org.junit.jupiter.api.Assertions.assertTrue(instructionsSheet.getRow(14).getCell(1).getStringCellValue().contains(category.getName()));
+            org.junit.jupiter.api.Assertions.assertEquals("Prestable", listsSheet.getRow(2).getCell(0).getStringCellValue());
+            org.junit.jupiter.api.Assertions.assertEquals("Disponible", listsSheet.getRow(1).getCell(1).getStringCellValue());
+        }
+
+        byte[] managerTemplateBytes = mockMvc.perform(get("/api/v1/items/import/template")
+                        .header("Authorization", "Bearer " + managerToken)
+                        .header("Accept-Language", "es"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(managerTemplateBytes))) {
+            var articlesSheet = workbook.getSheet("Articulos");
+            var instructionsSheet = workbook.getSheet("Instrucciones");
+
+            org.junit.jupiter.api.Assertions.assertTrue(articlesSheet.isColumnHidden(5));
+            org.junit.jupiter.api.Assertions.assertTrue(instructionsSheet.getRow(16).getCell(1).getStringCellValue().contains("ubicacion_principal vacio"));
+        }
+
+        String managerLocationName = locationRepository.findById(UUID.fromString(firstLocationId())).orElseThrow().getName();
+
+        MockMultipartFile managerFile = new MockMultipartFile(
+                "file",
+                "plantilla-carga-masiva-articulos-v1.0.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                buildImportWorkbook(List.of(
+                        List.of("BULK-MANAGER-" + System.nanoTime(), "Tomate roma", "Prestable", category.getName(), unit.getName(), "", "6", "2", "Disponible", "Se asigna a la sede del gestor")
+                ))
+        );
+
+        mockMvc.perform(multipart("/api/v1/items/import/preview")
+                        .file(managerFile)
+                        .header("Authorization", "Bearer " + managerToken)
+                        .header("Accept-Language", "es"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.newItems").value(1))
+                .andExpect(jsonPath("$.summary.errors").value(0));
+
+        String commitResponse = mockMvc.perform(multipart("/api/v1/items/import/commit")
+                        .file(managerFile)
+                        .header("Authorization", "Bearer " + managerToken)
+                        .header("Accept-Language", "es"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.created").value(1))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String createdSku = objectMapper.readTree(commitResponse).get("rows").get(0).get("sku").asText();
+        ItemEntity createdItem = itemRepository.findByOrganizationIdAndDeletedAtIsNull(organizationId).stream()
+                .filter(item -> createdSku.equals(item.getSku()))
+                .findFirst()
+                .orElseThrow();
+        String createdLocationName = locationRepository.findById(createdItem.getPrimaryLocation().getId()).orElseThrow().getName();
+        org.junit.jupiter.api.Assertions.assertEquals(managerLocationName, createdLocationName);
     }
 
     @Test
@@ -1015,5 +1191,29 @@ class OperationalFlowTest {
 
         itemRepository.saveAll(items);
         return markerName;
+    }
+
+    private byte[] buildImportWorkbook(List<List<String>> rows) throws Exception {
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            var sheet = workbook.createSheet("Articulos");
+            Row header = sheet.createRow(0);
+            String[] columns = {"sku", "nombre", "tipo_articulo", "categoria", "unidad", "ubicacion_principal", "stock_inicial", "stock_minimo", "estado", "descripcion"};
+            for (int index = 0; index < columns.length; index++) {
+                header.createCell(index).setCellValue(columns[index]);
+            }
+
+            for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+                Row row = sheet.createRow(rowIndex + 1);
+                List<String> values = rows.get(rowIndex);
+                for (int cellIndex = 0; cellIndex < values.size(); cellIndex++) {
+                    row.createCell(cellIndex).setCellValue(values.get(cellIndex));
+                }
+            }
+
+            workbook.createSheet("Instrucciones");
+            workbook.createSheet("Listas");
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
     }
 }

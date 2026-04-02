@@ -7,6 +7,8 @@ import type {
   Borrower,
   DashboardSummary,
   Item,
+  ItemImportCommitResponse,
+  ItemImportPreviewResponse,
   Loan,
   LoanRequestItem,
   OptionItem,
@@ -235,6 +237,18 @@ export const api = {
   createItem: (payload: unknown) => request<Item>('/items', { method: 'POST', body: JSON.stringify(payload) }),
   updateItem: (id: string, payload: unknown) => request<Item>(`/items/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteItem: (id: string) => request<void>(`/items/${id}`, { method: 'DELETE' }),
+  downloadItemImportTemplate: () => requestBlob('/items/import/template'),
+  previewItemImport: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<ItemImportPreviewResponse>('/items/import/preview', { method: 'POST', body: formData })
+  },
+  commitItemImport: (file: File, updateSkus: string[]) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    updateSkus.forEach((sku) => formData.append('updateSkus', sku))
+    return request<ItemImportCommitResponse>('/items/import/commit', { method: 'POST', body: formData })
+  },
   categories: () => request<OptionItem[]>('/categories'),
   createCategory: (payload: unknown) => request<OptionItem>('/categories', { method: 'POST', body: JSON.stringify(payload) }),
   updateCategory: (id: string, payload: unknown) => request<OptionItem>(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
