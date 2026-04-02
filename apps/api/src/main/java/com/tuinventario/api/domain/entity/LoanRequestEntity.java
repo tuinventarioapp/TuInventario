@@ -15,6 +15,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -36,6 +37,12 @@ public class LoanRequestEntity extends BaseEntity {
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal quantity;
+
+    @Column(name = "approved_quantity", precision = 19, scale = 2)
+    private BigDecimal approvedQuantity;
+
+    @Column(name = "request_group_id")
+    private UUID requestGroupId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requested_by_user_id")

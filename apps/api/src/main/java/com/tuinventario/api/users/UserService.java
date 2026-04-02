@@ -1,11 +1,13 @@
 package com.tuinventario.api.users;
 
 import com.tuinventario.api.domain.entity.MembershipEntity;
+import com.tuinventario.api.domain.entity.BorrowerEntity;
 import com.tuinventario.api.domain.entity.LocationEntity;
 import com.tuinventario.api.domain.entity.RoleEntity;
 import com.tuinventario.api.domain.entity.UserEntity;
 import com.tuinventario.api.domain.enums.EntityStatus;
 import com.tuinventario.api.domain.enums.MembershipStatus;
+import com.tuinventario.api.domain.repository.BorrowerRepository;
 import com.tuinventario.api.domain.repository.LocationRepository;
 import com.tuinventario.api.domain.repository.MembershipRepository;
 import com.tuinventario.api.domain.repository.RoleRepository;
@@ -28,6 +30,7 @@ public class UserService {
 
     private final CurrentContextService currentContextService;
     private final MembershipRepository membershipRepository;
+    private final BorrowerRepository borrowerRepository;
     private final RoleRepository roleRepository;
     private final LocationRepository locationRepository;
     private final UserRepository userRepository;
@@ -67,6 +70,7 @@ public class UserService {
         membership.setAssignedLocation(resolveAssignedLocation(request.assignedLocationId(), role.getName()));
         membership.setStatus(MembershipStatus.ACTIVE);
         membershipRepository.save(membership);
+        syncBorrowerProfile(user, membership);
 
         return mapSummary(membership);
     }
@@ -108,6 +112,7 @@ public class UserService {
         membership.setAssignedLocation(resolveAssignedLocation(request.assignedLocationId(), role.getName()));
         membership.setStatus(user.getStatus() == EntityStatus.ACTIVE ? MembershipStatus.ACTIVE : MembershipStatus.BLOCKED);
         membershipRepository.save(membership);
+        syncBorrowerProfile(user, membership);
         return mapSummary(membership);
     }
 
@@ -134,6 +139,12 @@ public class UserService {
         membership.getUser().setStatus(EntityStatus.BLOCKED);
         membership.getUser().setDeletedAt(Instant.now());
         userRepository.save(membership.getUser());
+
+        borrowerRepository.findByUserIdAndOrganizationIdAndDeletedAtIsNull(userId, currentContextService.currentUser().organizationId())
+                .ifPresent(borrower -> {
+                    borrower.setDeletedAt(Instant.now());
+                    borrowerRepository.save(borrower);
+                });
 
         membership.setStatus(MembershipStatus.BLOCKED);
         membershipRepository.save(membership);
@@ -198,5 +209,26 @@ public class UserService {
         }
         return locationRepository.findByIdAndOrganizationId(UUID.fromString(assignedLocationId), currentContextService.currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "LOCATION_NOT_FOUND", "Ubicacion no encontrada."));
+    }
+
+    private void syncBorrowerProfile(UserEntity user, MembershipEntity membership) {
+        if (!"BORROWER".equals(membership.getRole().getName())) {
+            borrowerRepository.findByUserIdAndOrganizationIdAndDeletedAtIsNull(user.getId(), membership.getOrganization().getId())
+                    .ifPresent(existing -> {
+                        existing.setName(user.getFullName());
+                        existing.setEmail(user.getEmail());
+                        borrowerRepository.save(existing);
+                    });
+            return;
+        }
+
+        BorrowerEntity borrower = borrowerRepository.findByUserIdAndOrganizationIdAndDeletedAtIsNull(user.getId(), membership.getOrganization().getId())
+                .orElseGet(BorrowerEntity::new);
+        borrower.setOrganization(membership.getOrganization());
+        borrower.setUser(user);
+        borrower.setName(user.getFullName());
+        borrower.setEmail(user.getEmail());
+        borrower.setDeletedAt(null);
+        borrowerRepository.save(borrower);
     }
 }

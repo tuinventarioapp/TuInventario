@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface BorrowerRepository extends JpaRepository<BorrowerEntity, UUID> {
     List<BorrowerEntity> findByOrganizationIdAndDeletedAtIsNullOrderByNameAsc(UUID organizationId);
     Optional<BorrowerEntity> findByIdAndOrganizationIdAndDeletedAtIsNull(UUID id, UUID organizationId);
+    Optional<BorrowerEntity> findByUserIdAndOrganizationIdAndDeletedAtIsNull(UUID userId, UUID organizationId);
 
     @Query("""
             select b from BorrowerEntity b

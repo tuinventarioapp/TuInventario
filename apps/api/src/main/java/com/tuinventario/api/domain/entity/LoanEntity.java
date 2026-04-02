@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -32,6 +33,9 @@ public class LoanEntity extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "loan_request_id")
     private LoanRequestEntity loanRequest;
+
+    @Column(name = "request_group_id")
+    private UUID requestGroupId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)

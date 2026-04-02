@@ -982,6 +982,131 @@ class OperationalFlowTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void shouldSupportBorrowerAccountsAndGroupedLoanLifecycle() throws Exception {
+        String chairItemId = createItem("Silla beta " + System.nanoTime(), "BOR-CHAIR-" + System.nanoTime(), 4);
+        String tableItemId = createItem("Mesa beta " + System.nanoTime(), "BOR-TABLE-" + System.nanoTime(), 3);
+        String borrowerEmail = "borrower." + System.nanoTime() + "@tuinventario.local";
+        createUser(borrowerEmail, "BORROWER");
+        String borrowerToken = login(borrowerEmail, "Prueba123!");
+
+        mockMvc.perform(get("/api/v1/loan-requests")
+                        .header("Authorization", "Bearer " + borrowerToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("INSUFFICIENT_PERMISSIONS"));
+
+        String createResponse = mockMvc.perform(post("/api/v1/borrower-loan-requests")
+                        .header("Authorization", "Bearer " + borrowerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "dueAt", Instant.now().plus(2, ChronoUnit.DAYS).toString(),
+                                "notes", "Solicitud beta agrupada",
+                                "items", List.of(
+                                        Map.of("itemId", chairItemId, "quantity", 3),
+                                        Map.of("itemId", tableItemId, "quantity", 2)
+                                )
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode createdGroup = objectMapper.readTree(createResponse);
+        String groupId = createdGroup.get("id").asText();
+        String chairLoanRequestId = createdGroup.get("items").get(0).get("loanRequestId").asText();
+        String tableLoanRequestId = createdGroup.get("items").get(1).get("loanRequestId").asText();
+
+        mockMvc.perform(get("/api/v1/borrower-loan-requests/mine")
+                        .header("Authorization", "Bearer " + borrowerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(groupId))
+                .andExpect(jsonPath("$[0].items.length()").value(2));
+
+        mockMvc.perform(post("/api/v1/borrower-loan-requests/{groupId}/review", groupId)
+                        .header("Authorization", "Bearer " + managerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "items", List.of(
+                                        Map.of(
+                                                "loanRequestId", chairLoanRequestId,
+                                                "decision", "APPROVE",
+                                                "approvedQuantity", 2
+                                        ),
+                                        Map.of(
+                                                "loanRequestId", tableLoanRequestId,
+                                                "decision", "REJECT",
+                                                "rejectionReason", "No hay disponibilidad total"
+                                        )
+                                )
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PARTIALLY_APPROVED"))
+                .andExpect(jsonPath("$.items[0].approvedQuantity").value(2))
+                .andExpect(jsonPath("$.items[1].rejectionReason").value("No hay disponibilidad total"));
+
+        String deliveredResponse = mockMvc.perform(post("/api/v1/borrower-loans/{groupId}/deliver", groupId)
+                        .header("Authorization", "Bearer " + managerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("notes", "Entrega parcial"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELIVERED"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode deliveredGroup = objectMapper.readTree(deliveredResponse);
+        String chairLoanId = deliveredGroup.get("items").get(0).get("loanId").asText();
+
+        mockMvc.perform(post("/api/v1/borrower-loans/{groupId}/return", groupId)
+                        .header("Authorization", "Bearer " + managerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "items", List.of(
+                                        Map.of(
+                                                "loanId", chairLoanId,
+                                                "returnedQuantity", 1,
+                                                "notes", "Falto una silla"
+                                        )
+                                )
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RETURNED"))
+                .andExpect(jsonPath("$.items[0].returnedQuantity").value(1))
+                .andExpect(jsonPath("$.items[1].status").value("REJECTED"));
+
+        String borrowerHistoryResponse = mockMvc.perform(get("/api/v1/borrower-loan-requests/mine")
+                        .header("Authorization", "Bearer " + borrowerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("RETURNED"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode borrowerHistory = objectMapper.readTree(borrowerHistoryResponse).get(0);
+        JsonNode borrowerReturnedLine = null;
+        JsonNode borrowerRejectedLine = null;
+        for (JsonNode item : borrowerHistory.get("items")) {
+            if (chairItemId.equals(item.get("itemId").asText())) {
+                borrowerReturnedLine = item;
+            }
+            if (tableItemId.equals(item.get("itemId").asText())) {
+                borrowerRejectedLine = item;
+            }
+        }
+
+        org.junit.jupiter.api.Assertions.assertNotNull(borrowerReturnedLine);
+        org.junit.jupiter.api.Assertions.assertNotNull(borrowerRejectedLine);
+        org.junit.jupiter.api.Assertions.assertEquals(1, borrowerReturnedLine.get("returnedQuantity").asInt());
+        org.junit.jupiter.api.Assertions.assertEquals("REJECTED", borrowerRejectedLine.get("status").asText());
+        org.junit.jupiter.api.Assertions.assertEquals("No hay disponibilidad total", borrowerRejectedLine.get("rejectionReason").asText());
+
+        ItemEntity chairItem = itemRepository.findById(UUID.fromString(chairItemId)).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(0, chairItem.getTotalStock().compareTo(BigDecimal.valueOf(3)));
+        org.junit.jupiter.api.Assertions.assertEquals(0, chairItem.getAvailableStock().compareTo(BigDecimal.valueOf(3)));
+    }
+
     private String login(String email, String password) throws Exception {
         String response = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

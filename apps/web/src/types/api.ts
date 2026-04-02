@@ -170,6 +170,37 @@ export interface Loan {
   deliveredBy?: string | null
 }
 
+export interface BorrowerLoanGroupItem {
+  loanRequestId: string
+  loanId?: string | null
+  itemId: string
+  itemName: string
+  categoryName: string
+  unitSymbol: string
+  requestedQuantity: number
+  approvedQuantity: number
+  returnedQuantity: number
+  outstandingQuantity: number
+  status: string
+  rejectionReason?: string | null
+}
+
+export interface BorrowerLoanGroup {
+  id: string
+  borrowerName: string
+  locationId: string
+  locationName: string
+  status: string
+  requestedAt: string
+  approvedAt?: string | null
+  dueAt: string
+  loanedAt?: string | null
+  returnedAt?: string | null
+  notes?: string | null
+  dueSoon: boolean
+  items: BorrowerLoanGroupItem[]
+}
+
 export interface LowStockAlert {
   itemId: string
   itemName: string

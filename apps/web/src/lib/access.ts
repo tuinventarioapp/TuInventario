@@ -8,6 +8,10 @@ export function isManagerOrAdmin(role?: string | null): role is AppRole {
   return role === 'ADMIN' || role === 'MANAGER'
 }
 
+export function isBorrower(role?: string | null): role is AppRole {
+  return role === 'BORROWER'
+}
+
 export function canManageCatalogs(role?: string | null) {
   return isAdmin(role)
 }

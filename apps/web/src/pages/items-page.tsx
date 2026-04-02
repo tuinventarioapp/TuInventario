@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 
+import { queryClient } from '../app/query-client'
 import { BulkImportDialog } from '../components/items/bulk-import-dialog'
 import { MobileDisclosure } from '../components/shared/mobile-disclosure'
 import { Notice } from '../components/shared/notice'
@@ -12,14 +13,26 @@ import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
-import { canManageInventory, isAdmin } from '../lib/access'
+import { canManageInventory, isAdmin, isBorrower } from '../lib/access'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
+import type { Item } from '../types/api'
 
 const stockFilterOptions = ['LOW_STOCK', 'OUT_OF_STOCK', 'IN_STOCK', 'ON_LOAN', 'RESERVED'] as const
 
+type BorrowerCartItem = {
+  itemId: string
+  itemName: string
+  unitSymbol: string
+  quantity: string
+}
+
 function stockWithUnit(quantity: number, unitSymbol: string) {
+  return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
+}
+
+function quantityWithUnit(quantity: number, unitSymbol: string) {
   return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
 }
 
@@ -31,6 +44,7 @@ export function ItemsPage() {
   const { t, enumLabel } = useI18n()
   const user = useAuthStore((state) => state.user)
   const isPhone = useIsMobile()
+  const borrowerOnly = isBorrower(user?.role)
   const [searchParams, setSearchParams] = useSearchParams()
   const [draftQueryState, setDraftQueryState] = useState(() => ({
     source: searchParams.get('query') ?? '',
@@ -39,6 +53,10 @@ export function ItemsPage() {
   const [bulkImportOpen, setBulkImportOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [sortBy, setSortBy] = useState<'name' | 'available' | 'minimumStock' | 'lastMovement'>('name')
+  const [borrowerDrafts, setBorrowerDrafts] = useState<Record<string, string>>({})
+  const [borrowerCart, setBorrowerCart] = useState<BorrowerCartItem[]>([])
+  const [borrowerDueAt, setBorrowerDueAt] = useState('')
+  const [borrowerNotes, setBorrowerNotes] = useState('')
 
   const filters = useMemo(() => ({
     query: searchParams.get('query') ?? '',
@@ -98,6 +116,182 @@ export function ItemsPage() {
       return left.name.localeCompare(right.name)
     })
   }, [itemsQuery.data?.content, sortBy])
+  const borrowerItems = useMemo(
+    () => sortedItems.filter((item) => ['LENDABLE', 'HYBRID'].includes(item.type) && item.availableStock > 0),
+    [sortedItems],
+  )
+
+  const borrowerRequestMutation = useMutation({
+    mutationFn: () =>
+      api.createBorrowerLoanRequest({
+        dueAt: new Date(borrowerDueAt).toISOString(),
+        notes: borrowerNotes || undefined,
+        items: borrowerCart.map((entry) => ({
+          itemId: entry.itemId,
+          quantity: Number(entry.quantity),
+        })),
+      }),
+    onSuccess: async () => {
+      setBorrowerCart([])
+      setBorrowerDrafts({})
+      setBorrowerDueAt('')
+      setBorrowerNotes('')
+      await queryClient.invalidateQueries({ queryKey: ['borrower-loan-requests'] })
+      await queryClient.invalidateQueries({ queryKey: ['items'] })
+    },
+  })
+
+  const addBorrowerItem = (item: Item) => {
+    const quantity = borrowerDrafts[item.id] || '1'
+    const parsedQuantity = Number(quantity)
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      return
+    }
+    if (parsedQuantity > item.availableStock) {
+      return
+    }
+    setBorrowerCart((current) => {
+      const existing = current.find((entry) => entry.itemId === item.id)
+      if (existing) {
+        return current.map((entry) => (entry.itemId === item.id ? { ...entry, quantity } : entry))
+      }
+      return [...current, { itemId: item.id, itemName: item.name, unitSymbol: item.unit, quantity }]
+    })
+  }
+
+  if (borrowerOnly) {
+    const canSubmitBorrowerRequest = borrowerCart.length > 0 && borrowerDueAt && !borrowerRequestMutation.isPending
+
+    return (
+      <div className="space-y-6">
+        <PageHeader title={t('items.title')} description={t('borrower.catalogDescription')} />
+
+        {user?.assignedLocationName && <Notice>{t('borrower.scopeNotice', { location: user.assignedLocationName })}</Notice>}
+        {borrowerRequestMutation.isError && <Notice variant="error">{borrowerRequestMutation.error.message}</Notice>}
+        {borrowerRequestMutation.isSuccess && <Notice variant="success">{t('borrower.requestCreated')}</Notice>}
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
+          <div className="space-y-6">
+            <Card>
+              <MobileDisclosure
+                defaultOpen
+                description={t('items.resultSummary', { count: borrowerItems.length })}
+                isMobile={isPhone}
+                title={t('borrower.availableItems')}
+              >
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <label className="text-sm font-medium">{t('common.search')}</label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        value={draftQuery}
+                        placeholder={t('items.searchPlaceholder')}
+                        onChange={(event) => setDraftQueryState({ source: filters.query, value: event.target.value })}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') updateFilters({ query: draftQuery })
+                        }}
+                      />
+                      <Button className="w-full sm:w-auto" onClick={() => updateFilters({ query: draftQuery })}>{t('common.apply')}</Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('items.category')}</label>
+                    <select className="h-11 w-full rounded-xl border border-border bg-white px-3" value={filters.categoryId} onChange={(event) => updateFilters({ categoryId: event.target.value })}>
+                      <option value="">{t('common.all')}</option>
+                      {categoriesQuery.data?.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </MobileDisclosure>
+            </Card>
+
+            {!borrowerItems.length && <Notice>{t('borrower.emptyCatalog')}</Notice>}
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              {borrowerItems.map((item) => {
+                const draftQuantity = borrowerDrafts[item.id] ?? '1'
+                return (
+                  <Card key={item.id} className="space-y-4 border-slate-200">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-950">{item.name}</h3>
+                        <p className="text-sm text-slate-500">{item.sku} - {item.category}</p>
+                      </div>
+                      <Badge>{t('items.available')}</Badge>
+                    </div>
+                    <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+                      <p>{t('items.available')}: <strong className="text-slate-950">{stockWithUnit(item.availableStock, item.unit)}</strong></p>
+                      <p>{t('items.location')}: <strong className="text-slate-950">{item.primaryLocation}</strong></p>
+                      <p>{t('items.minimumStock')}: <strong className="text-slate-950">{stockWithUnit(item.minimumStock, item.unit)}</strong></p>
+                      <p>{t('items.lastMovement')}: <strong className="text-slate-950">{formatDate(item.lastMovementAt)}</strong></p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        {t('borrower.requestedQuantity')}{item.unit ? ` (${item.unit})` : ''}
+                      </label>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input min="0.01" step="0.01" value={draftQuantity} onChange={(event) => setBorrowerDrafts((current) => ({ ...current, [item.id]: event.target.value }))} />
+                        <Button className="w-full sm:w-auto" onClick={() => addBorrowerItem(item)}>
+                          {t('borrower.addToRequest')}
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+
+          <Card className="space-y-4 xl:sticky xl:top-6">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">{t('borrower.cartTitle')}</h2>
+                <p className="text-sm text-slate-500">{t('borrower.cartDescription')}</p>
+              </div>
+              <Link className="text-sm font-medium text-sky-700 hover:text-sky-900" to="/app/loans">
+                {t('borrower.viewMyLoans')}
+              </Link>
+            </div>
+            <div className="grid gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('loans.dueField')}</label>
+                <Input min={new Date().toISOString().slice(0, 16)} type="datetime-local" value={borrowerDueAt} onChange={(event) => setBorrowerDueAt(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t('loans.notes')}</label>
+                <Input placeholder={t('borrower.notesPlaceholder')} value={borrowerNotes} onChange={(event) => setBorrowerNotes(event.target.value)} />
+              </div>
+            </div>
+            {!borrowerCart.length ? (
+              <Notice>{t('borrower.emptyCart')}</Notice>
+            ) : (
+              <div className="space-y-3">
+                {borrowerCart.map((entry) => (
+                  <div key={entry.itemId} className="rounded-2xl border border-border bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-medium text-slate-950">{entry.itemName}</p>
+                        <p className="text-sm text-slate-500">{t('borrower.requestedQuantity')}: {quantityWithUnit(Number(entry.quantity), entry.unitSymbol)}</p>
+                      </div>
+                      <Button className="bg-secondary text-secondary-foreground sm:w-auto" onClick={() => setBorrowerCart((current) => current.filter((item) => item.itemId !== entry.itemId))}>
+                        {t('common.delete')}
+                      </Button>
+                    </div>
+                    <div className="mt-3">
+                      <Input className="w-full" min="0.01" step="0.01" value={entry.quantity} onChange={(event) => setBorrowerCart((current) => current.map((item) => item.itemId === entry.itemId ? { ...item, quantity: event.target.value } : item))} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button className="w-full" disabled={!canSubmitBorrowerRequest} onClick={() => borrowerRequestMutation.mutate()}>
+              {t('borrower.submitRequest')}
+            </Button>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

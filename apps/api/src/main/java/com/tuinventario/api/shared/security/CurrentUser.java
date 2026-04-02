@@ -18,6 +18,10 @@ public record CurrentUser(
         return "ADMIN".equals(role) || "MANAGER".equals(role);
     }
 
+    public boolean isBorrower() {
+        return "BORROWER".equals(role);
+    }
+
     public boolean isOperator() {
         return "ADMIN".equals(role) || "MANAGER".equals(role) || "COLLABORATOR".equals(role);
     }

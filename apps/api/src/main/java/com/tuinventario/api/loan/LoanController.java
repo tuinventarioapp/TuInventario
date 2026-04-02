@@ -36,6 +36,45 @@ public class LoanController {
         return loanService.createPublicLoanRequest(request);
     }
 
+    @PostMapping("/borrower-loan-requests")
+    public LoanDtos.BorrowerLoanGroupResponse createBorrowerLoanRequest(@Valid @RequestBody LoanDtos.BorrowerLoanCartPayload request) {
+        return loanService.createBorrowerLoanRequest(request);
+    }
+
+    @GetMapping("/borrower-loan-requests")
+    public List<LoanDtos.BorrowerLoanGroupResponse> listBorrowerLoanRequests(@RequestParam(required = false) UUID locationId) {
+        return loanService.listBorrowerLoanRequests(locationId);
+    }
+
+    @GetMapping("/borrower-loan-requests/mine")
+    public List<LoanDtos.BorrowerLoanGroupResponse> listMyBorrowerLoanRequests() {
+        return loanService.listMyBorrowerLoanRequests();
+    }
+
+    @PostMapping("/borrower-loan-requests/{groupId}/review")
+    public LoanDtos.BorrowerLoanGroupResponse reviewBorrowerLoanRequest(
+            @PathVariable UUID groupId,
+            @Valid @RequestBody LoanDtos.BorrowerLoanReviewPayload request
+    ) {
+        return loanService.reviewBorrowerLoanRequest(groupId, request);
+    }
+
+    @PostMapping("/borrower-loans/{groupId}/deliver")
+    public LoanDtos.BorrowerLoanGroupResponse deliverBorrowerLoanGroup(
+            @PathVariable UUID groupId,
+            @RequestBody(required = false) LoanDtos.LoanActionPayload request
+    ) {
+        return loanService.deliverBorrowerLoanGroup(groupId, request == null ? new LoanDtos.LoanActionPayload(null) : request);
+    }
+
+    @PostMapping("/borrower-loans/{groupId}/return")
+    public LoanDtos.BorrowerLoanGroupResponse returnBorrowerLoanGroup(
+            @PathVariable UUID groupId,
+            @Valid @RequestBody LoanDtos.BorrowerLoanReturnPayload request
+    ) {
+        return loanService.returnBorrowerLoanGroup(groupId, request);
+    }
+
     @PostMapping("/loan-requests/{id}/approve")
     public LoanDtos.LoanResponse approveLoanRequest(@PathVariable UUID id, @RequestBody(required = false) LoanDtos.LoanActionPayload request) {
         return loanService.approveLoanRequest(id, request == null ? new LoanDtos.LoanActionPayload(null) : request);

@@ -18,13 +18,15 @@ import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
 import type { UserSummary } from '../types/api'
 
-type UserRole = 'ADMIN' | 'MANAGER' | 'COLLABORATOR'
+type UserRole = 'ADMIN' | 'MANAGER' | 'COLLABORATOR' | 'BORROWER'
+const createRoleOptions = ['ADMIN', 'MANAGER', 'COLLABORATOR'] as const
+const internalRoleOptions = ['ADMIN', 'MANAGER', 'COLLABORATOR'] as const
 
 type CreateValues = {
   fullName: string
   email: string
   password: string
-  role: UserRole
+  role: (typeof createRoleOptions)[number]
   assignedLocationId?: string
 }
 
@@ -60,14 +62,14 @@ export function UsersPage() {
     fullName: z.string().min(3, t('validation.name')),
     email: z.string().email(t('validation.email')),
     password: z.string().min(8, t('validation.password')),
-    role: z.enum(['ADMIN', 'MANAGER', 'COLLABORATOR']),
+    role: z.enum(createRoleOptions),
     assignedLocationId: z.string().optional(),
   }).superRefine((values, ctx) => requireAssignedLocation(values, ctx, t('users.locationRequired'))), [t])
 
   const editSchema = useMemo(() => z.object({
     fullName: z.string().min(3, t('validation.name')),
     email: z.string().email(t('validation.email')),
-    role: z.enum(['ADMIN', 'MANAGER', 'COLLABORATOR']),
+    role: z.enum(['ADMIN', 'MANAGER', 'COLLABORATOR', 'BORROWER']),
     status: z.enum(['ACTIVE', 'BLOCKED']),
     assignedLocationId: z.string().optional(),
   }).superRefine((values, ctx) => requireAssignedLocation(values, ctx, t('users.locationRequired'))), [t])
@@ -201,7 +203,7 @@ export function UsersPage() {
               </Field>
               <Field label={t('common.role')}>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...editForm.register('role')}>
-                  {(['ADMIN', 'MANAGER', 'COLLABORATOR'] as const).map((role) => (
+                  {((editingUser?.role === 'BORROWER' ? ['ADMIN', 'MANAGER', 'COLLABORATOR', 'BORROWER'] : internalRoleOptions) as readonly UserRole[]).map((role) => (
                     <option key={role} value={role}>{enumLabel('role', role)}</option>
                   ))}
                 </select>
@@ -260,7 +262,7 @@ export function UsersPage() {
               </Field>
               <Field label={t('common.role')}>
                 <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...createForm.register('role')}>
-                  {(['ADMIN', 'MANAGER', 'COLLABORATOR'] as const).map((role) => (
+                  {createRoleOptions.map((role) => (
                     <option key={role} value={role}>{enumLabel('role', role)}</option>
                   ))}
                 </select>

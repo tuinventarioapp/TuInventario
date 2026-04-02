@@ -58,6 +58,12 @@ public class CurrentContextService {
         }
     }
 
+    public void requireBorrower() {
+        if (!currentUser().isBorrower()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "INSUFFICIENT_PERMISSIONS", "Solo un prestatario puede realizar esta accion.");
+        }
+    }
+
     public com.tuinventario.api.domain.entity.MembershipEntity currentMembershipEntity() {
         return membershipRepository.findByUserIdAndOrganizationId(currentUser().userId(), currentUser().organizationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "MEMBERSHIP_NOT_FOUND", "No existe una membresia activa para el usuario."));

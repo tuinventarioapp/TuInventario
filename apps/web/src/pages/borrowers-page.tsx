@@ -13,7 +13,7 @@ import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useIsMobile } from '../hooks/use-is-mobile'
 import { useI18n } from '../i18n/use-i18n'
-import { canManageBorrowers } from '../lib/access'
+import { canManageBorrowers, isAdmin } from '../lib/access'
 import { api } from '../lib/api'
 import type { Borrower } from '../types/api'
 import { useAuthStore } from '../store/auth-store'
@@ -25,10 +25,19 @@ type FormValues = {
   notes: string
 }
 
+type BorrowerAccountValues = {
+  fullName: string
+  email: string
+  password: string
+  assignedLocationId: string
+}
+
 export function BorrowersPage() {
   const { t } = useI18n()
   const user = useAuthStore((state) => state.user)
   const isPhone = useIsMobile()
+  const canCreateBorrowerAccounts = isAdmin(user?.role)
+  const [borrowerMode, setBorrowerMode] = useState<'account' | 'manual'>(canCreateBorrowerAccounts ? 'account' : 'manual')
   const [editingBorrower, setEditingBorrower] = useState<Borrower | null>(null)
   const [borrowerSearch, setBorrowerSearch] = useState('')
   const schema = z.object({
@@ -41,6 +50,16 @@ export function BorrowersPage() {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', email: '', phone: '', notes: '' },
+  })
+  const borrowerAccountSchema = z.object({
+    fullName: z.string().min(3, t('validation.name')),
+    email: z.string().email(t('validation.email')),
+    password: z.string().min(8, t('validation.password')),
+    assignedLocationId: z.string().min(1, t('users.locationRequired')),
+  })
+  const borrowerAccountForm = useForm<BorrowerAccountValues>({
+    resolver: zodResolver(borrowerAccountSchema),
+    defaultValues: { fullName: '', email: '', password: '', assignedLocationId: '' },
   })
 
   useEffect(() => {
@@ -55,6 +74,19 @@ export function BorrowersPage() {
       notes: editingBorrower.notes ?? '',
     })
   }, [editingBorrower, form])
+
+  const locationsQuery = useQuery({
+    queryKey: ['locations'],
+    queryFn: api.locations,
+    enabled: canCreateBorrowerAccounts,
+  })
+
+  useEffect(() => {
+    if (!canCreateBorrowerAccounts) return
+    const firstLocation = locationsQuery.data?.[0]?.id
+    if (!firstLocation || borrowerAccountForm.getValues('assignedLocationId')) return
+    borrowerAccountForm.setValue('assignedLocationId', firstLocation)
+  }, [borrowerAccountForm, canCreateBorrowerAccounts, locationsQuery.data])
 
   const borrowersQuery = useQuery({
     queryKey: ['borrowers', borrowerSearch],
@@ -73,6 +105,19 @@ export function BorrowersPage() {
     onSuccess: async () => {
       setEditingBorrower(null)
       await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+    },
+  })
+  const createBorrowerAccountMutation = useMutation({
+    mutationFn: (values: BorrowerAccountValues) => api.createUser({ ...values, role: 'BORROWER' }),
+    onSuccess: async () => {
+      borrowerAccountForm.reset({
+        fullName: '',
+        email: '',
+        password: '',
+        assignedLocationId: locationsQuery.data?.[0]?.id ?? '',
+      })
+      await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+      await queryClient.invalidateQueries({ queryKey: ['users'] })
     },
   })
   const deleteMutation = useMutation({
@@ -96,53 +141,111 @@ export function BorrowersPage() {
     <div className="space-y-6">
       <PageHeader title={t('borrowers.title')} description={t('borrowers.description')} />
 
-      {(createMutation.isError || updateMutation.isError || deleteMutation.isError) && (
-        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message ?? deleteMutation.error?.message}</Notice>
+      {(createMutation.isError || updateMutation.isError || deleteMutation.isError || createBorrowerAccountMutation.isError) && (
+        <Notice variant="error">{createMutation.error?.message ?? updateMutation.error?.message ?? deleteMutation.error?.message ?? createBorrowerAccountMutation.error?.message}</Notice>
       )}
       {createMutation.isSuccess && <Notice variant="success">{t('borrowers.success')}</Notice>}
       {updateMutation.isSuccess && <Notice variant="success">{t('borrowers.updated')}</Notice>}
       {deleteMutation.isSuccess && <Notice variant="success">{t('borrowers.successDelete')}</Notice>}
+      {createBorrowerAccountMutation.isSuccess && <Notice variant="success">{t('borrowers.accountSuccess')}</Notice>}
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-        <Card>
-          <MobileDisclosure
-            defaultOpen
-            isMobile={isPhone}
-            title={editingBorrower ? t('borrowers.editTitle') : t('borrowers.createTitle')}
-          >
-            <form
-              className="space-y-3"
-              onSubmit={form.handleSubmit((values) => {
-                if (editingBorrower) updateMutation.mutate(values)
-                else createMutation.mutate(values)
-              })}
+        <div className="space-y-6">
+          <Card>
+            <MobileDisclosure
+              defaultOpen
+              isMobile={isPhone}
+              title={editingBorrower ? t('borrowers.editTitle') : t('borrowers.title')}
             >
-              <Field label={t('common.name')} error={form.formState.errors.name?.message}>
-                <Input {...form.register('name')} />
-              </Field>
-              <Field label={t('common.email')} error={form.formState.errors.email?.message}>
-                <Input {...form.register('email')} />
-              </Field>
-              <Field label={t('common.phone')}>
-                <Input {...form.register('phone')} />
-              </Field>
-              <Field label={t('common.notes')} hint={t('borrowers.notesHelp')}>
-                <Input {...form.register('notes')} />
-              </Field>
+              <div className="space-y-4">
+                {canCreateBorrowerAccounts && !editingBorrower && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+                      <button
+                        className={borrowerMode === 'account'
+                          ? 'rounded-[18px] bg-white px-3 py-2 text-sm font-semibold text-slate-950 shadow-sm'
+                          : 'rounded-[18px] px-3 py-2 text-sm font-medium text-slate-500'}
+                        type="button"
+                        onClick={() => setBorrowerMode('account')}
+                      >
+                        {t('borrowers.accountMode')}
+                      </button>
+                      <button
+                        className={borrowerMode === 'manual'
+                          ? 'rounded-[18px] bg-white px-3 py-2 text-sm font-semibold text-slate-950 shadow-sm'
+                          : 'rounded-[18px] px-3 py-2 text-sm font-medium text-slate-500'}
+                        type="button"
+                        onClick={() => setBorrowerMode('manual')}
+                      >
+                        {t('borrowers.manualMode')}
+                      </button>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      {borrowerMode === 'account' ? t('borrowers.accountModeHelp') : t('borrowers.manualModeHelp')}
+                    </p>
+                  </div>
+                )}
 
-              <div className={editingBorrower ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
-                <Button className="flex-1" disabled={createMutation.isPending || updateMutation.isPending} type="submit">
-                  {editingBorrower ? t('borrowers.update') : t('borrowers.submit')}
-                </Button>
-                {editingBorrower && (
-                  <Button className="flex-1 bg-secondary text-secondary-foreground" type="button" onClick={() => setEditingBorrower(null)}>
-                    {t('common.cancel')}
-                  </Button>
+                {(canCreateBorrowerAccounts && !editingBorrower ? borrowerMode === 'account' : false) ? (
+                  <form className="space-y-3" onSubmit={borrowerAccountForm.handleSubmit((values) => createBorrowerAccountMutation.mutate(values))}>
+                    <Field label={t('common.name')} error={borrowerAccountForm.formState.errors.fullName?.message}>
+                      <Input {...borrowerAccountForm.register('fullName')} />
+                    </Field>
+                    <Field label={t('common.email')} error={borrowerAccountForm.formState.errors.email?.message}>
+                      <Input {...borrowerAccountForm.register('email')} />
+                    </Field>
+                    <Field label={t('common.password')} error={borrowerAccountForm.formState.errors.password?.message} hint={t('borrowers.accountPasswordHelp')}>
+                      <Input type="password" {...borrowerAccountForm.register('password')} />
+                    </Field>
+                    <Field label={t('items.location')} error={borrowerAccountForm.formState.errors.assignedLocationId?.message} hint={t('borrowers.accountLocationHelp')}>
+                      <select className="h-11 w-full rounded-xl border border-border bg-white px-3" {...borrowerAccountForm.register('assignedLocationId')}>
+                        <option value="">{t('users.selectLocation')}</option>
+                        {locationsQuery.data?.map((location) => (
+                          <option key={location.id} value={location.id}>{location.name}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Button className="w-full" disabled={createBorrowerAccountMutation.isPending} type="submit">
+                      {t('borrowers.accountSubmit')}
+                    </Button>
+                  </form>
+                ) : (
+                  <form
+                    className="space-y-3"
+                    onSubmit={form.handleSubmit((values) => {
+                      if (editingBorrower) updateMutation.mutate(values)
+                      else createMutation.mutate(values)
+                    })}
+                  >
+                    <Field label={t('common.name')} error={form.formState.errors.name?.message}>
+                      <Input {...form.register('name')} />
+                    </Field>
+                    <Field label={t('common.email')} error={form.formState.errors.email?.message}>
+                      <Input {...form.register('email')} />
+                    </Field>
+                    <Field label={t('common.phone')}>
+                      <Input {...form.register('phone')} />
+                    </Field>
+                    <Field label={t('common.notes')} hint={t('borrowers.notesHelp')}>
+                      <Input {...form.register('notes')} />
+                    </Field>
+
+                    <div className={editingBorrower ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
+                      <Button className="flex-1" disabled={createMutation.isPending || updateMutation.isPending} type="submit">
+                        {editingBorrower ? t('borrowers.update') : t('borrowers.submit')}
+                      </Button>
+                      {editingBorrower && (
+                        <Button className="flex-1 bg-secondary text-secondary-foreground" type="button" onClick={() => setEditingBorrower(null)}>
+                          {t('common.cancel')}
+                        </Button>
+                      )}
+                    </div>
+                  </form>
                 )}
               </div>
-            </form>
-          </MobileDisclosure>
-        </Card>
+            </MobileDisclosure>
+          </Card>
+        </div>
         <Card>
           <div className="space-y-3">
             <div className="space-y-2">
@@ -163,7 +266,10 @@ export function BorrowersPage() {
                     {borrower.notes && <p className="mt-2 text-sm text-slate-600">{borrower.notes}</p>}
                   </div>
                   <div className="flex w-full flex-wrap gap-2 md:w-auto">
-                    <Button className="flex-1 bg-secondary text-secondary-foreground md:flex-none" onClick={() => setEditingBorrower(borrower)}>{t('common.edit')}</Button>
+                    <Button className="flex-1 bg-secondary text-secondary-foreground md:flex-none" onClick={() => {
+                      setBorrowerMode('manual')
+                      setEditingBorrower(borrower)
+                    }}>{t('common.edit')}</Button>
                     <Button
                       className="flex-1 md:flex-none"
                       onClick={() => {

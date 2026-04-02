@@ -5,7 +5,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useRealtimeSync } from '../../hooks/use-realtime-sync'
 import { useIsMobile } from '../../hooks/use-is-mobile'
 import { useI18n } from '../../i18n/use-i18n'
-import { canManageBorrowers, canManageCatalogs, canManageUsers, canSeeAudit, canSeeReports } from '../../lib/access'
+import { canManageBorrowers, canManageCatalogs, canManageUsers, canSeeAudit, canSeeReports, isBorrower } from '../../lib/access'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth-store'
 import { BrandLogo } from '../branding/brand-logo'
@@ -24,6 +24,7 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user)
   const location = useLocation()
   const isCompactNavigation = useIsMobile(1024)
+  const borrowerOnly = isBorrower(user?.role)
   const [mobileMenuState, setMobileMenuState] = useState({ path: location.pathname, open: false })
 
   useRealtimeSync()
@@ -31,18 +32,18 @@ export function AppShell() {
   const navigation = useMemo<NavigationItem[]>(
     () =>
       [
-        { to: '/app/dashboard', label: t('nav.dashboard'), icon: Gauge, visible: true },
+        { to: '/app/dashboard', label: t('nav.dashboard'), icon: Gauge, visible: !borrowerOnly },
         { to: '/app/items', label: t('nav.inventory'), icon: Boxes, visible: true },
-        { to: '/app/catalogs', label: t('nav.catalogs'), icon: Layers3, visible: canManageCatalogs(user?.role) },
-        { to: '/app/movements', label: t('nav.movements'), icon: ClipboardList, visible: true },
+        { to: '/app/catalogs', label: t('nav.catalogs'), icon: Layers3, visible: !borrowerOnly && canManageCatalogs(user?.role) },
+        { to: '/app/movements', label: t('nav.movements'), icon: ClipboardList, visible: !borrowerOnly },
         { to: '/app/loans', label: t('nav.loans'), icon: HandCoins, visible: true },
-        { to: '/app/borrowers', label: t('nav.borrowers'), icon: Users, visible: canManageBorrowers(user?.role) },
-        { to: '/app/reports', label: t('nav.reports'), icon: ReceiptText, visible: canSeeReports(user?.role) },
-        { to: '/app/users', label: t('nav.users'), icon: ShieldCheck, visible: canManageUsers(user?.role) },
-        { to: '/app/audit', label: t('nav.audit'), icon: Bell, visible: canSeeAudit(user?.role) },
+        { to: '/app/borrowers', label: t('nav.borrowers'), icon: Users, visible: !borrowerOnly && canManageBorrowers(user?.role) },
+        { to: '/app/reports', label: t('nav.reports'), icon: ReceiptText, visible: !borrowerOnly && canSeeReports(user?.role) },
+        { to: '/app/users', label: t('nav.users'), icon: ShieldCheck, visible: !borrowerOnly && canManageUsers(user?.role) },
+        { to: '/app/audit', label: t('nav.audit'), icon: Bell, visible: !borrowerOnly && canSeeAudit(user?.role) },
         { to: '/app/settings', label: t('nav.settings'), icon: Settings, visible: true },
       ].filter((entry) => entry.visible),
-    [t, user?.role],
+    [borrowerOnly, t, user?.role],
   )
 
   const primaryMobileNavigation = navigation.filter((entry) =>

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { AppShell } from '../components/layout/app-shell'
@@ -22,6 +23,7 @@ import { ReportsPage } from '../pages/reports-page'
 import { UsersPage } from '../pages/users-page'
 import { SettingsPage } from '../pages/settings-page'
 import { AuditPage } from '../pages/audit-page'
+import { isBorrower } from '../lib/access'
 
 function RequireAuth() {
   const user = useAuthStore((state) => state.user)
@@ -53,6 +55,29 @@ function RequireAuditAccess() {
   return <AuditPage />
 }
 
+function AppHome() {
+  const user = useAuthStore((state) => state.user)
+  return <Navigate to={isBorrower(user?.role) ? '/app/items' : '/app/dashboard'} replace />
+}
+
+function DashboardRoute() {
+  const user = useAuthStore((state) => state.user)
+  if (isBorrower(user?.role)) {
+    return <Navigate to="/app/items" replace />
+  }
+  return <DashboardPage />
+}
+
+function RequireNonBorrower({ children }: { children: ReactNode }) {
+  const user = useAuthStore((state) => state.user)
+
+  if (isBorrower(user?.role)) {
+    return <Navigate to="/app/items" replace />
+  }
+
+  return <>{children}</>
+}
+
 const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/login', element: <LoginPage /> },
@@ -67,20 +92,20 @@ const router = createBrowserRouter([
         path: '/app',
         element: <AppShell />,
         children: [
-          { index: true, element: <Navigate to="/app/dashboard" replace /> },
-          { path: 'dashboard', element: <DashboardPage /> },
+          { index: true, element: <AppHome /> },
+          { path: 'dashboard', element: <DashboardRoute /> },
           { path: 'items', element: <ItemsPage /> },
-          { path: 'catalogs', element: <CatalogsPage /> },
-          { path: 'items/new', element: <ItemFormPage mode="create" /> },
+          { path: 'catalogs', element: <RequireNonBorrower><CatalogsPage /></RequireNonBorrower> },
+          { path: 'items/new', element: <RequireNonBorrower><ItemFormPage mode="create" /></RequireNonBorrower> },
           { path: 'items/:itemId', element: <ItemDetailPage /> },
-          { path: 'items/:itemId/edit', element: <ItemFormPage mode="edit" /> },
-          { path: 'movements', element: <MovementsPage /> },
+          { path: 'items/:itemId/edit', element: <RequireNonBorrower><ItemFormPage mode="edit" /></RequireNonBorrower> },
+          { path: 'movements', element: <RequireNonBorrower><MovementsPage /></RequireNonBorrower> },
           { path: 'loans', element: <LoansPage /> },
-          { path: 'borrowers', element: <BorrowersPage /> },
-          { path: 'reports', element: <ReportsPage /> },
-          { path: 'users', element: <UsersPage /> },
+          { path: 'borrowers', element: <RequireNonBorrower><BorrowersPage /></RequireNonBorrower> },
+          { path: 'reports', element: <RequireNonBorrower><ReportsPage /></RequireNonBorrower> },
+          { path: 'users', element: <RequireNonBorrower><UsersPage /></RequireNonBorrower> },
           { path: 'settings', element: <SettingsPage /> },
-          { path: 'audit', element: <RequireAuditAccess /> },
+          { path: 'audit', element: <RequireNonBorrower><RequireAuditAccess /></RequireNonBorrower> },
         ],
       },
     ],
