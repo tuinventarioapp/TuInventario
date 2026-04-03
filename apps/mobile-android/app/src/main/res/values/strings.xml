@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TuInventario</string>
+    <string name="mobile_setup_subtitle">Tu app movil usa la misma experiencia de la web.</string>
+    <string name="mobile_setup_body">Pega la URL publica de TuInventario para que la app cargue exactamente la misma interfaz y los mismos cambios de tu empresa.</string>
+    <string name="mobile_setup_url_hint">URL publica de TuInventario</string>
+    <string name="mobile_setup_save">Guardar y abrir app</string>
+    <string name="invalid_url">Ingresa una URL valida con http o https.</string>
+    <string name="download_started">Descarga iniciada</string>
+    <string name="download_description">Archivo descargado desde TuInventario</string>
+    <string name="file_picker_error">No fue posible abrir el selector de archivos.</string>
+</resources>

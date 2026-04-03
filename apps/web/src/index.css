@@ -37,6 +37,15 @@ body {
   @apply min-h-screen;
 }
 
+html[data-native-shell='android'] .tuinv-mobile-menu-button {
+  top: calc(var(--native-safe-top, 0px) + 0.5rem) !important;
+}
+
+html[data-native-shell='android'] .tuinv-main-shell {
+  padding-top: calc(var(--native-safe-top, 0px) + 0.75rem) !important;
+  padding-bottom: calc(var(--native-safe-bottom, 0px) + 7rem) !important;
+}
+
 input,
 select,
 textarea {
