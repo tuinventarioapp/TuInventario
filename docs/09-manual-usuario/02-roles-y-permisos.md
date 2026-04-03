@@ -1,55 +1,71 @@
 # Roles y permisos
 
-## Administrador
+## ADMIN
 
 Puede:
 
-- ver toda la organizacion
-- crear, editar y bloquear usuarios internos
-- restablecer contrasenas de usuarios internos
+- ver toda la organizacion o filtrar por sede
 - administrar catalogos globales
-- crear y editar articulos
-- registrar movimientos
-- aprobar, rechazar, entregar y cerrar prestamos
-- descargar reportes globales o por sede
-- revisar auditoria
+- crear, editar, bloquear y restablecer contrasenas de usuarios internos
+- crear y editar articulos en cualquier sede
+- hacer carga masiva de articulos
+- registrar movimientos y traslados
+- crear, aprobar, rechazar, entregar y cerrar prestamos
+- crear prestatarios simples y cuentas `BORROWER`
+- descargar reportes operativos y administrativos
+- revisar auditoria global
 
-## Gestor
+## MANAGER
 
 Puede:
 
-- operar en su sede asignada
-- crear y editar articulos de su sede
-- registrar movimientos
-- revisar y atender prestamos de su sede
+- operar solo en su sede asignada
+- crear, editar y eliminar articulos de su sede
+- hacer carga masiva limitada a su sede
+- registrar entradas, salidas y ajustes
+- gestionar prestatarios y cuentas `BORROWER` de su sede
+- aprobar o rechazar solicitudes
+- entregar prestamos y registrar devoluciones parciales
 - descargar reportes de su sede
+- revisar auditoria filtrada por su alcance
 
 No puede:
 
+- administrar catalogos globales
 - administrar usuarios internos
-- ver toda la empresa
+- ver datos globales de toda la empresa
 
-## Colaborador
+## COLLABORATOR
 
 Puede:
 
-- consultar inventario y movimientos de su sede
-- crear solicitudes de prestamo dentro de su alcance
-- revisar informacion operativa permitida
+- consultar panel, inventario y movimientos de su sede
+- crear solicitudes internas de prestamo
+- consultar el estado de sus solicitudes y prestamos
+- descargar reportes operativos de su sede
+- cambiar idioma en configuracion
 
 No puede:
 
 - administrar catalogos
-- aprobar o cerrar prestamos
 - administrar usuarios
+- aprobar o cerrar prestamos
+- ver auditoria
 
-## Prestatario
+## BORROWER
 
-El proyecto soporta dos escenarios:
+Puede:
 
-- persona externa usando el enlace publico de solicitud
-- prestatario con cuenta y rol `BORROWER` soportado por backend
+- iniciar sesion con una cuenta creada desde `Prestatarios`
+- ver solo los articulos disponibles de su sede asignada
+- armar una solicitud agrupada con varios articulos
+- consultar el estado de sus solicitudes
+- ver prestamos activos, historial y alertas de vencimiento
+- cambiar idioma y revisar sus datos basicos desde configuracion
 
-Observacion:
+No puede:
 
-- la experiencia principal visible hoy para prestatarios sigue siendo el flujo publico de solicitud; no existe una interfaz independiente completa documentada para un portal externo dedicado.
+- ver otras sedes
+- registrar movimientos
+- aprobar prestamos
+- acceder a reportes, auditoria, usuarios o catalogos

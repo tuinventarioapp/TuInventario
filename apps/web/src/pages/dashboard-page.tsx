@@ -9,7 +9,9 @@ import { Card } from '../components/ui/card'
 import { useI18n } from '../i18n/use-i18n'
 import { isAdmin } from '../lib/access'
 import { api } from '../lib/api'
+import { downloadBlob } from '../lib/utils'
 import { useAuthStore } from '../store/auth-store'
+import { useUiStore } from '../store/ui-store'
 
 function stockWithUnit(quantity: number, unitSymbol: string) {
   return unitSymbol ? `${quantity} ${unitSymbol}` : String(quantity)
@@ -18,8 +20,10 @@ function stockWithUnit(quantity: number, unitSymbol: string) {
 export function DashboardPage() {
   const { t } = useI18n()
   const user = useAuthStore((state) => state.user)
+  const language = useUiStore((state) => state.language)
   const isGlobalAdmin = isAdmin(user?.role)
   const [locationId, setLocationId] = useState('')
+  const [manualStatus, setManualStatus] = useState<string | null>(null)
   const effectiveLocationId = isGlobalAdmin ? locationId || undefined : user?.assignedLocationId ?? undefined
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard', effectiveLocationId],
@@ -35,11 +39,24 @@ export function DashboardPage() {
     { label: t('dashboard.minimumStockAlerts'), value: data?.lowStockAlerts.length ?? 0 },
   ]
 
+  const downloadManual = async () => {
+    try {
+      setManualStatus(null)
+      const blob = await api.userManualPdf()
+      const roleSlug = (user?.role ?? 'user').toLowerCase()
+      const baseName = language === 'en' ? 'user-manual' : language === 'pt' ? 'manual-usuario' : 'manual-uso'
+      downloadBlob(blob, `${baseName}-${roleSlug}.pdf`)
+    } catch (error) {
+      setManualStatus(error instanceof Error ? error.message : t('common.error'))
+    }
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader title={t('dashboard.title')} description={t('dashboard.description')} />
 
       {isError && <Notice variant="error">{error.message || t('dashboard.error')}</Notice>}
+      {manualStatus && <Notice variant="error">{manualStatus}</Notice>}
       {!isGlobalAdmin && user?.assignedLocationName && <Notice>{t('dashboard.scopeNotice', { location: user.assignedLocationName })}</Notice>}
       <Card className="p-4 sm:p-5">
         <div className="space-y-2">
@@ -140,9 +157,9 @@ export function DashboardPage() {
             <DashboardAction description={t('dashboard.actionMovementsHelp')} title={t('dashboard.actionMovements')} to="/app/movements" />
             <DashboardAction description={t('dashboard.actionLoansHelp')} title={t('dashboard.actionLoans')} to="/app/loans" />
           </div>
-          <Link className="inline-flex text-[13px] font-medium text-sky-700 hover:text-sky-800" to="/manual/manual-de-uso.pdf" target="_blank" rel="noreferrer">
+          <button className="inline-flex text-[13px] font-medium text-sky-700 hover:text-sky-800" onClick={downloadManual} type="button">
             {t('manual.title')}
-          </Link>
+          </button>
         </Card>
       </div>
     </div>

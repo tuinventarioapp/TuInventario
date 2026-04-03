@@ -304,6 +304,7 @@ export const api = {
   resetUserPassword: (id: string, payload: unknown) => request<void>(`/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify(payload) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
   settings: () => request<SettingsPayload>('/settings'),
+  userManualPdf: () => requestBlob('/manual/user.pdf'),
   audit: (filters: AuditFilters = {}) => request<PageResponse<AuditEntry>>(`/audit${buildQuery({
     entityType: filters.entityType,
     action: filters.action,

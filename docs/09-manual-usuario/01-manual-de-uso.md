@@ -1,306 +1,195 @@
 # Manual de uso de TuInventario
 
+## Como se entrega hoy el manual
+
+El manual operativo ya no es un PDF fijo igual para todos.
+
+Desde la aplicacion, cada usuario descarga un `manual PDF generado segun su rol actual`:
+
+- `ADMIN`: ve funciones globales y administrativas.
+- `MANAGER`: ve solo funciones operativas de su sede.
+- `COLLABORATOR`: ve consulta y operacion diaria permitida.
+- `BORROWER`: ve solo solicitud y seguimiento de sus prestamos.
+
+Esto evita que un gestor o prestatario vean funciones que no forman parte de su alcance real.
+
 ## Que hace la aplicacion
 
-TuInventario sirve para controlar articulos, stock, movimientos, prestamos, devoluciones, usuarios y reportes dentro de una empresa que puede tener una o muchas sedes.
+TuInventario controla:
 
-Piensa la app asi:
+- articulos
+- stock
+- movimientos
+- prestamos
+- devoluciones
+- prestatarios
+- reportes
+- auditoria
 
-- `Inventario` te muestra lo que tienes.
-- `Movimientos` te muestra por que subio o bajo el stock.
-- `Prestamos` te muestra a quien se le entrego algo y si ya lo devolvio.
-- `Auditoria` te muestra quien hizo cada cambio importante.
+La aplicacion trabaja por organizacion y por sedes.
 
-La regla mas importante de todo el sistema es esta:
+Regla base:
 
-- el `Administrador` puede ver toda la empresa;
-- el `Gestor` y el `Colaborador` trabajan solo en su sede asignada.
+- `ADMIN` puede operar toda la organizacion.
+- `MANAGER`, `COLLABORATOR` y `BORROWER` trabajan con una sede asignada.
 
-Ejemplo:
-
-- si una persona pertenece a `Exito Laureles`, vera y operara solo lo de `Exito Laureles`;
-- si eres `Administrador`, puedes ver `Exito Laureles`, `Exito Envigado`, `Exito Itagui` o toda la empresa junta.
-
-## Antes de empezar
-
-1. Inicia sesion.
-2. Revisa tu rol.
-3. Revisa tu sede.
-4. Si eres `Administrador`, configura primero catalogos, sedes y usuarios.
-5. Despues crea articulos y empieza la operacion.
-
-## Que significa cada menu
+## Modulos principales
 
 ### Panel
 
-Es el resumen general. Te muestra rapidamente cuantos articulos tienes, como va el inventario y cuantos prestamos siguen activos o vencidos.
+Resume:
 
-Tambien muestra las `alertas de stock minimo`.
+- articulos
+- prestamos activos
+- prestamos vencidos
+- alertas de stock minimo
 
-Eso significa:
-
-- cada articulo puede tener una cantidad minima permitida;
-- cuando el stock disponible llega a esa cantidad o baja de ella, el panel lo avisa;
-- la alerta respeta la unidad del articulo.
-
-Ejemplos:
-
-- `Computadores`: minimo 2 unidades. Si quedan 2, aparece la alerta.
-- `Tomate`: minimo 10 kg. Si quedan 10 kg, aparece la alerta.
-
-Tambien tiene accesos rapidos para:
-
-- abrir inventario ya filtrado por stock minimo;
-- entrar directo a movimientos;
-- entrar directo a prestamos.
-- descargar el manual de uso actualizado.
+Tambien muestra accesos rapidos y permite descargar el manual actualizado segun el rol.
 
 ### Inventario
 
-Es la lista completa de articulos. Aqui ves nombre, SKU, tipo, estado, ubicacion y cantidades.
+Muestra articulos en vista tarjeta o tabla.
 
-Ahora puedes ver inventario en dos formatos:
+Permite trabajar con:
 
-- `Vista tarjetas`, para leer rapido cada articulo;
-- `Vista tabla`, para trabajar mejor cuando la empresa tiene muchos registros.
+- nombre
+- SKU
+- tipo
+- categoria
+- unidad
+- sede principal
+- stock disponible
+- stock reservado
+- stock prestado
+- stock minimo
 
-Tambien puedes ordenar por:
+Tambien soporta:
 
-- nombre;
-- disponible;
-- stock minimo;
-- ultimo movimiento.
-
-En cada tarjeta de articulo, el campo `Disponible` ahora debe leerse asi:
-
-- `150 kg` significa que hay 150 kilogramos disponibles;
-- `5 un` significa que hay 5 unidades disponibles.
-
-La `Cantidad` siempre se interpreta junto con la `Unidad`.
-
-Ejemplos:
-
-- `Cantidad 5` + `Unidad` = 5 pesas.
-- `Cantidad 5` + `Kilogramo` = 5 kg de tomate.
-
-Cada articulo tambien puede tener un campo `Stock minimo`.
-
-Ese valor sirve para que el sistema detecte cuando el articulo ya llego al limite operativo permitido y lo muestre como alerta en el `Panel`.
+- filtros por categoria, estado, tipo y cantidades
+- orden por nombre, disponible, stock minimo y ultimo movimiento
+- carga masiva por Excel usando `SKU` como referencia
 
 ### Catalogos
 
-Sirve para crear y mantener la base del sistema:
+Disponible solo para administradores.
 
-- categorias de articulos;
-- unidades;
-- categorias de ubicacion;
-- ubicaciones o sedes.
+Sirve para administrar:
 
-Las `categorias de ubicacion` son personalizables. Cada empresa decide si usa nombres como `Bodega`, `Tienda`, `Showroom`, `Camion`, `Punto de venta` u otros.
+- categorias
+- unidades
+- categorias de ubicacion
+- ubicaciones
 
 ### Movimientos
 
-Sirve para registrar cambios de stock:
+Registra o consulta:
 
-- `Entrada`: entra mercancia;
-- `Salida`: sale mercancia;
-- `Ajuste`: corriges cantidades;
-- `Traslado`: mueves stock entre sedes.
+- entradas
+- salidas
+- ajustes
+- traslados
 
-Cuando vayas a crear un movimiento, el campo de articulo ya no depende solo de un listado largo. Puedes buscar por:
-
-- nombre;
-- SKU;
-- sede.
-
-Eso ayuda mucho cuando la empresa tiene cientos o miles de articulos.
-
-Tambien puedes filtrar el historial por:
-
-- articulo o SKU;
-- tipo de movimiento;
-- cantidad minima;
-- cantidad maxima;
-- fecha inicial;
-- fecha final.
-
-Asi puedes responder preguntas como:
-
-- que movimientos tuvo el tomate esta semana;
-- que salidas hubo el ultimo mes;
-- que ajustes se hicieron entre dos fechas.
+Los gestores y administradores pueden registrar movimientos.
+Los demas roles solo consultan o no acceden, segun su perfil.
 
 ### Prestamos
 
-Sirve para pedir, aprobar, entregar y recibir de vuelta articulos prestables.
+Flujo interno actual:
 
-El flujo se entiende asi:
+1. se crea una solicitud
+2. se aprueba o rechaza
+3. se entrega
+4. se registra la devolucion
+5. queda cerrada
 
-1. primero se crea la solicitud;
-2. despues se aprueba;
-3. despues se entrega;
-4. al final se registra la devolucion total o parcial.
+La devolucion ya no usa cantidades danadas o perdidas.
+Solo se registra:
 
-Dentro de la pantalla veras tres pestañas operativas:
+- `cantidad devuelta`
+- `nota de devolucion`
 
-- `Solicitudes`: lo que aun no ha sido aprobado;
-- `Prestamos activos`: lo aprobado, entregado o vencido;
-- `Prestamos cerrados`: lo devuelto, cancelado o rechazado.
-
-Cada pestaña tiene sus filtros por:
-
-- categoria;
-- cantidad minima;
-- cantidad maxima;
-- rango de fechas.
-
-En el formulario de solicitud hay un campo de fecha. Esa fecha significa:
-
-- `fecha maxima que tendra el prestatario para devolver el articulo`.
-
-No es la fecha de creacion ni la fecha de entrega. Es la fecha limite de devolucion.
-
-Al momento de elegir el articulo en una nueva solicitud interna, tambien puedes usar un buscador por:
-
-- nombre;
-- SKU.
-
-Eso evita tener que recorrer listas muy largas cuando la empresa maneja cientos o miles de articulos.
-
-Ademas, ahora un prestamo ya creado puede editarse para ajustar datos administrativos como:
-
-- fecha maxima de devolucion;
-- fecha de entrega;
-- fecha de cierre o devolucion;
-- notas del prestamo;
-- notas de devolucion.
-
-Esto sirve, por ejemplo, cuando una operacion real se registro tarde o hubo que corregir una fecha.
-
-Consejo:
-
-- trabaja una pestaña a la vez para no mezclar solicitudes nuevas con prestamos ya cerrados.
+Si falta algo, el motivo queda explicado en la nota.
 
 ### Prestatarios
 
-Aqui registras las personas o clientes que pueden recibir articulos en prestamo.
+Aqui se gestionan:
+
+- fichas simples de prestatario
+- cuentas con rol `BORROWER`
+
+Las cuentas con rol `BORROWER` se crean desde `Prestatarios`, no desde `Usuarios`.
 
 ### Reportes
 
-Aqui descargas archivos CSV o PDF para revisar informacion fuera de la app.
+Permiten descargar:
 
-Ademas de poner fechas manualmente, ahora tienes botones rapidos para:
+- inventario operativo CSV
+- inventario operativo PDF
+- inventario administrativo CSV
+- inventario administrativo PDF
+- prestamos CSV
 
-- hoy;
-- ultimos 7 dias;
-- ultimos 30 dias;
-- este mes.
+El alcance depende del rol:
 
-Los reportes se pueden sacar por rango de fechas. Eso te permite ver, por ejemplo:
-
-- solo el ultimo mes;
-- el ultimo ano;
-- una semana puntual;
-- cualquier rango especifico.
-
-Ademas, el reporte se genera en el mismo idioma que tengas activo en `Configuracion`.
-
-Ejemplo:
-
-- si la app esta en `Espanol`, el CSV o PDF sale en espanol;
-- si la app esta en `English`, el CSV o PDF sale en ingles.
+- `ADMIN`: toda la empresa o una sede
+- `MANAGER` y `COLLABORATOR`: solo su sede
 
 ### Usuarios
 
-Aqui administras las cuentas internas del equipo.
+Disponible solo para administradores.
 
-El `Administrador` puede:
+Administra usuarios internos:
 
-- crear usuarios;
-- editar usuarios;
-- cambiar su sede;
-- bloquearlos;
-- restablecer contrasenas.
+- administradores
+- gestores
+- colaboradores
+
+No se usa para crear prestatarios con acceso.
 
 ### Auditoria
 
-Esta seccion no cambia datos. Solo sirve para revisar el historial de acciones importantes.
+Registra acciones importantes del sistema.
 
-Si alguna vez te preguntas:
+Alcance real:
 
-- quien cambio esto;
-- cuando lo cambio;
-- que accion hizo;
-- sobre cual registro lo hizo;
-
-la respuesta se busca en `Auditoria`.
-
-Cada fila muestra:
-
-- `quien` hizo la accion;
-- `que` accion hizo;
-- `cuando` la hizo;
-- `resumen rapido`, que explica de forma mas humana lo mas importante;
-- `payload`, que es el detalle tecnico de soporte.
-
-Si quieres encontrar algo rapido, usa filtros por:
-
-- tipo de entidad;
-- accion;
-- actor;
-- fechas.
+- `ADMIN`: vista completa
+- `MANAGER`: vista operativa filtrada por su alcance
+- `COLLABORATOR`: sin acceso
 
 ### Configuracion
 
-Aqui ves la informacion general del espacio de trabajo y el idioma de la interfaz.
+Muestra:
 
-## Como funciona la logica por sedes
+- organizacion actual
+- rol actual
+- sede asignada
+- idioma
 
-### Si eres administrador
+Tambien permite descargar el manual PDF ajustado al rol.
 
-Puedes:
+## Flujo de prestatario con cuenta
 
-- ver toda la empresa;
-- filtrar por sede o ver todo junto;
-- crear y mover usuarios entre sedes;
-- ver reportes globales o por sede;
-- ver inventario, movimientos y prestamos de cualquier sede.
+El rol `BORROWER` ya existe y funciona asi:
 
-### Si eres gestor o colaborador
+1. entra con una cuenta creada desde `Prestatarios`
+2. ve solo el inventario disponible de su sede
+3. arma una solicitud agrupada con varios articulos
+4. define una sola fecha maxima de devolucion
+5. envia la solicitud
+6. revisa luego si cada articulo fue aprobado, reducido o rechazado
+7. consulta prestamos activos, historial y alertas de vencimiento
 
-Tu cuenta queda amarrada a una sola sede.
+## Reglas importantes que ya aplican
 
-Eso significa:
+- `tipo_articulo` soporta `CONSUMABLE`, `LENDABLE`, `HYBRID`
+- tambien existe el comportamiento `No prestable` dentro del formulario para articulos que no deben entrar al flujo de prestamo
+- la unidad del articulo se respeta en solicitudes, prestamos y devoluciones
+- la carga masiva no crea catalogos automaticamente
+- si un `SKU` ya existe, primero pasa por revision antes de actualizarse
 
-- los articulos que creas quedan en tu sede;
-- el inventario que ves es el de tu sede;
-- los prestamos que ves son los de tu sede;
-- los movimientos que ves son los de tu sede;
-- los reportes que descargas salen con datos de tu sede.
+## Recordatorios operativos
 
-## Orden facil para empezar a usar la app
-
-1. Entrar a `Configuracion` y revisar rol, empresa y sede.
-2. Si eres `Administrador`, entrar a `Catalogos` y crear categorias, unidades, categorias de ubicacion y ubicaciones.
-3. Si eres `Administrador`, entrar a `Usuarios` y asignar cada usuario a su sede.
-4. Entrar a `Inventario` y crear articulos.
-5. Entrar a `Prestatarios` y crear personas o clientes.
-6. Entrar a `Prestamos` y crear una solicitud.
-7. Aprobar la solicitud.
-8. Entregar el articulo.
-9. Registrar la devolucion total o parcial.
-10. Descargar reportes.
-11. Revisar `Auditoria` cuando necesites entender cambios o detectar errores operativos.
-
-## Consejos simples
-
-- Si algo no se guarda, mira el mensaje rojo que aparece en pantalla.
-- Si no ves registros, revisa filtros o revisa si tu rol esta limitado a una sede.
-- Si un prestamo no se puede crear, revisa que el articulo tenga stock y sea prestable.
-- Si una devolucion es parcial, registra separado lo que volvio bien, lo danado y lo perdido.
-- Cuando crees un articulo, el campo `Cantidad` depende de la `Unidad`.
-- En inventario, mira siempre la cantidad junto al simbolo de la unidad para no confundirte.
-- En movimientos, usa buscador por nombre o SKU antes de abrir listas muy largas.
-- Si una empresa tiene muchos articulos, usa filtros por categoria, estado, tipo, sede y cantidades.
-- Si quieres reportes de toda la empresa, entra como administrador, deja la sede en `Todos` y usa rango de fechas si solo quieres un periodo.
-- Si un usuario olvida su clave, el administrador puede entrar a `Usuarios` y restablecer una nueva contrasena temporal.
+- revisa siempre la sede activa antes de operar
+- si no ves datos, revisa filtros y alcance
+- si un prestatario devuelve menos, registra solo lo que regreso y explica el faltante en la nota
+- si trabajas desde movil, la navegacion visible depende del rol y no muestra modulos fuera de tu alcance

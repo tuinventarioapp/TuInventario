@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -127,6 +128,53 @@ class OperationalFlowTest {
                 .andExpect(content().string(containsString("Report")))
                 .andExpect(content().string(containsString("Operational inventory")))
                 .andExpect(content().string(containsString("Available")));
+    }
+
+    @Test
+    void shouldGenerateRoleScopedUserManuals() throws Exception {
+        String adminManual = new String(
+                mockMvc.perform(get("/api/v1/manual/user.pdf")
+                                .header("Authorization", "Bearer " + adminToken)
+                                .header("Accept-Language", "es"))
+                        .andExpect(status().isOk())
+                        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PDF))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsByteArray(),
+                StandardCharsets.ISO_8859_1
+        );
+
+        String managerManual = new String(
+                mockMvc.perform(get("/api/v1/manual/user.pdf")
+                                .header("Authorization", "Bearer " + managerToken)
+                                .header("Accept-Language", "es"))
+                        .andExpect(status().isOk())
+                        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PDF))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsByteArray(),
+                StandardCharsets.ISO_8859_1
+        );
+
+        String borrowerEmail = "manual.borrower." + System.nanoTime() + "@tuinventario.local";
+        createUser(borrowerEmail, "BORROWER");
+        String borrowerToken = login(borrowerEmail, "Prueba123!");
+        String borrowerManual = new String(
+                mockMvc.perform(get("/api/v1/manual/user.pdf")
+                                .header("Authorization", "Bearer " + borrowerToken)
+                                .header("Accept-Language", "es"))
+                        .andExpect(status().isOk())
+                        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PDF))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsByteArray(),
+                StandardCharsets.ISO_8859_1
+        );
+
+        org.junit.jupiter.api.Assertions.assertTrue(adminManual.contains("cuentas de prestatario"));
+        org.junit.jupiter.api.Assertions.assertTrue(managerManual.contains("solo para tu sede"));
+        org.junit.jupiter.api.Assertions.assertTrue(borrowerManual.contains("solicitud agrupada"));
+        org.junit.jupiter.api.Assertions.assertFalse(borrowerManual.contains("usuarios internos"));
     }
 
     @Test

@@ -47,8 +47,12 @@ export function AppShell() {
   )
 
   const primaryMobileNavigation = navigation.filter((entry) =>
-    ['/app/dashboard', '/app/items', '/app/movements', '/app/loans'].includes(entry.to),
+    borrowerOnly
+      ? ['/app/items', '/app/loans', '/app/settings'].includes(entry.to)
+      : ['/app/dashboard', '/app/items', '/app/movements', '/app/loans'].includes(entry.to),
   )
+  const mobileNavigationColumns =
+    primaryMobileNavigation.length >= 4 ? 'grid-cols-4' : primaryMobileNavigation.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
 
   const mobileMenuOpen = mobileMenuState.path === location.pathname && mobileMenuState.open
 
@@ -184,7 +188,13 @@ export function AppShell() {
 
       {isCompactNavigation && (
         <nav className="fixed inset-x-0 bottom-0 z-30 px-4 pb-4 pt-2 lg:hidden">
-          <div className="grid grid-cols-4 gap-2 rounded-[26px] border border-slate-900/80 bg-slate-950 px-3 py-2.5 shadow-[0_-10px_26px_rgba(2,6,23,0.22)]">
+          <div
+            className={cn(
+              'grid gap-2 rounded-[26px] border border-slate-900/80 bg-slate-950 px-3 py-2.5 shadow-[0_-10px_26px_rgba(2,6,23,0.22)]',
+              mobileNavigationColumns,
+              borrowerOnly && 'mx-auto max-w-[420px]',
+            )}
+          >
             {primaryMobileNavigation.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
